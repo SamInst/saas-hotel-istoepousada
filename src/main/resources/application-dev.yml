@@ -1,0 +1,10 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: ${DATABASE}?ApplicationName=ms-evento
+    username: ${USERNAME}
+    password: ${PASSWORD}
+    driver-class-name: org.postgresql.Driver

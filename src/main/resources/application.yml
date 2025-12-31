@@ -1,0 +1,24 @@
+spring:
+  threads:
+    virtual:
+      enabled: true
+  jpa:
+    show-sql: false
+    open-in-view: false
+
+    hibernate:
+      ddl-auto: none
+  application:
+    name: ms-evento
+  jackson:
+    time-zone: GMT+3
+
+  profiles:
+    active: ${PROFILE}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+server:
+  port: 8080
+
