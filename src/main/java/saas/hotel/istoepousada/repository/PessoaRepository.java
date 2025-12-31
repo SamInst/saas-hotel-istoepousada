@@ -6,7 +6,6 @@ import static saas.hotel.istoepousada.dto.Pessoa.mapPessoa;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -204,17 +203,17 @@ public class PessoaRepository {
             rg,
             email,
             telefone,
-            fk_pais, 
+            fk_pais,
             fk_estado,
             fk_municipio,
             endereco,
             complemento,
-            hospedado, 
-            vezes_hospedado, 
+            hospedado,
+            vezes_hospedado,
             cliente_novo,
-            cep, 
-            idade, 
-            bairro, 
+            cep,
+            idade,
+            bairro,
             sexo,
             numero
         ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, true, ?, ?, ?, ?, ?)

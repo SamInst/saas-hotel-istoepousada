@@ -1,5 +1,8 @@
 package saas.hotel.istoepousada.service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -11,9 +14,6 @@ import saas.hotel.istoepousada.dto.Veiculo;
 import saas.hotel.istoepousada.repository.EmpresaRepository;
 import saas.hotel.istoepousada.repository.PessoaRepository;
 import saas.hotel.istoepousada.repository.VeiculoRepository;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 
 @Service
 public class PessoaService {
@@ -21,10 +21,13 @@ public class PessoaService {
   private final VeiculoRepository veiculoRepository;
   private final EmpresaRepository empresaRepository;
 
-  public PessoaService(PessoaRepository pessoaRepository, VeiculoRepository veiculoRepository, EmpresaRepository empresaRepository) {
+  public PessoaService(
+      PessoaRepository pessoaRepository,
+      VeiculoRepository veiculoRepository,
+      EmpresaRepository empresaRepository) {
     this.pessoaRepository = pessoaRepository;
-      this.veiculoRepository = veiculoRepository;
-      this.empresaRepository = empresaRepository;
+    this.veiculoRepository = veiculoRepository;
+    this.empresaRepository = empresaRepository;
   }
 
   /**
@@ -45,10 +48,12 @@ public class PessoaService {
     if (pessoa.empresasVinculadas() != null && !pessoa.empresasVinculadas().isEmpty()) {
       Pessoa finalSalva = salva;
       pessoa.empresasVinculadas().stream()
-              .map(Empresa::id)
-              .filter(Objects::nonNull)
-              .distinct()
-              .forEach(empresaId -> empresaRepository.vincularPessoas(empresaId, List.of(finalSalva.id()), true));
+          .map(Empresa::id)
+          .filter(Objects::nonNull)
+          .distinct()
+          .forEach(
+              empresaId ->
+                  empresaRepository.vincularPessoas(empresaId, List.of(finalSalva.id()), true));
     }
 
     List<Veiculo> veiculos = pessoa.veiculos() == null ? List.of() : pessoa.veiculos();
@@ -71,7 +76,6 @@ public class PessoaService {
 
     return salva;
   }
-
 
   public void setHospedado(Long id, Boolean hospedado) {
     if (id == null) {

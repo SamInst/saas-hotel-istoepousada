@@ -138,32 +138,31 @@ public record Pessoa(
 
   public Pessoa withVeiculos(List<Veiculo> veiculos) {
     return new Pessoa(
-            this.id,
-            this.dataHoraCadastro,
-            this.nome,
-            this.dataNascimento,
-            this.cpf,
-            this.rg,
-            this.email,
-            this.telefone,
-            this.fkPais,
-            this.fkEstado,
-            this.fkMunicipio,
-            this.endereco,
-            this.complemento,
-            this.hospedado,
-            this.vezesHospedado,
-            this.clienteNovo,
-            this.cep,
-            this.idade,
-            this.bairro,
-            this.sexo,
-            this.numero,
-            this.bloqueado,
-            this.empresasVinculadas,
-            veiculos);
+        this.id,
+        this.dataHoraCadastro,
+        this.nome,
+        this.dataNascimento,
+        this.cpf,
+        this.rg,
+        this.email,
+        this.telefone,
+        this.fkPais,
+        this.fkEstado,
+        this.fkMunicipio,
+        this.endereco,
+        this.complemento,
+        this.hospedado,
+        this.vezesHospedado,
+        this.clienteNovo,
+        this.cep,
+        this.idade,
+        this.bairro,
+        this.sexo,
+        this.numero,
+        this.bloqueado,
+        this.empresasVinculadas,
+        veiculos);
   }
-
 
   public Pessoa comHospedado(Boolean hospedado) {
     return new Pessoa(

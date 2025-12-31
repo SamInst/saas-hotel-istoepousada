@@ -86,18 +86,18 @@ public class PessoaController {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public Pessoa criar(
-          @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                  description = "Dados da pessoa",
-                  required = true,
-                  content =
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+              description = "Dados da pessoa",
+              required = true,
+              content =
                   @Content(
-                          mediaType = org.springframework.http.MediaType.APPLICATION_JSON_VALUE,
-                          schema = @Schema(implementation = Pessoa.class),
-                          examples =
+                      mediaType = org.springframework.http.MediaType.APPLICATION_JSON_VALUE,
+                      schema = @Schema(implementation = Pessoa.class),
+                      examples =
                           @ExampleObject(
-                                  name = "Exemplo de requisição",
-                                  value =
-                                          """
+                              name = "Exemplo de requisição",
+                              value =
+                                  """
                                           {
                                             "nome": "string",
                                             "dataNascimento": "2025-12-31",
@@ -130,38 +130,39 @@ public class PessoaController {
                                             ]
                                           }
                                           """)))
-    @RequestBody Pessoa pessoa) {
-        return pessoaService.salvar(pessoa);
-    }
+          @RequestBody
+          Pessoa pessoa) {
+    return pessoaService.salvar(pessoa);
+  }
 
-
-    @Operation(summary = "Atualizar pessoa", description = "Atualiza os dados de uma pessoa pelo ID.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Pessoa atualizada",
-                    content =
-                    @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = Pessoa.class))),
-            @ApiResponse(responseCode = "400", description = "Requisição inválida"),
-            @ApiResponse(responseCode = "404", description = "Pessoa não encontrada")
-    })
-    @PutMapping("/{id}")
-    public Pessoa atualizar(
-            @Parameter(description = "ID da pessoa", example = "10", required = true) @PathVariable Long id,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Dados para atualização",
-                    required = true,
-                    content =
-                    @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = Pessoa.class),
-                            examples =
-                            @ExampleObject(
-                                    name = "Exemplo de requisição",
-                                    value =
-                                            """
+  @Operation(summary = "Atualizar pessoa", description = "Atualiza os dados de uma pessoa pelo ID.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Pessoa atualizada",
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = Pessoa.class))),
+    @ApiResponse(responseCode = "400", description = "Requisição inválida"),
+    @ApiResponse(responseCode = "404", description = "Pessoa não encontrada")
+  })
+  @PutMapping("/{id}")
+  public Pessoa atualizar(
+      @Parameter(description = "ID da pessoa", example = "10", required = true) @PathVariable
+          Long id,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+              description = "Dados para atualização",
+              required = true,
+              content =
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE,
+                      schema = @Schema(implementation = Pessoa.class),
+                      examples =
+                          @ExampleObject(
+                              name = "Exemplo de requisição",
+                              value =
+                                  """
                                             {
                                               "nome": "string",
                                               "dataNascimento": "2025-12-31",
@@ -181,8 +182,8 @@ public class PessoaController {
                                               "bloqueado": true
                                             }
                                             """)))
-    @RequestBody Pessoa pessoa) {
-        return pessoaService.salvar(pessoa.withId(id));
-    }
-
+          @RequestBody
+          Pessoa pessoa) {
+    return pessoaService.salvar(pessoa.withId(id));
+  }
 }
