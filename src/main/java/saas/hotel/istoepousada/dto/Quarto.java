@@ -2,7 +2,7 @@ package saas.hotel.istoepousada.dto;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import saas.hotel.istoepousada.enums.StatusQuarto;
+import lombok.Getter;
 
 public record Quarto(
     Long id,
@@ -31,5 +31,15 @@ public record Quarto(
     Integer beliche = rs.getObject(prefix + "qtd_beliche", Integer.class);
 
     return new Quarto(id, descricao, qtdPessoas, status, camaCasal, camaSolteiro, rede, beliche);
+  }
+
+  @Getter
+  public enum StatusQuarto {
+    OCUPADO,
+    DISPONIVEL,
+    RESERVADO,
+    LIMPEZA,
+    DIARIA_ENCERRADA,
+    MANUTENCAO
   }
 }

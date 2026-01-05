@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -20,15 +21,13 @@ public record Pessoa(
     Long fkMunicipio,
     String endereco,
     String complemento,
-    Boolean hospedado,
     Integer vezesHospedado,
-    Boolean clienteNovo,
     String cep,
     Integer idade,
     String bairro,
     Short sexo,
     String numero,
-    Boolean bloqueado,
+    Status status,
     List<Empresa> empresasVinculadas,
     List<Veiculo> veiculos) {
   public Pessoa {
@@ -52,7 +51,7 @@ public record Pessoa(
       String bairro,
       Short sexo,
       String numero,
-      Boolean bloqueado) {
+      Status status) {
     this(
         null,
         LocalDateTime.now(),
@@ -67,15 +66,13 @@ public record Pessoa(
         fkMunicipio,
         endereco,
         complemento,
-        false,
         0,
-        true,
         cep,
         idade,
         bairro,
         sexo,
         numero,
-        bloqueado,
+        status,
         List.of(),
         List.of());
   }
@@ -95,15 +92,13 @@ public record Pessoa(
         this.fkMunicipio,
         this.endereco,
         this.complemento,
-        this.hospedado,
         this.vezesHospedado,
-        this.clienteNovo,
         this.cep,
         this.idade,
         this.bairro,
         this.sexo,
         this.numero,
-        this.bloqueado,
+        this.status,
         this.empresasVinculadas,
         this.veiculos);
   }
@@ -123,15 +118,13 @@ public record Pessoa(
         this.fkMunicipio,
         this.endereco,
         this.complemento,
-        this.hospedado,
         this.vezesHospedado,
-        this.clienteNovo,
         this.cep,
         this.idade,
         this.bairro,
         this.sexo,
         this.numero,
-        this.bloqueado,
+        this.status,
         empresas,
         this.veiculos);
   }
@@ -151,80 +144,24 @@ public record Pessoa(
         this.fkMunicipio,
         this.endereco,
         this.complemento,
-        this.hospedado,
         this.vezesHospedado,
-        this.clienteNovo,
         this.cep,
         this.idade,
         this.bairro,
         this.sexo,
         this.numero,
-        this.bloqueado,
+        this.status,
         this.empresasVinculadas,
         veiculos);
   }
 
-  public Pessoa comHospedado(Boolean hospedado) {
-    return new Pessoa(
-        this.id,
-        this.dataHoraCadastro,
-        this.nome,
-        this.dataNascimento,
-        this.cpf,
-        this.rg,
-        this.email,
-        this.telefone,
-        this.fkPais,
-        this.fkEstado,
-        this.fkMunicipio,
-        this.endereco,
-        this.complemento,
-        hospedado,
-        this.vezesHospedado,
-        this.clienteNovo,
-        this.cep,
-        this.idade,
-        this.bairro,
-        this.sexo,
-        this.numero,
-        this.bloqueado,
-        this.empresasVinculadas,
-        this.veiculos);
-  }
-
-  public Pessoa incrementarHospedagem() {
-    return new Pessoa(
-        this.id,
-        this.dataHoraCadastro,
-        this.nome,
-        this.dataNascimento,
-        this.cpf,
-        this.rg,
-        this.email,
-        this.telefone,
-        this.fkPais,
-        this.fkEstado,
-        this.fkMunicipio,
-        this.endereco,
-        this.complemento,
-        this.hospedado,
-        this.vezesHospedado + 1,
-        false,
-        this.cep,
-        this.idade,
-        this.bairro,
-        this.sexo,
-        this.numero,
-        this.bloqueado,
-        this.empresasVinculadas,
-        this.veiculos);
-  }
-
   public static Pessoa mapPessoa(ResultSet rs) throws SQLException {
-    return mapPessoa(rs, "");
+    return mapPessoa(rs, "pessoa_");
   }
 
   public static Pessoa mapPessoa(ResultSet rs, String prefix) throws SQLException {
+    String statusDb = rs.getString(prefix + "status");
+    Status status = statusDb != null ? Status.valueOf(statusDb) : null;
     return new Pessoa(
         rs.getLong(prefix + "id"),
         rs.getTimestamp(prefix + "data_hora_cadastro") != null
@@ -243,15 +180,13 @@ public record Pessoa(
         rs.getObject(prefix + "fk_municipio", Long.class),
         rs.getString(prefix + "endereco"),
         rs.getString(prefix + "complemento"),
-        rs.getObject(prefix + "hospedado", Boolean.class),
         rs.getObject(prefix + "vezes_hospedado", Integer.class),
-        rs.getObject(prefix + "cliente_novo", Boolean.class),
         rs.getString(prefix + "cep"),
         rs.getObject(prefix + "idade", Integer.class),
         rs.getString(prefix + "bairro"),
         rs.getObject(prefix + "sexo", Short.class),
         rs.getString(prefix + "numero"),
-        rs.getObject(prefix + "bloqueado", Boolean.class),
+        status,
         List.of(),
         List.of());
   }
@@ -262,5 +197,26 @@ public record Pessoa(
 
   public int totalEmpresas() {
     return empresasVinculadas.size();
+  }
+
+  @Schema(description = "Status da pessoa no sistema")
+  public enum Status {
+    @Schema(description = "Pessoa ativa (padrão)")
+    ATIVO,
+
+    @Schema(description = "Pessoa atualmente hospedada")
+    HOSPEDADO,
+
+    @Schema(description = "Pessoa bloqueada para novas hospedagens")
+    BLOQUEADO;
+
+    public static Status fromDb(String value) {
+      if (value == null || value.isBlank()) return null;
+      return Status.valueOf(value.trim().toUpperCase());
+    }
+
+    public String toDb() {
+      return name();
+    }
   }
 }

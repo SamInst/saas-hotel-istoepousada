@@ -1,20 +1,28 @@
 package saas.hotel.istoepousada.service;
 
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Empresa;
+import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.repository.EmpresaRepository;
+import saas.hotel.istoepousada.repository.PessoaRepository;
 
 @Service
 public class EmpresaService {
 
   private final EmpresaRepository empresaRepository;
+  private final NotificacaoService notificacaoService;
+  private final PessoaRepository pessoaRepository;
 
-  public EmpresaService(EmpresaRepository empresaRepository) {
+  public EmpresaService(
+      EmpresaRepository empresaRepository,
+      NotificacaoService notificacaoService,
+      PessoaRepository pessoaRepository) {
     this.empresaRepository = empresaRepository;
+    this.notificacaoService = notificacaoService;
+    this.pessoaRepository = pessoaRepository;
   }
 
   public Page<Empresa> buscarPorIdNomeOuCnpj(Long id, String termo, Pageable pageable) {
@@ -24,17 +32,37 @@ public class EmpresaService {
 
   public Empresa salvar(Empresa empresa) {
     validarEmpresa(empresa);
-    return empresaRepository.save(empresa);
+    var novaEmpresa = empresaRepository.save(empresa);
+    notificacaoService.criar(
+        9L, "SAM HELSON", "ATUALIZOU OS DADOS DA EMPRESA: " + empresa.razaoSocial());
+    return novaEmpresa;
   }
 
-  public void vincularPessoas(Long empresaId, List<Long> pessoaIds, Boolean vinculo) {
+  public void vincularPessoas(Long empresaId, Long pessoaId, Boolean vinculo) {
     if (empresaId == null) {
       throw new IllegalArgumentException("empresaId é obrigatório.");
     }
-    if (pessoaIds == null || pessoaIds.isEmpty()) {
+    if (pessoaId == null) {
       throw new IllegalArgumentException("pessoaIds é obrigatório.");
     }
-    empresaRepository.vincularPessoas(empresaId, pessoaIds, vinculo);
+
+    var pessoa =
+        pessoaRepository
+            .findById(pessoaId)
+            .orElseThrow(
+                () -> new NotFoundException("Pessoa não encontrada para o id: " + pessoaId));
+    var empresa =
+        empresaRepository
+            .findById(empresaId)
+            .orElseThrow(
+                () -> new NotFoundException("Empresa não encontrada para o id: " + empresaId));
+
+    empresaRepository.vincularPessoa(empresaId, pessoaId, vinculo);
+
+    notificacaoService.criar(
+        9L,
+        "SAM HELSON",
+        "VINCULOU O HOSPEDE [" + pessoa.nome() + "] À EMPRESA [" + empresa.razaoSocial() + "]");
   }
 
   private void validarEmpresa(Empresa empresa) {

@@ -33,7 +33,7 @@ public class EmpresaRepository {
         Map<Long, List<Pessoa>> pessoasPorEmpresa = new HashMap<>();
 
         while (rs.next()) {
-          Long empresaId = rs.getLong("id");
+          Long empresaId = rs.getLong("empresa_id");
 
           if (!empresaMap.containsKey(empresaId)) {
             Empresa empresa = mapEmpresa(rs);
@@ -43,7 +43,7 @@ public class EmpresaRepository {
 
           Long pessoaId = rs.getObject("pessoa_id", Long.class);
           if (pessoaId != null) {
-            Pessoa pessoa = mapPessoa(rs, "pessoa_");
+            Pessoa pessoa = mapPessoa(rs);
             pessoasPorEmpresa.get(empresaId).add(pessoa);
           }
         }
@@ -71,28 +71,48 @@ public class EmpresaRepository {
     String baseSelect =
         """
                 SELECT
-                    e.*,
-                    p.id                 as pessoa_id,
-                    p.data_hora_cadastro as pessoa_data_hora_cadastro,
-                    p.nome               as pessoa_nome,
-                    p.data_nascimento    as pessoa_data_nascimento,
-                    p.cpf                as pessoa_cpf,
-                    p.rg                 as pessoa_rg,
-                    p.email              as pessoa_email,
-                    p.telefone           as pessoa_telefone,
-                    p.fk_pais            as pessoa_fk_pais,
-                    p.fk_estado          as pessoa_fk_estado,
-                    p.fk_municipio       as pessoa_fk_municipio,
-                    p.endereco           as pessoa_endereco,
-                    p.complemento        as pessoa_complemento,
-                    p.hospedado          as pessoa_hospedado,
-                    p.vezes_hospedado    as pessoa_vezes_hospedado,
-                    p.cliente_novo       as pessoa_cliente_novo,
-                    p.cep                as pessoa_cep,
-                    p.idade              as pessoa_idade,
-                    p.bairro             as pessoa_bairro,
-                    p.sexo               as pessoa_sexo,
-                    p.numero             as pessoa_numero
+                     -- empresa_*
+                         e.id                   AS empresa_id,
+                         e.nome_empresa         AS empresa_nome_empresa,
+                         e.cnpj                 AS empresa_cnpj,
+                         e.telefone             AS empresa_telefone,
+                         e.email                AS empresa_email,
+                         e.endereco             AS empresa_endereco,
+                         e.cep                  AS empresa_cep,
+                         e.numero               AS empresa_numero,
+                         e.complemento          AS empresa_complemento,
+                         e.fk_pais              AS empresa_fk_pais,
+                         e.fk_estado            AS empresa_fk_estado,
+                         e.fk_municipio         AS empresa_fk_municipio,
+                         e.bairro               AS empresa_bairro,
+                         e.razao_social         AS empresa_razao_social,
+                         e.nome_fantasia        AS empresa_nome_fantasia,
+                         e.inscricao_estadual   AS empresa_inscricao_estadual,
+                         e.inscricao_municipal  AS empresa_inscricao_municipal,
+                         e.tipo_empresa         AS empresa_tipo_empresa,
+                         e.bloqueado            AS empresa_bloqueado,
+
+                         -- pessoa_*
+                         p.id                   AS pessoa_id,
+                         p.data_hora_cadastro   AS pessoa_data_hora_cadastro,
+                         p.nome                 AS pessoa_nome,
+                         p.data_nascimento      AS pessoa_data_nascimento,
+                         p.cpf                  AS pessoa_cpf,
+                         p.rg                   AS pessoa_rg,
+                         p.email                AS pessoa_email,
+                         p.telefone             AS pessoa_telefone,
+                         p.fk_pais              AS pessoa_fk_pais,
+                         p.fk_estado            AS pessoa_fk_estado,
+                         p.fk_municipio         AS pessoa_fk_municipio,
+                         p.endereco             AS pessoa_endereco,
+                         p.complemento          AS pessoa_complemento,
+                         p.vezes_hospedado      AS pessoa_vezes_hospedado,
+                         p.cep                  AS pessoa_cep,
+                         p.idade                AS pessoa_idade,
+                         p.bairro               AS pessoa_bairro,
+                         p.sexo                 AS pessoa_sexo,
+                         p.numero               AS pessoa_numero,
+                         p.status               AS pessoa_status
                 FROM empresa e
                 LEFT JOIN empresa_pessoa ep ON e.id = ep.fk_empresa
                 LEFT JOIN pessoa p ON ep.fk_pessoa = p.id
@@ -281,15 +301,12 @@ public class EmpresaRepository {
   }
 
   @Transactional
-  public void vincularPessoas(Long empresaId, List<Long> pessoaIds, Boolean vinculo) {
+  public void vincularPessoa(Long empresaId, Long pessoaId, Boolean vinculo) {
     String sql =
         Boolean.TRUE.equals(vinculo)
             ? "INSERT INTO empresa_pessoa (fk_empresa, fk_pessoa) VALUES (?, ?) ON CONFLICT DO NOTHING"
             : "DELETE FROM empresa_pessoa WHERE fk_empresa = ? AND fk_pessoa = ?";
 
-    List<Object[]> batchArgs =
-        pessoaIds.stream().map(pessoaId -> new Object[] {empresaId, pessoaId}).toList();
-
-    jdbcTemplate.batchUpdate(sql, batchArgs);
+    jdbcTemplate.update(sql, empresaId, pessoaId);
   }
 }

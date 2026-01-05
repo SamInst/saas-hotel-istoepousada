@@ -20,14 +20,17 @@ public class PessoaService {
   private final PessoaRepository pessoaRepository;
   private final VeiculoRepository veiculoRepository;
   private final EmpresaRepository empresaRepository;
+  private final NotificacaoService notificacaoService;
 
   public PessoaService(
       PessoaRepository pessoaRepository,
       VeiculoRepository veiculoRepository,
-      EmpresaRepository empresaRepository) {
+      EmpresaRepository empresaRepository,
+      NotificacaoService notificacaoService) {
     this.pessoaRepository = pessoaRepository;
     this.veiculoRepository = veiculoRepository;
     this.empresaRepository = empresaRepository;
+    this.notificacaoService = notificacaoService;
   }
 
   /**
@@ -43,6 +46,7 @@ public class PessoaService {
 
   @Transactional
   public Pessoa salvar(Pessoa pessoa) {
+    validarPessoa(pessoa);
     Pessoa salva = pessoaRepository.save(pessoa);
 
     if (pessoa.empresasVinculadas() != null && !pessoa.empresasVinculadas().isEmpty()) {
@@ -51,9 +55,7 @@ public class PessoaService {
           .map(Empresa::id)
           .filter(Objects::nonNull)
           .distinct()
-          .forEach(
-              empresaId ->
-                  empresaRepository.vincularPessoas(empresaId, List.of(finalSalva.id()), true));
+          .forEach(empresaId -> empresaRepository.vincularPessoa(empresaId, finalSalva.id(), true));
     }
 
     List<Veiculo> veiculos = pessoa.veiculos() == null ? List.of() : pessoa.veiculos();
@@ -74,17 +76,19 @@ public class PessoaService {
       salva = salva.withVeiculos(veiculosSalvos);
     }
 
+    notificacaoService.criar(9L, "SAM HELSON", "ATUALIZOU OS DADOS DO CLIENTE: " + pessoa.nome());
+
     return salva;
   }
 
-  public void setHospedado(Long id, Boolean hospedado) {
+  public void alterarStatus(Long id, Pessoa.Status status) {
     if (id == null) {
       throw new IllegalArgumentException("id é obrigatório.");
     }
-    if (hospedado == null) {
-      throw new IllegalArgumentException("hospedado é obrigatório.");
+    if (status == null) {
+      throw new IllegalArgumentException("status é obrigatório.");
     }
-    pessoaRepository.setHospedado(id, hospedado);
+    pessoaRepository.alterarStatus(id, status);
   }
 
   public void incrementarHospedagem(Long id) {

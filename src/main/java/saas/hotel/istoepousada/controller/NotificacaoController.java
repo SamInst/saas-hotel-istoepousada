@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -63,50 +62,5 @@ public class NotificacaoController {
           Long pessoaId,
       @RequestParam Integer quantidade) {
     return ResponseEntity.ok(notificacaoService.listarUltimas20PorPessoa(pessoaId, quantidade));
-  }
-
-  public record CriarNotificacaoRequest(Long fkPessoa, String nome, String descricao) {}
-
-  @Operation(
-      summary = "Criar notificação",
-      description =
-          "Cria uma notificação para uma pessoa. A data/hora é definida automaticamente (NOW()).")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "Notificação criada",
-        content =
-            @Content(
-                mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = Notificacao.class))),
-    @ApiResponse(responseCode = "400", description = "Requisição inválida")
-  })
-  @PostMapping
-  public ResponseEntity<Notificacao> criar(
-      @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description =
-                  "Dados para criação da notificação. Informe o id, nome e a mensagem a ser salva.",
-              required = true,
-              content =
-                  @Content(
-                      mediaType = MediaType.APPLICATION_JSON_VALUE,
-                      schema = @Schema(implementation = CriarNotificacaoRequest.class),
-                      examples =
-                          @ExampleObject(
-                              name = "Exemplo",
-                              value =
-                                  """
-                                  {
-                                    "fkPessoa": 57,
-                                    "nome": "Emerson Moraes",
-                                    "descricao": "Cadastrou um novo usuário"
-                                  }
-                                  """)))
-          @RequestBody
-          CriarNotificacaoRequest request) {
-
-    Notificacao criada =
-        notificacaoService.criar(request.fkPessoa(), request.nome(), request.descricao());
-    return ResponseEntity.ok(criada);
   }
 }

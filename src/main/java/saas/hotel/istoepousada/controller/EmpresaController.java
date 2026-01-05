@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -153,9 +152,9 @@ public class EmpresaController {
                   @Content(
                       mediaType = MediaType.APPLICATION_JSON_VALUE,
                       array = @ArraySchema(schema = @Schema(implementation = Long.class)),
-                      examples = @ExampleObject(name = "Exemplo", value = "[1, 2, 3]")))
+                      examples = @ExampleObject(name = "Exemplo", value = "{1}")))
           @RequestBody
-          List<Long> pessoaIds) {
-    empresaService.vincularPessoas(empresaId, pessoaIds, vinculo);
+          Long pessoaId) {
+    empresaService.vincularPessoas(empresaId, pessoaId, vinculo);
   }
 }

@@ -72,7 +72,7 @@ public record Empresa(
   }
 
   public static Empresa mapEmpresa(ResultSet rs) throws SQLException {
-    return mapEmpresa(rs, "");
+    return mapEmpresa(rs, "empresa_");
   }
 
   public static Empresa mapEmpresa(ResultSet rs, String prefix) throws SQLException {

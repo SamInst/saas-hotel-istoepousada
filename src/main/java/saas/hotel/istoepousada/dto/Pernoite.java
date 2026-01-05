@@ -4,12 +4,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import lombok.Getter;
 
 public record Pernoite(
     Long id,
     LocalDate data_entrada,
     LocalDate data_saida,
-    String status,
+    Status status,
     LocalTime hora_chegada,
     LocalTime hora_saida,
     Float valot_total,
@@ -32,7 +33,7 @@ public record Pernoite(
             ? rs.getDate(prefix + "data_saida").toLocalDate()
             : null;
 
-    //        StatusPernoite statusStr = rs.getObject(prefix + "status", StatusPernoite.class);
+    Status status = rs.getObject(prefix + "status", Status.class);
 
     LocalTime horaChegada =
         rs.getTime(prefix + "hora_chegada") != null
@@ -50,6 +51,15 @@ public record Pernoite(
     Boolean ativo = rs.getObject(prefix + "ativo", Boolean.class);
 
     return new Pernoite(
-        id, dataEntrada, dataSaida, "statusStr", horaChegada, horaSaida, valorTotal, ativo);
+        id, dataEntrada, dataSaida, status, horaChegada, horaSaida, valorTotal, ativo);
+  }
+
+  @Getter
+  public enum Status {
+    ATIVO,
+    DIARIA_ENCERRADA,
+    FINALIZADO,
+    CANCELADO,
+    FINALIZADO_PAGAMENTO_PENDENTE
   }
 }

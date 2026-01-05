@@ -15,4 +15,9 @@ public record TipoPagamento(Long id, String descricao) {
     String descricao = rs.getString(prefix + "descricao");
     return new TipoPagamento(id, descricao);
   }
+
+  public enum StatusPagamento {
+    PENDENTE,
+    CONCLUIDO
+  }
 }

@@ -151,20 +151,19 @@ public class HistoricoHospedagemRepository {
           p.fk_municipio        AS pessoa_fk_municipio,
           p.endereco            AS pessoa_endereco,
           p.complemento         AS pessoa_complemento,
-          p.hospedado           AS pessoa_hospedado,
           p.vezes_hospedado     AS pessoa_vezes_hospedado,
-          p.cliente_novo        AS pessoa_cliente_novo,
           p.cep                 AS pessoa_cep,
           p.idade               AS pessoa_idade,
           p.bairro              AS pessoa_bairro,
           p.sexo                AS pessoa_sexo,
           p.numero              AS pessoa_numero,
-          p.bloqueado           AS pessoa_bloqueado,
+          p.status              AS pessoa_status,
+
 
           -- pagamentos (prefix diaria_pagamento_)
-          pg.id                 AS diaria_pagamento_id,
-          pg.descricao          AS diaria_pagamento_descricao,
-          pg.valor              AS diaria_pagamento_valor,
+          pg.id                  AS diaria_pagamento_id,
+          pg.descricao           AS diaria_pagamento_descricao,
+          pg.valor               AS diaria_pagamento_valor,
           pg.data_hora_pagamento AS diaria_pagamento_data_hora,
           tp.id                  AS diaria_pagamento_tipo_pagamento_id,
           tp.descricao           AS diaria_pagamento_tipo_pagamento_descricao,
@@ -176,11 +175,11 @@ public class HistoricoHospedagemRepository {
           ctp.id                AS consumo_tipo_pagamento_id,
           ctp.descricao         AS consumo_tipo_pagamento_descricao,
 
-          it.id                 AS item_id,
-          it.descricao          AS item_descricao,
+          it.id                      AS item_id,
+          it.descricao               AS item_descricao,
           it.data_hora_registro_item AS item_data_hora,
-          ci.id                 AS categoria_id,
-          ci.descricao          AS categoria_categoria
+          ci.id                      AS categoria_id,
+          ci.descricao               AS categoria_categoria
 
         FROM pernoite pe
         JOIN diaria d ON d.pernoite_id = pe.id

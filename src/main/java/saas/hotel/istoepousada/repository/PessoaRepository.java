@@ -7,7 +7,6 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.*;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -39,7 +38,7 @@ public class PessoaRepository {
         Map<Long, List<Empresa>> empresasPorPessoa = new HashMap<>();
 
         while (rs.next()) {
-          Long pessoaId = rs.getLong("id");
+          Long pessoaId = rs.getLong("pessoa_id");
 
           if (!pessoaMap.containsKey(pessoaId)) {
             Pessoa pessoa = mapPessoa(rs);
@@ -49,7 +48,7 @@ public class PessoaRepository {
 
           Long empresaId = rs.getObject("empresa_id", Long.class);
           if (empresaId != null) {
-            Empresa empresa = mapEmpresa(rs, "empresa_");
+            Empresa empresa = mapEmpresa(rs);
             empresasPorPessoa.get(pessoaId).add(empresa);
           }
         }
@@ -81,25 +80,44 @@ public class PessoaRepository {
     String baseSelect =
         """
             SELECT
-                p.*,
-                e.id as empresa_id,
-                e.razao_social as empresa_razao_social,
-                e.nome_fantasia as empresa_nome_fantasia,
-                e.cnpj as empresa_cnpj,
-                e.inscricao_estadual as empresa_inscricao_estadual,
-                e.inscricao_municipal as empresa_inscricao_municipal,
-                e.telefone as empresa_telefone,
-                e.email as empresa_email,
-                e.endereco as empresa_endereco,
-                e.cep as empresa_cep,
-                e.numero as empresa_numero,
-                e.complemento as empresa_complemento,
-                e.fk_pais as empresa_fk_pais,
-                e.fk_estado as empresa_fk_estado,
-                e.fk_municipio as empresa_fk_municipio,
-                e.bairro as empresa_bairro,
-                e.tipo_empresa as empresa_tipo_empresa,
-                e.bloqueado as empresa_bloqueado
+                p.id                   AS pessoa_id,
+                p.data_hora_cadastro   AS pessoa_data_hora_cadastro,
+                p.nome                 AS pessoa_nome,
+                p.data_nascimento      AS pessoa_data_nascimento,
+                p.cpf                  AS pessoa_cpf,
+                p.rg                   AS pessoa_rg,
+                p.email                AS pessoa_email,
+                p.telefone             AS pessoa_telefone,
+                p.fk_pais              AS pessoa_fk_pais,
+                p.fk_estado            AS pessoa_fk_estado,
+                p.fk_municipio         AS pessoa_fk_municipio,
+                p.endereco             AS pessoa_endereco,
+                p.complemento          AS pessoa_complemento,
+                p.vezes_hospedado      AS pessoa_vezes_hospedado,
+                p.cep                  AS pessoa_cep,
+                p.idade                AS pessoa_idade,
+                p.bairro               AS pessoa_bairro,
+                p.sexo                 AS pessoa_sexo,
+                p.numero               AS pessoa_numero,
+                p.status               AS pessoa_status,
+                e.id                   as empresa_id,
+                e.razao_social         as empresa_razao_social,
+                e.nome_fantasia        as empresa_nome_fantasia,
+                e.cnpj                 as empresa_cnpj,
+                e.inscricao_estadual   as empresa_inscricao_estadual,
+                e.inscricao_municipal  as empresa_inscricao_municipal,
+                e.telefone             as empresa_telefone,
+                e.email                as empresa_email,
+                e.endereco             as empresa_endereco,
+                e.cep                  as empresa_cep,
+                e.numero               as empresa_numero,
+                e.complemento          as empresa_complemento,
+                e.fk_pais              as empresa_fk_pais,
+                e.fk_estado            as empresa_fk_estado,
+                e.fk_municipio         as empresa_fk_municipio,
+                e.bairro               as empresa_bairro,
+                e.tipo_empresa         as empresa_tipo_empresa,
+                e.bloqueado            as empresa_bloqueado
             FROM pessoa p
             LEFT JOIN empresa_pessoa ep ON p.id = ep.fk_pessoa
             LEFT JOIN empresa e ON ep.fk_empresa = e.id
@@ -208,22 +226,16 @@ public class PessoaRepository {
             fk_municipio,
             endereco,
             complemento,
-            hospedado,
             vezes_hospedado,
-            cliente_novo,
             cep,
             idade,
             bairro,
             sexo,
             numero
-        ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, true, ?, ?, ?, ?, ?)
+        ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
         """;
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
-
-    LocalDateTime dataHoraCadastro = pessoa.dataHoraCadastro();
-    if (dataHoraCadastro == null) dataHoraCadastro = LocalDateTime.now();
-    LocalDateTime finalDataHoraCadastro = dataHoraCadastro;
 
     jdbcTemplate.update(
         connection -> {
@@ -242,7 +254,6 @@ public class PessoaRepository {
           ps.setObject(idx++, pessoa.fkMunicipio());
           ps.setString(idx++, pessoa.endereco());
           ps.setString(idx++, pessoa.complemento());
-          ps.setObject(idx++, pessoa.hospedado());
           ps.setString(idx++, pessoa.cep());
           ps.setObject(idx++, pessoa.idade());
           ps.setString(idx++, pessoa.bairro());
@@ -281,7 +292,7 @@ public class PessoaRepository {
                         bairro = ?,
                         sexo = ?,
                         numero = ?,
-                        bloqueado = ?
+                        status = ?
                     WHERE id = ?
                 """;
 
@@ -311,14 +322,14 @@ public class PessoaRepository {
         pessoa.bairro(),
         pessoa.sexo(),
         pessoa.numero(),
-        pessoa.bloqueado(),
+        pessoa.status(),
         pessoa.id());
   }
 
   @Transactional
-  public void setHospedado(Long id, Boolean hospedado) {
-    String sql = "UPDATE pessoa SET hospedado = ? WHERE id = ?";
-    jdbcTemplate.update(sql, hospedado, id);
+  public void alterarStatus(Long id, Pessoa.Status status) {
+    String sql = "UPDATE pessoa SET status = ?::pessoa_status WHERE id = ?";
+    jdbcTemplate.update(sql, status, id);
   }
 
   @Transactional
@@ -326,8 +337,7 @@ public class PessoaRepository {
     String sql =
         """
             UPDATE pessoa
-            SET vezes_hospedado = COALESCE(vezes_hospedado, 0) + 1,
-                cliente_novo = false
+            SET vezes_hospedado = COALESCE(vezes_hospedado, 0) + 1
             WHERE id = ?
         """;
     jdbcTemplate.update(sql, id);
