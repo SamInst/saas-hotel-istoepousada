@@ -1,19 +1,40 @@
 package saas.hotel.istoepousada.repository;
 
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.*;
-import saas.hotel.istoepousada.enums.StatusQuarto;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.*;
-
+/**
+ * Histórico de hospedagem (por pessoa) com suporte a:
+ * - sem datas: último histórico (pernoite mais recente)
+ * - só dataInicio: desta data em diante (pe.data_saida >= dataInicio)
+ * - só dataFim: desta data pra trás (pe.data_entrada <= dataFim)
+ * - dataInicio + dataFim: range por "overlap" (pe.data_entrada <= dataFim AND pe.data_saida >= dataInicio)
+ *
+ * Cálculos:
+ * - tipoHospedagem: baseado em diaria.quantidadePessoas; se variar entre diárias, concatena (ex: "DUPLA, TRIPLA")
+ * - subTotal diária: (diaria.total se existir, senão diaria.valorDiaria) + soma(pagamentos.valor) + soma(consumosValor)
+ *   Observação: sua tabela diaria_consumo não tem valor; consumo fica 0 no subtotal (mas lista os consumos).
+ * - valorTotalHospedagem: soma dos subtotais de todas as diárias do pernoite
+ * - totalDiasHospedado: soma do número de diárias de todos os pernoites (cada linha de diaria = 1 dia)
+ * - valorTotal: soma dos valores de todas as hospedagens (pernoites)
+ *
+ * Mappers usados (dos records):
+ * - Pernoite.mapPernoite(rs, "pernoite_")
+ * - Diaria.mapDiaria(rs, "diaria_") (que chama Quarto.mapQuarto(rs) internamente)
+ * - Pessoa.mapPessoa(rs, "pessoa_")
+ * - Item.mapItem(rs, "item_") (que chama Categoria.mapCategoria(rs))
+ * - DiariaPagamento.mapDiariaPagamento(rs, "diaria_pagamento_")
+ *
+ * TipoPagamento: montado manualmente em pagamento/consumo por causa de aliases distintos.
+ */
 @Repository
 public class HistoricoHospedagemRepository {
 
@@ -23,315 +44,375 @@ public class HistoricoHospedagemRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /**
-     * Regras:
-     * - Busca por pessoaId + (dataInicio/dataFim) ou data única (passe dataInicio=dataFim)
-     * - Retorna toda a hospedagem se houver interseção entre o range buscado e o período da hospedagem
-     * - Se dataInicio e dataFim forem nulos => retorna o último histórico (mais recente) da pessoa
-     *
-     * Observação importante:
-     * Este repositório assume que "hospedagem" é composta por pernoites vinculados à pessoa.
-     * Se você tiver uma tabela "hospedagem" (id_hospedagem), adapte o filtro para usar esse id.
-     */
     @Transactional(readOnly = true)
     public Optional<HistoricoHospedagem> buscarHistorico(Long pessoaId, LocalDate dataInicio, LocalDate dataFim) {
         if (pessoaId == null) return Optional.empty();
 
-        Periodo periodo =
-                (dataInicio == null && dataFim == null)
-                        ? buscarUltimoPeriodo(pessoaId).orElse(null)
-                        : new Periodo(
-                        Objects.requireNonNullElse(dataInicio, dataFim),
-                        Objects.requireNonNullElse(dataFim, dataInicio));
+        // Sem datas -> último pernoite (mais recente)
+        if (dataInicio == null && dataFim == null) {
+            Long ultimoPernoiteId = buscarUltimoPernoiteId(pessoaId).orElse(null);
+            if (ultimoPernoiteId == null) return Optional.empty();
 
-        if (periodo == null || periodo.inicio() == null || periodo.fim() == null) {
-            return Optional.empty();
+            String sql =
+                    buildBaseSql()
+                            + """
+              WHERE dpf.pessoa_id = ?
+                AND pe.id = ?
+              ORDER BY pe.data_entrada DESC, d.numero_diaria ASC, d.data_inicio ASC, dp.representante DESC, p.nome ASC
+              """;
+
+            HistoricoHospedagem historico =
+                    jdbcTemplate.query(sql, HISTORICO_EXTRACTOR(), pessoaId, pessoaId, ultimoPernoiteId);
+
+            return Optional.ofNullable(historico);
         }
 
-        // Interseção (overlap): entrada <= fim AND saida >= inicio
-        String sql =
-                """
-                SELECT
-                  -- pernoite
-                  pe.id                    AS pernoite_id,
-                  pe.data_entrada          AS pernoite_data_entrada,
-                  pe.data_saida            AS pernoite_data_saida,
-                  pe.valot_total           AS pernoite_valor_total,
-        
-                  -- quarto + categoria
-                  q.id                     AS quarto_id,
-                  q.descricao              AS quarto_descricao,
-                  q.quantidade_pessoas     AS quarto_quantidade_pessoas,
-                  q.status_quarto_enum     AS quarto_status_quarto,
-                  q.qtd_cama_casal         AS quarto_qtd_cama_casal,
-                  q.qtd_cama_solteiro      AS quarto_qtd_cama_solteiro,
-                  q.qtd_rede               AS quarto_qtd_rede,
-                  q.qtd_beliche            AS quarto_qtd_beliche,
-                  c.id                     AS cat_id,
-                  c.categoria              AS cat_categoria,
-        
-                  -- diária (uma diária por pernoite por dia)
-                  d.id                     AS diaria_id,
-                  d.numero_diaria          AS diaria_numero,
-                  d.data_inicio            AS diaria_data_inicio,
-                  d.data_fim               AS diaria_data_fim,
-                  d.valor_diaria           AS diaria_valor_diaria,
-                  d.total                  AS diaria_total,
-                  d.quantidade_pessoa      AS diaria_qtd_pessoas,
-                  d.observacao             AS diaria_observacao,
-        
-                  -- pessoa(s) na diária
-                  p.id                     AS pessoa_id,
-                  p.nome                   AS pessoa_nome,
-                  --                  AS representante, -- ajuste se não existir (titular/dependente)
-        
-                  -- pagamentos
-                  pg.id                    AS pag_id,
-                  pg.valor                 AS pag_valor,
-                  pg.data_hora_pagamento   AS pag_data_hora,
-                  tp.id                    AS tp_id,
-                  tp.descricao             AS tp_descricao,
-        
-                  -- consumo
-                  cs.id                    AS cons_id,
-                  cs.data_hora_consumo             AS cons_data_hora,
-                  cs.quantidade            AS cons_qtd,
-                  --cs.valor_total           AS cons_valor_total, -- ajuste se seu consumo não tem valor_total
-                  it.id                    AS item_id,
-                  it.descricao             AS item_descricao,
-                  ic.id                    AS item_cat_id,
-                  ic.categoria             AS item_cat_categoria,
-                  ctp.id                   AS cons_tp_id,
-                  ctp.descricao            AS cons_tp_descricao
-        
-                FROM pernoite pe
-                JOIN quarto q              ON q.id = pe.quarto_id
-                LEFT JOIN categoria c      ON c.id = q.fk_categoria
-        
-                JOIN diaria d              ON d.pernoite_id = pe.id
-        
-                LEFT JOIN diaria_hospedes dp ON dp.diaria_id = d.id
-                LEFT JOIN pessoa p         ON p.id = dp.hospedes_id
-        
-                LEFT JOIN diaria_pagamento pg ON pg.diaria_id = d.id
-                LEFT JOIN tipo_pagamento tp   ON tp.id = pg.tipo_pagamento_id
-        
-                LEFT JOIN consumo_diaria cs   ON cs.diaria_id = d.id
-                LEFT JOIN item it             ON it.id = cs.item_id
-                LEFT JOIN categoria ic        ON ic.id = it.fk_categoria
-                LEFT JOIN tipo_pagamento ctp  ON ctp.id = cs.tipo_pagamento_id
-        
-                WHERE dp.hospedes_id = ?
-                  AND pe.data_entrada <= ?
-                  AND pe.data_saida   >= ?
-                ORDER BY d.numero_diaria, d.data_inicio, q.descricao, p.nome
-                """;
+        // Com datas -> regras novas
+        StringBuilder where = new StringBuilder(" WHERE dpf.pessoa_id = ? ");
+        List<Object> params = new ArrayList<>();
+        params.add(pessoaId);
+        params.add(pessoaId);
 
-        List<Object> params = List.of(pessoaId, periodo.fim(), periodo.inicio());
+        // dataInicio + dataFim => overlap fechado
+        if (dataInicio != null && dataFim != null) {
+            where.append(" AND pe.data_entrada <= ? AND pe.data_saida >= ? ");
+            params.add(dataFim);
+            params.add(dataInicio);
+        }
+        // somente inicio => datas em diante
+        else if (dataInicio != null) {
+            where.append(" AND pe.data_saida >= ? ");
+            params.add(dataInicio);
+        }
+        // somente fim => datas pra trás
+        else {
+            where.append(" AND pe.data_entrada <= ? ");
+            params.add(dataFim);
+        }
+
+        String sql =
+                buildBaseSql()
+                        + where
+                        + """
+              ORDER BY pe.data_entrada DESC, d.numero_diaria ASC, d.data_inicio ASC, dp.representante DESC, p.nome ASC
+              """;
 
         HistoricoHospedagem historico =
-                jdbcTemplate.query(sql, HISTORICO_EXTRACTOR(pessoaId, periodo.inicio(), periodo.fim()), params.toArray());
+                jdbcTemplate.query(sql, HISTORICO_EXTRACTOR(), params.toArray());
 
         return Optional.ofNullable(historico);
     }
 
-    private Optional<Periodo> buscarUltimoPeriodo(Long pessoaId) {
+    private String buildBaseSql() {
+        return """
+        SELECT
+          -- pernoite (prefix pernoite_)
+          pe.id                 AS pernoite_id,
+          pe.data_entrada       AS pernoite_data_entrada,
+          pe.data_saida         AS pernoite_data_saida,
+          pe.status             AS pernoite_status,
+          pe.hora_chegada       AS pernoite_hora_chegada,
+          pe.hora_saida         AS pernoite_hora_saida,
+          pe.valor_total        AS pernoite_valor_total,
+          pe.ativo              AS pernoite_ativo,
+
+          -- diária (prefix diaria_)
+          d.id                  AS diaria_id,
+          d.data_inicio         AS diaria_data_inicio,
+          d.data_fim            AS diaria_data_fim,
+          d.valor_diaria        AS diaria_valor,
+          d.total               AS diaria_total,
+          d.numero_diaria       AS diaria_numero,
+          d.quantidade_pessoa   AS diaria_quantidade_pessoa,
+          d.observacao          AS diaria_observacao,
+
+          -- quarto (prefix quarto_) (Diaria.mapDiaria -> Quarto.mapQuarto)
+          q.id                  AS quarto_id,
+          q.descricao           AS quarto_descricao,
+          q.quantidade_pessoas  AS quarto_qtd_pessoas,
+          q.status_quarto_enum  AS quarto_status,
+          q.qtd_cama_casal      AS quarto_qtd_cama_casal,
+          q.qtd_cama_solteiro   AS quarto_qtd_cama_solteiro,
+          q.qtd_rede            AS quarto_qtd_rede,
+          q.qtd_beliche         AS quarto_qtd_beliche,
+
+          -- marca se a pessoa da linha é representante
+          dp.representante      AS diaria_pessoa_representante,
+
+          -- pessoa (prefix pessoa_)
+          p.id                  AS pessoa_id,
+          p.data_hora_cadastro  AS pessoa_data_hora_cadastro,
+          p.nome                AS pessoa_nome,
+          p.data_nascimento     AS pessoa_data_nascimento,
+          p.cpf                 AS pessoa_cpf,
+          p.rg                  AS pessoa_rg,
+          p.email               AS pessoa_email,
+          p.telefone            AS pessoa_telefone,
+          p.fk_pais             AS pessoa_fk_pais,
+          p.fk_estado           AS pessoa_fk_estado,
+          p.fk_municipio        AS pessoa_fk_municipio,
+          p.endereco            AS pessoa_endereco,
+          p.complemento         AS pessoa_complemento,
+          p.hospedado           AS pessoa_hospedado,
+          p.vezes_hospedado     AS pessoa_vezes_hospedado,
+          p.cliente_novo        AS pessoa_cliente_novo,
+          p.cep                 AS pessoa_cep,
+          p.idade               AS pessoa_idade,
+          p.bairro              AS pessoa_bairro,
+          p.sexo                AS pessoa_sexo,
+          p.numero              AS pessoa_numero,
+          p.bloqueado           AS pessoa_bloqueado,
+
+          -- pagamentos (prefix diaria_pagamento_)
+          pg.id                 AS diaria_pagamento_id,
+          pg.descricao          AS diaria_pagamento_descricao,
+          pg.valor              AS diaria_pagamento_valor,
+          pg.data_hora_pagamento AS diaria_pagamento_data_hora,
+          tp.id                  AS diaria_pagamento_tipo_pagamento_id,
+          tp.descricao           AS diaria_pagamento_tipo_pagamento_descricao,
+
+          -- consumos (prefix diaria_consumo_) + item (prefix item_) + categoria_item (prefix categoria_)
+          cs.id                 AS diaria_consumo_id,
+          cs.data_hora_consumo  AS diaria_consumo_data_hora,
+          cs.quantidade         AS diaria_consumo_quantidade,
+          ctp.id                AS consumo_tipo_pagamento_id,
+          ctp.descricao         AS consumo_tipo_pagamento_descricao,
+
+          it.id                 AS item_id,
+          it.descricao          AS item_descricao,
+          it.data_hora_registro_item AS item_data_hora,
+          ci.id                 AS categoria_id,
+          ci.descricao          AS categoria_categoria
+
+        FROM pernoite pe
+        JOIN diaria d ON d.pernoite_id = pe.id
+        LEFT JOIN quarto q ON q.id = d.quarto_id
+
+        -- filtro principal: garante que a pessoa informada pertence à diária
+        JOIN diaria_pessoa dpf ON dpf.diaria_id = d.id AND dpf.pessoa_id = ?
+
+        -- lista todos os hóspedes da diária (rep + acompanhantes)
+        LEFT JOIN diaria_pessoa dp ON dp.diaria_id = d.id
+        LEFT JOIN pessoa p ON p.id = dp.pessoa_id
+
+        -- pagamentos
+        LEFT JOIN diaria_pagamento pg ON pg.diaria_id = d.id
+        LEFT JOIN tipo_pagamento tp ON tp.id = pg.tipo_pagamento_id
+
+        -- consumos
+        LEFT JOIN diaria_consumo cs ON cs.diaria_id = d.id
+        LEFT JOIN item it ON it.id = cs.item_id
+        LEFT JOIN categoria_item ci ON ci.id = it.fk_categoria
+        LEFT JOIN tipo_pagamento ctp ON ctp.id = cs.tipo_pagamento_id
+        """;
+    }
+
+    private ResultSetExtractor<HistoricoHospedagem> HISTORICO_EXTRACTOR() {
+        return rs -> {
+            Map<Long, PernoiteAgg> pernoites = new LinkedHashMap<>();
+            Set<Integer> qtdPessoasSet = new TreeSet<>();
+
+            while (rs.next()) {
+                Long pernoiteId = rs.getObject("pernoite_id", Long.class);
+                if (pernoiteId == null) continue;
+
+                PernoiteAgg pAgg =
+                        pernoites.computeIfAbsent(
+                                pernoiteId,
+                                id -> {
+                                    try {
+                                        return new PernoiteAgg(Pernoite.mapPernoite(rs, "pernoite_"));
+                                    } catch (SQLException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                });
+
+                Long diariaId = rs.getObject("diaria_id", Long.class);
+                if (diariaId == null) continue;
+
+                DiariaAgg dAgg =
+                        pAgg.diarias.computeIfAbsent(
+                                diariaId,
+                                id -> {
+                                    try {
+                                        return new DiariaAgg(Diaria.mapDiaria(rs, "diaria_"));
+                                    } catch (SQLException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                });
+
+                Integer qtdPessoas = rs.getObject("diaria_quantidade_pessoa", Integer.class);
+                if (qtdPessoas != null) qtdPessoasSet.add(qtdPessoas);
+
+                // pessoa (rep/acompanhante)
+                Long hospedeId = rs.getObject("pessoa_id", Long.class);
+                if (hospedeId != null) {
+                    boolean representante =
+                            Boolean.TRUE.equals(rs.getObject("diaria_pessoa_representante", Boolean.class));
+                    Pessoa pessoa = Pessoa.mapPessoa(rs, "pessoa_");
+
+                    if (representante) {
+                        dAgg.representante = pessoa;
+                    } else {
+                        dAgg.acompanhantes.putIfAbsent(hospedeId, pessoa);
+                    }
+                }
+
+                // pagamento
+                Long pagId = rs.getObject("diaria_pagamento_id", Long.class);
+                if (pagId != null) {
+                    DiariaPagamento pagamento = DiariaPagamento.mapDiariaPagamento(rs, "diaria_pagamento_");
+                    if (pagamento.tipo_pagamento() == null) {
+                        Long tpId = rs.getObject("tipo_pagamento_id", Long.class);
+                        String tpDesc = rs.getString("tipo_pagamento_descricao");
+                        TipoPagamento tp = (tpId == null && tpDesc == null) ? null : new TipoPagamento(tpId, tpDesc);
+                        pagamento = new DiariaPagamento(pagamento.id(), pagamento.descricao(), pagamento.valor(), pagamento.data_hora(), tp);
+                    }
+
+                    dAgg.pagamentos.putIfAbsent(pagId, pagamento);
+                }
+
+                // consumo
+                Long consId = rs.getObject("diaria_consumo_id", Long.class);
+                if (consId != null) {
+                    LocalDateTime dh =
+                            rs.getTimestamp("diaria_consumo_data_hora") != null
+                                    ? rs.getTimestamp("diaria_consumo_data_hora").toLocalDateTime()
+                                    : null;
+
+                    Integer quantidade = rs.getObject("diaria_consumo_quantidade", Integer.class);
+                    Item item = Item.mapItem(rs, "item_");
+
+                    Long tpId = rs.getObject("consumo_tipo_pagamento_id", Long.class);
+                    String tpDesc = rs.getString("consumo_tipo_pagamento_descricao");
+                    TipoPagamento tp = (tpId == null && tpDesc == null) ? null : new TipoPagamento(tpId, tpDesc);
+
+                    DiariaConsumo consumo = new DiariaConsumo(consId, dh, item, quantidade, tp);
+                    dAgg.consumos.putIfAbsent(consId, consumo);
+                }
+            }
+
+            if (pernoites.isEmpty()) return null;
+
+            List<HistoricoHospedagem.DadosPernoite> pernoitesOut = new ArrayList<>(pernoites.size());
+
+            float valorTotalGeral = 0f;
+            int totalDiasHospedado = 0;
+
+            for (PernoiteAgg pAgg : pernoites.values()) {
+                List<HistoricoHospedagem.DadosPernoite.DadosDiaria> diariasOut = new ArrayList<>(pAgg.diarias.size());
+
+                float valorTotalHospedagem = 0f;
+
+                for (DiariaAgg dAgg : pAgg.diarias.values()) {
+                    totalDiasHospedado++;
+
+                    float base =
+                            dAgg.diaria.total() != null ? safe(dAgg.diaria.total()) : safe(dAgg.diaria.valorDiaria());
+
+                    float somaPag =
+                            (float)
+                                    dAgg.pagamentos.values().stream()
+                                            .filter(Objects::nonNull)
+                                            .map(DiariaPagamento::valor)
+                                            .filter(Objects::nonNull)
+                                            .mapToDouble(Float::doubleValue)
+                                            .sum();
+
+                    float somaCons = 0f;
+
+                    float subTotal = base + somaPag + somaCons;
+                    valorTotalHospedagem += subTotal;
+
+                    diariasOut.add(
+                            new HistoricoHospedagem.DadosPernoite.DadosDiaria(
+                                    dAgg.diaria,
+                                    dAgg.representante,
+                                    new ArrayList<>(dAgg.acompanhantes.values()),
+                                    new ArrayList<>(dAgg.pagamentos.values()),
+                                    new ArrayList<>(dAgg.consumos.values()),
+                                    subTotal));
+                }
+
+                valorTotalGeral += valorTotalHospedagem;
+
+                pernoitesOut.add(
+                        new HistoricoHospedagem.DadosPernoite(
+                                pAgg.pernoite,
+                                diariasOut,
+                                valorTotalHospedagem));
+            }
+
+            String tipoHospedagem =
+                    qtdPessoasSet.isEmpty()
+                            ? null
+                            : qtdPessoasSet.stream()
+                            .map(this::mapTipoHospedagem)
+                            .distinct()
+                            .reduce((a, b) -> a + ", " + b)
+                            .orElse(null);
+
+            return new HistoricoHospedagem(
+                    tipoHospedagem,
+                    pernoitesOut.size(),
+                    totalDiasHospedado,
+                    valorTotalGeral,
+                    pernoitesOut);
+        };
+    }
+
+    private Optional<Long> buscarUltimoPernoiteId(Long pessoaId) {
         String sql =
                 """
-                SELECT pe.data_entrada, pe.data_saida
+                SELECT pe.id
                   FROM pernoite pe
-                  JOIN diaria d                ON d.pernoite_id = pe.id
-                  JOIN diaria_hospedes dp      ON dp.diaria_id  = d.id
-                 WHERE dp.hospedes_id = ?
-                 ORDER BY pe.data_saida DESC
+                  JOIN diaria d ON d.pernoite_id = pe.id
+                  JOIN diaria_pessoa dp ON dp.diaria_id = d.id
+                 WHERE dp.pessoa_id = ?
+                 ORDER BY pe.data_saida DESC NULLS LAST, pe.data_entrada DESC NULLS LAST, pe.id DESC
                  LIMIT 1
                 """;
         try {
-            return Optional.ofNullable(
-                    jdbcTemplate.queryForObject(
-                            sql,
-                            (rs, rowNum) -> new Periodo(rs.getDate("data_entrada").toLocalDate(), rs.getDate("data_saida").toLocalDate()),
-                            pessoaId));
+            return Optional.ofNullable(jdbcTemplate.queryForObject(sql, Long.class, pessoaId));
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
     }
 
-    private record Periodo(LocalDate inicio, LocalDate fim) {}
-
-    private ResultSetExtractor<HistoricoHospedagem> HISTORICO_EXTRACTOR(Long pessoaId, LocalDate inicio, LocalDate fim) {
-        return rs -> {
-            // Agrupa por número da diária (como a UI mostra 1ª, 2ª, 3ª…)
-            Map<Integer, DiariaAgg> diarias = new LinkedHashMap<>();
-
-            LocalDate minEntrada = null;
-            LocalDate maxSaida = null;
-
-            while (rs.next()) {
-                LocalDate entrada = rs.getDate("pernoite_data_entrada").toLocalDate();
-                LocalDate saida = rs.getDate("pernoite_data_saida").toLocalDate();
-                if (minEntrada == null || entrada.isBefore(minEntrada)) minEntrada = entrada;
-                if (maxSaida == null || saida.isAfter(maxSaida)) maxSaida = saida;
-
-                Integer numero = getInt(rs, "diaria_numero");
-                if (numero == null) continue;
-
-                DiariaAgg agg = diarias.computeIfAbsent(numero, n -> {
-                    try {
-                        return new DiariaAgg(rs);
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-
-                // Pessoas (evita duplicar por JOIN)
-                Long pid = getLong(rs, "pessoa_id");
-                if (pid != null) {
-                    String nome = rs.getString("pessoa_nome");
-//                    Boolean tipo = rs.getString("pessoa_tipo");
-                    agg.pessoas.putIfAbsent(pid, new HistoricoHospedagem.PessoaResumo(pid, nome, false));
-                }
-
-                // Suítes (por pernoite)
-                Long pernoiteId = getLong(rs, "pernoite_id");
-                if (pernoiteId != null) {
-                    agg.suites.putIfAbsent(pernoiteId, mapSuite(rs, pernoiteId));
-                }
-
-                // Pagamentos
-                Long pagId = getLong(rs, "pag_id");
-                if (pagId != null) {
-                    agg.pagamentos.putIfAbsent(pagId, mapPagamento(rs, pagId));
-                }
-
-                // Consumos
-                Long consId = getLong(rs, "cons_id");
-                if (consId != null) {
-                    agg.consumos.putIfAbsent(consId, mapConsumo(rs, consId));
-                }
-            }
-
-            if (diarias.isEmpty()) return null;
-
-            List<HistoricoHospedagem.DiariaHistorico> content =
-                    diarias.values().stream().map(DiariaAgg::toRecord).toList();
-
-            float total = 0f;
-            for (var d : content) {
-                if (d.subtotal() != null) total += d.subtotal();
-            }
-
-            return new HistoricoHospedagem(
-                    pessoaId,
-                    minEntrada != null ? minEntrada : inicio,
-                    maxSaida != null ? maxSaida : fim,
-                    total,
-                    content);
+    private String mapTipoHospedagem(Integer qtdPessoas) {
+        if (qtdPessoas == null || qtdPessoas <= 0) return "HOSPEDAGEM";
+        return switch (qtdPessoas) {
+            case 1 -> "HOSPEDAGEM INDIVIDUAL";
+            case 2 -> "HOSPEDAGEM DUPLA";
+            case 3 -> "HOSPEDAGEM TRIPLA";
+            case 4 -> "HOSPEDAGEM QUÁDRUPLA";
+            default -> "HOSPEDAGEM " + qtdPessoas + " PESSOAS";
         };
     }
 
+    private static float safe(Float v) {
+        return v == null ? 0f : v;
+    }
+
+    private static final class PernoiteAgg {
+        final Pernoite pernoite;
+        final Map<Long, DiariaAgg> diarias = new LinkedHashMap<>();
+
+        PernoiteAgg(Pernoite pernoite) {
+            this.pernoite = pernoite;
+        }
+    }
+
     private static final class DiariaAgg {
-        Integer numero;
-        LocalDate dataInicio;
-        LocalDate dataFim;
-        Integer qtdPessoas;
-        String observacao;
-        Float subtotal;
+        final Diaria diaria;
 
-        Map<Long, HistoricoHospedagem.PessoaResumo> pessoas = new LinkedHashMap<>();
-        Map<Long, HistoricoHospedagem.SuiteResumo> suites = new LinkedHashMap<>();
-        Map<Long, HistoricoHospedagem.PagamentoResumo> pagamentos = new LinkedHashMap<>();
-        Map<Long, HistoricoHospedagem.ConsumoResumo> consumos = new LinkedHashMap<>();
+        Pessoa representante;
+        final Map<Long, Pessoa> acompanhantes = new LinkedHashMap<>();
+        final Map<Long, DiariaPagamento> pagamentos = new LinkedHashMap<>();
+        final Map<Long, DiariaConsumo> consumos = new LinkedHashMap<>();
 
-        DiariaAgg(ResultSet rs) throws SQLException {
-            this.numero = getInt(rs, "diaria_numero");
-            this.dataInicio = rs.getDate("diaria_data_inicio") != null ? rs.getDate("diaria_data_inicio").toLocalDate() : null;
-            this.dataFim = rs.getDate("diaria_data_fim") != null ? rs.getDate("diaria_data_fim").toLocalDate() : null;
-            this.qtdPessoas = getInt(rs, "diaria_qtd_pessoas");
-            this.observacao = rs.getString("diaria_observacao");
-            this.subtotal = getFloat(rs, "diaria_total");
-            if (this.subtotal == null) this.subtotal = getFloat(rs, "diaria_valor_diaria");
+        DiariaAgg(Diaria diaria) {
+            this.diaria = diaria;
         }
-
-        HistoricoHospedagem.DiariaHistorico toRecord() {
-            return new HistoricoHospedagem.DiariaHistorico(
-                    numero,
-                    dataInicio,
-                    dataFim,
-                    qtdPessoas,
-                    observacao,
-                    subtotal,
-                    new ArrayList<>(pessoas.values()),
-                    new ArrayList<>(suites.values()),
-                    new ArrayList<>(pagamentos.values()),
-                    new ArrayList<>(consumos.values()));
-        }
-    }
-
-    // -------- mapeamentos auxiliares (ajuste nomes/colunas conforme seu schema) --------
-
-    private static HistoricoHospedagem.SuiteResumo mapSuite(ResultSet rs, Long pernoiteId) throws SQLException {
-        Quarto quarto = mapQuarto(rs);
-        Float valor = getFloat(rs, "pernoite_valor_total"); // ou valor da diária/quarto, conforme seu modelo
-
-        // Responsável (opcional) — se você tiver um campo pra isso, ajuste; aqui uso a "primeira pessoa" da linha
-        Long pessoaId = getLong(rs, "pessoa_id");
-        HistoricoHospedagem.PessoaResumo resp =
-                pessoaId == null
-                        ? null
-                        : new HistoricoHospedagem.PessoaResumo(pessoaId, rs.getString("pessoa_nome"), false);
-
-        return new HistoricoHospedagem.SuiteResumo(pernoiteId, quarto, valor, resp);
-    }
-
-    private static HistoricoHospedagem.PagamentoResumo mapPagamento(ResultSet rs, Long pagId) throws SQLException {
-        Float valor = getFloat(rs, "pag_valor");
-        LocalDateTime dh = rs.getTimestamp("pag_data_hora") != null ? rs.getTimestamp("pag_data_hora").toLocalDateTime() : null;
-        TipoPagamento tp = new TipoPagamento(getLong(rs, "tp_id"), rs.getString("tp_descricao"));
-        return new HistoricoHospedagem.PagamentoResumo(pagId, valor, dh, tp);
-    }
-
-    private static HistoricoHospedagem.ConsumoResumo mapConsumo(ResultSet rs, Long consId) throws SQLException {
-        LocalDateTime dh =
-                rs.getTimestamp("cons_data_hora") != null ? rs.getTimestamp("cons_data_hora").toLocalDateTime() : null;
-        Integer qtd = getInt(rs, "cons_qtd");
-        Float valorTotal = getFloat(rs, "cons_valor_total");
-
-        Categoria cat = new Categoria(getLong(rs, "item_cat_id"), rs.getString("item_cat_categoria"));
-        Item item = new Item(getLong(rs, "item_id"), rs.getString("item_descricao"), cat, null);
-
-        TipoPagamento tp = new TipoPagamento(getLong(rs, "cons_tp_id"), rs.getString("cons_tp_descricao"));
-
-        return new HistoricoHospedagem.ConsumoResumo(consId, dh, item, qtd, valorTotal, tp);
-    }
-
-    private static Quarto mapQuarto(ResultSet rs) throws SQLException {
-        return new Quarto(
-                getLong(rs, "quarto_id"),
-                rs.getString("quarto_descricao"),
-                getInt(rs, "quarto_quantidade_pessoas"),
-StatusQuarto.DISPONIVEL,
-//                rs.getString("quarto_status_quarto") != null
-//                        ? StatusQuarto.valueOf(rs.getString("quarto_status_quarto"))
-//                        : null,
-                getInt(rs, "quarto_qtd_cama_casal"),
-                getInt(rs, "quarto_qtd_cama_solteiro"),
-                getInt(rs, "quarto_qtd_rede"),
-                getInt(rs, "quarto_qtd_beliche"));
-    }
-
-    private static Long getLong(ResultSet rs, String col) throws SQLException {
-        Object v = rs.getObject(col);
-        return v == null ? null : ((Number) v).longValue();
-    }
-
-    private static Integer getInt(ResultSet rs, String col) throws SQLException {
-        Object v = rs.getObject(col);
-        return v == null ? null : ((Number) v).intValue();
-    }
-
-    private static Float getFloat(ResultSet rs, String col) throws SQLException {
-        Object v = rs.getObject(col);
-        return v == null ? null : ((Number) v).floatValue();
     }
 }
