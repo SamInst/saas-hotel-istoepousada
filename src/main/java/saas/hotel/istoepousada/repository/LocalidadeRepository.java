@@ -1,7 +1,6 @@
 package saas.hotel.istoepousada.repository;
 
 import static saas.hotel.istoepousada.dto.Objeto.*;
-
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -20,7 +19,7 @@ public class LocalidadeRepository {
     String sql =
         """
             SELECT id, descricao
-            FROM public.paises
+            FROM public.pais
             ORDER BY descricao
         """;
 
@@ -31,7 +30,7 @@ public class LocalidadeRepository {
     String sql =
         """
             SELECT id, descricao
-            FROM public.estados
+            FROM public.estado
             WHERE fk_pais = ?
             ORDER BY descricao
         """;
@@ -43,7 +42,7 @@ public class LocalidadeRepository {
     String sql =
         """
             SELECT id, descricao
-            FROM public.municipios
+            FROM public.municipio
             WHERE fk_municipio = ?
             ORDER BY descricao
         """;
