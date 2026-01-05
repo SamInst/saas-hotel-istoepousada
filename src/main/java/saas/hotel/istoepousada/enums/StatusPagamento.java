@@ -1,4 +1,4 @@
-package saas.hotel.istoepousada.dto;
+package saas.hotel.istoepousada.enums;
 
 public enum StatusPagamento {
     PENDENTE,
