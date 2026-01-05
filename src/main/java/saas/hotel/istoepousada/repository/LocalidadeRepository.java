@@ -1,6 +1,7 @@
 package saas.hotel.istoepousada.repository;
 
 import static saas.hotel.istoepousada.dto.Objeto.*;
+
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;

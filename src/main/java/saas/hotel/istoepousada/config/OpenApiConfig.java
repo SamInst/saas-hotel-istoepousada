@@ -16,9 +16,9 @@ public class OpenApiConfig {
 
   @Bean
   public OpenAPI openAPI(
-          @Value("${OPENAPI_SERVER_LOCAL:}") String local,
-          @Value("${OPENAPI_SERVER_HOMOL:}") String homol,
-          @Value("${OPENAPI_SERVER_PROD:}") String prod) {
+      @Value("${OPENAPI_SERVER_LOCAL:}") String local,
+      @Value("${OPENAPI_SERVER_HOMOL:}") String homol,
+      @Value("${OPENAPI_SERVER_PROD:}") String prod) {
 
     Info info = createInfo();
     info.setContact(createContact());

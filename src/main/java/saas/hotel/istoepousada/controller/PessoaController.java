@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.LocalDate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,8 +21,6 @@ import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.service.HistoricoHospedagemService;
 import saas.hotel.istoepousada.service.PessoaService;
 
-import java.time.LocalDate;
-
 @Tag(
     name = "Pessoas",
     description = "Endpoints de cadastro e consulta de pessoas (hóspedes/clientes).")
@@ -30,12 +29,13 @@ import java.time.LocalDate;
 public class PessoaController {
 
   private final PessoaService pessoaService;
-    private final HistoricoHospedagemService historicoHospedagemService;
+  private final HistoricoHospedagemService historicoHospedagemService;
 
-    public PessoaController(PessoaService pessoaService, HistoricoHospedagemService historicoHospedagemService) {
+  public PessoaController(
+      PessoaService pessoaService, HistoricoHospedagemService historicoHospedagemService) {
     this.pessoaService = pessoaService;
-        this.historicoHospedagemService = historicoHospedagemService;
-    }
+    this.historicoHospedagemService = historicoHospedagemService;
+  }
 
   @Operation(
       summary = "Listar pessoas (paginado) com filtros opcionais",
@@ -194,47 +194,47 @@ public class PessoaController {
     return pessoaService.salvar(pessoa.withId(id));
   }
 
-    @Operation(
-            summary = "Buscar histórico de hospedagem do cliente",
-            description =
-                    """
+  @Operation(
+      summary = "Buscar histórico de hospedagem do cliente",
+      description =
+          """
                     Busca o histórico de hospedagem por pessoaId.
-          
+
                     Regras de data:
                     - Se dataInicio e dataFim não forem informadas: retorna o último histórico (mais recente).
                     - Se apenas dataInicio for informada: busca desta data em diante.
                     - Se apenas dataFim for informada: busca desta data para trás.
                     - Se dataInicio e dataFim forem informadas: busca por range (pernoites que tenham interseção/overlap com o período).
                     """)
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Histórico encontrado",
-                    content =
-                    @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = HistoricoHospedagem.class))),
-            @ApiResponse(responseCode = "400", description = "Requisição inválida"),
-            @ApiResponse(responseCode = "404", description = "Histórico não encontrado")
-    })
-    @GetMapping(value = "/historico-hospedagem", produces = MediaType.APPLICATION_JSON_VALUE)
-    public HistoricoHospedagem buscar(
-            @Parameter(description = "ID da pessoa", example = "57", required = true) @RequestParam
-            Long pessoaId,
-            @Parameter(
-                    description =
-                            "Data inicial do filtro (yyyy-MM-dd). Se informar somente esta, busca desta data em diante.",
-                    example = "2026-01-20")
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate dataInicio,
-            @Parameter(
-                    description =
-                            "Data final do filtro (yyyy-MM-dd). Se informar somente esta, busca desta data para trás.",
-                    example = "2026-01-23")
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate dataFim) {
-        return historicoHospedagemService.buscar(pessoaId, dataInicio, dataFim);
-    }
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Histórico encontrado",
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = HistoricoHospedagem.class))),
+    @ApiResponse(responseCode = "400", description = "Requisição inválida"),
+    @ApiResponse(responseCode = "404", description = "Histórico não encontrado")
+  })
+  @GetMapping(value = "/historico-hospedagem", produces = MediaType.APPLICATION_JSON_VALUE)
+  public HistoricoHospedagem buscar(
+      @Parameter(description = "ID da pessoa", example = "57", required = true) @RequestParam
+          Long pessoaId,
+      @Parameter(
+              description =
+                  "Data inicial do filtro (yyyy-MM-dd). Se informar somente esta, busca desta data em diante.",
+              example = "2026-01-20")
+          @RequestParam(required = false)
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate dataInicio,
+      @Parameter(
+              description =
+                  "Data final do filtro (yyyy-MM-dd). Se informar somente esta, busca desta data para trás.",
+              example = "2026-01-23")
+          @RequestParam(required = false)
+          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate dataFim) {
+    return historicoHospedagemService.buscar(pessoaId, dataInicio, dataFim);
+  }
 }
