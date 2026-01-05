@@ -4,6 +4,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 
+import static saas.hotel.istoepousada.dto.Quarto.*;
+
 public record Diaria(
         LocalDate dataInicio,
         LocalDate dataFim,
@@ -11,23 +13,14 @@ public record Diaria(
         Float total,
         Integer numeroDiaria,
         Integer quantidadePessoas,
+        Quarto quarto,
         String observacao
 ) {
 
     public static Diaria mapDiaria(ResultSet rs) throws SQLException {
-        return mapDiaria(rs, "");
+        return mapDiaria(rs, "diaria_");
     }
 
-    /**
-     * Espera colunas com os aliases:
-     * - {prefix}data_inicio
-     * - {prefix}data_fim
-     * - {prefix}valor_diaria
-     * - {prefix}total
-     * - {prefix}numero_diaria
-     * - {prefix}quantidade_pessoa
-     * - {prefix}observaca}
-     */
     public static Diaria mapDiaria(ResultSet rs, String prefix) throws SQLException {
         LocalDate dataInicio =
                 rs.getDate(prefix + "data_inicio") != null
@@ -39,19 +32,21 @@ public record Diaria(
                         ? rs.getDate(prefix + "data_fim").toLocalDate()
                         : null;
 
-        Float valorDiaria = rs.getObject(prefix + "valor_diaria", Double.class) != null
-                ? rs.getObject(prefix + "valor_diaria", Double.class).floatValue()
+        Float valorDiaria = rs.getObject(prefix + "valor", Double.class) != null
+                ? rs.getObject(prefix + "valor", Double.class).floatValue()
                 : null;
 
         Float total = rs.getObject(prefix + "total", Double.class) != null
                 ? rs.getObject(prefix + "total", Double.class).floatValue()
                 : null;
 
-        Integer numeroDiaria = rs.getObject(prefix + "numero_diaria", Integer.class);
+        Integer numeroDiaria = rs.getObject(prefix + "numero", Integer.class);
 
         Integer quantidadePessoas = rs.getObject(prefix + "quantidade_pessoa", Integer.class);
 
         String observacao = rs.getString(prefix + "observacao");
+
+        Quarto quarto = mapQuarto(rs);
 
         return new Diaria(
                 dataInicio,
@@ -60,6 +55,7 @@ public record Diaria(
                 total,
                 numeroDiaria,
                 quantidadePessoas,
+                quarto,
                 observacao
         );
     }
