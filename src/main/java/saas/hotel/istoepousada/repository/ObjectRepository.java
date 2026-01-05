@@ -13,7 +13,7 @@ public class ObjectRepository {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  public List<Objeto> tipoPagamentoEnum() {
+  public List<Objeto> tipoPagamento() {
     return jdbcTemplate.query("select id, descricao from tipo_pagamento", Objeto.mapObjeto);
   }
 
