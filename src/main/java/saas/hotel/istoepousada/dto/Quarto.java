@@ -14,38 +14,16 @@ public record Quarto(
         Integer qtd_rede,
         Integer qtd_beliche
 ) {
-
     public static Quarto mapQuarto(ResultSet rs) throws SQLException {
-        return mapQuarto(rs, "");
+        return mapQuarto(rs, "quarto_");
     }
 
-    /**
-     * Espera colunas com os aliases:
-     * - {prefix}id
-     * - {prefix}descricao
-     * - {prefix}quantidade_pessoas
-     * - {prefix}status_quarto_enum
-     * - {prefix}qtd_cama_casal
-     * - {prefix}qtd_cama_solteiro
-     * - {prefix}qtd_rede
-     * - {prefix}qtd_beliche
-     *
-     * Categoria:
-     * - aqui fica null por padrão (normalmente vem de JOIN com alias próprio).
-     * - se você fizer JOIN com categoria e quiser mapear aqui, use Categoria.mapCategoria(rs, "cat_")
-     *   e passe o resultado no construtor.
-     *
-     * Status:
-     * - no banco é int2 (ordinal). Aqui faço StatusQuarto.values()[ordinal].
-     * - isso exige que a ordem do enum seja exatamente a mesma do banco.
-     * - se seu banco usa códigos (1,2,3...) e seu enum começa em 0, ajuste (ex: ordinal-1).
-     */
     public static Quarto mapQuarto(ResultSet rs, String prefix) throws SQLException {
         Long id = rs.getObject(prefix + "id", Long.class);
         String descricao = rs.getString(prefix + "descricao");
-        Integer qtdPessoas = rs.getObject(prefix + "quantidade_pessoas", Integer.class);
+        Integer qtdPessoas = rs.getObject(prefix + "qtd_pessoas", Integer.class);
 
-        Short statusDb = rs.getObject(prefix + "status_quarto_enum", Short.class);
+        Short statusDb = rs.getObject(prefix + "status", Short.class);
         StatusQuarto status =
                 statusDb == null ? null : StatusQuarto.values()[statusDb.intValue()];
 
