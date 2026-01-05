@@ -1,5 +1,7 @@
 package saas.hotel.istoepousada.dto;
 
+import saas.hotel.istoepousada.enums.StatusPernoite;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -9,7 +11,7 @@ public record Pernoite(
         Long id,
         LocalDate data_entrada,
         LocalDate data_saida,
-        String status_pernoite_enum,
+        String status,
         LocalTime hora_chegada,
         LocalTime hora_saida,
         Float valot_total,
@@ -17,20 +19,9 @@ public record Pernoite(
 ) {
 
     public static Pernoite mapPernoite(ResultSet rs) throws SQLException {
-        return mapPernoite(rs, "");
+        return mapPernoite(rs, "pernoite_");
     }
 
-    /**
-     * Espera colunas com os aliases:
-     * - {prefix}id
-     * - {prefix}data_entrada
-     * - {prefix}data_saida
-     * - {prefix}status_pernoite_enum
-     * - {prefix}hora_chegada
-     * - {prefix}hora_saida
-     * - {prefix}valot_total
-     * - {prefix}ativo
-     */
     public static Pernoite mapPernoite(ResultSet rs, String prefix) throws SQLException {
         Long id = rs.getObject(prefix + "id", Long.class);
 
@@ -44,8 +35,7 @@ public record Pernoite(
                         ? rs.getDate(prefix + "data_saida").toLocalDate()
                         : null;
 
-        Short status = rs.getObject(prefix + "status_pernoite_enum", Short.class);
-        String statusStr = status != null ? String.valueOf(status) : null;
+//        StatusPernoite statusStr = rs.getObject(prefix + "status", StatusPernoite.class);
 
         LocalTime horaChegada = rs.getTime(prefix + "hora_chegada") != null
                 ? rs.getTime(prefix + "hora_chegada").toLocalTime()
@@ -55,7 +45,7 @@ public record Pernoite(
                 ? rs.getTime(prefix + "hora_saida").toLocalTime()
                 : null;
 
-        Double valorTotalDb = rs.getObject(prefix + "valot_total", Double.class);
+        Double valorTotalDb = rs.getObject(prefix + "valor_total", Double.class);
         Float valorTotal = valorTotalDb != null ? valorTotalDb.floatValue() : null;
 
         Boolean ativo = rs.getObject(prefix + "ativo", Boolean.class);
@@ -64,7 +54,7 @@ public record Pernoite(
                 id,
                 dataEntrada,
                 dataSaida,
-                statusStr,
+                "statusStr",
                 horaChegada,
                 horaSaida,
                 valorTotal,
