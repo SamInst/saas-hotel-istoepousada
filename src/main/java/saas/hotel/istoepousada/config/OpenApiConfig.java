@@ -4,6 +4,10 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.servers.Server;
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,11 +15,27 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfig {
 
   @Bean
-  public OpenAPI openAPI() {
+  public OpenAPI openAPI(
+          @Value("${OPENAPI_SERVER_LOCAL:}") String local,
+          @Value("${OPENAPI_SERVER_HOMOL:}") String homol,
+          @Value("${OPENAPI_SERVER_PROD:}") String prod) {
+
     Info info = createInfo();
     info.setContact(createContact());
     info.setLicense(createLicense());
-    return new OpenAPI().info(info);
+
+    List<Server> servers = new ArrayList<>();
+    if (local != null && !local.isBlank()) {
+      servers.add(new Server().url(local).description("Local"));
+    }
+    if (homol != null && !homol.isBlank()) {
+      servers.add(new Server().url(homol).description("Homologação"));
+    }
+    if (prod != null && !prod.isBlank()) {
+      servers.add(new Server().url(prod).description("Produção"));
+    }
+
+    return new OpenAPI().info(info).servers(servers);
   }
 
   private Info createInfo() {
@@ -37,7 +57,6 @@ public class OpenApiConfig {
   private License createLicense() {
     var licenca = new License();
     licenca.setName("Copyright (C) Todos os direitos reservados ");
-    //    TODO: adicionar website para licenca.setUrl("");
     return licenca;
   }
 }
