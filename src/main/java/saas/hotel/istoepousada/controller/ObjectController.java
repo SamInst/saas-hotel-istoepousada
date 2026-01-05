@@ -58,6 +58,6 @@ public class ObjectController {
                   """)))
   @GetMapping("/tipo-pagamento")
   public List<Objeto> tipoPagamentoEnum() {
-    return objectRepository.tipoPagamentoEnum();
+    return objectRepository.tipoPagamento();
   }
 }
