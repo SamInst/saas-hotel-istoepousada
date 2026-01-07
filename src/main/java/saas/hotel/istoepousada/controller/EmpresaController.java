@@ -123,34 +123,68 @@ public class EmpresaController {
     return empresaService.salvar(empresa);
   }
 
-  @Operation(
-      summary = "Atualizar empresa",
-      description = "Atualiza os dados de uma empresa pelo ID.")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "Empresa atualizada",
-        content =
-            @Content(
-                mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = Empresa.class))),
-    @ApiResponse(responseCode = "400", description = "Requisição inválida"),
-    @ApiResponse(responseCode = "404", description = "Empresa não encontrada")
-  })
-  @PutMapping("/{id}")
-  public Empresa atualizar(
-      @Parameter(description = "ID da empresa", example = "1", required = true) @PathVariable
-          Long id,
-      @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Dados para atualização",
-              required = true,
-              content = @Content(schema = @Schema(implementation = Empresa.class)))
-          @RequestBody
-          Empresa empresa) {
-    return empresaService.salvar(empresa.withId(id));
-  }
+    @Operation(
+            summary = "Atualizar empresa",
+            description = "Atualiza os dados de uma empresa pelo ID informado no path.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Empresa atualizada",
+                    content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = Empresa.class))),
+            @ApiResponse(responseCode = "400", description = "Requisição inválida"),
+            @ApiResponse(responseCode = "404", description = "Empresa não encontrada")
+    })
+    @PutMapping("/{id}")
+    public Empresa atualizar(
+            @Parameter(
+                    description = "ID da empresa",
+                    example = "1",
+                    required = true)
+            @PathVariable Long id,
 
-  @Operation(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Dados para atualização da empresa (ID informado apenas no path)",
+                    required = true,
+                    content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = Empresa.class),
+                            examples =
+                            @ExampleObject(
+                                    name = "Exemplo de atualização",
+                                    summary = "Payload de atualização da empresa",
+                                    value =
+                                            """
+                                            {
+                                              "cnpj": "12.345.678/0001-90",
+                                              "telefone": "(98) 99999-9999",
+                                              "email": "contato@empresa.com",
+                                              "endereco": "Rua das Flores",
+                                              "cep": "65000-000",
+                                              "numero": "123",
+                                              "complemento": "Sala 101",
+                                              "pais": "Brasil",
+                                              "estado": "MA",
+                                              "municipio": "São Luís",
+                                              "bairro": "Centro",
+                                              "bloqueado": false,
+                                              "razao_social": "Empresa Exemplo LTDA",
+                                              "nome_fantasia": "Empresa Exemplo",
+                                              "inscricao_estadual": "123456789",
+                                              "inscricao_municipal": "987654321",
+                                              "tipo_empresa": "CLIENTE"
+                                            }
+                                            """)))
+            @RequestBody Empresa empresa) {
+
+        return empresaService.salvar(empresa.withId(id));
+    }
+
+
+    @Operation(
       summary = "Vincular ou desvincular pessoa à empresa",
       description =
           """
