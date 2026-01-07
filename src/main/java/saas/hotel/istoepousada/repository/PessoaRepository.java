@@ -139,16 +139,18 @@ public class PessoaRepository {
       params.add(termoTrim);
     }
 
-    if (status.equals(Pessoa.Status.HOSPEDADO)) {
-      where.append(" AND p.status = 'HOSPEDADO'::public.pessoa_status ");
-    }
+    if (status != null) {
+      if (status.equals(Pessoa.Status.HOSPEDADO)) {
+        where.append(" AND p.status = 'HOSPEDADO'::public.pessoa_status ");
+      }
 
-    if (status.equals(Pessoa.Status.BLOQUEADO)) {
-      where.append(" AND p.status = 'BLOQUEADO'::public.pessoa_status ");
-    }
+      if (status.equals(Pessoa.Status.BLOQUEADO)) {
+        where.append(" AND p.status = 'BLOQUEADO'::public.pessoa_status ");
+      }
 
-    if (status.equals(Pessoa.Status.ATIVO)) {
-      where.append(" AND p.status = 'ATIVO'::public.pessoa_status ");
+      if (status.equals(Pessoa.Status.ATIVO)) {
+        where.append(" AND p.status = 'ATIVO'::public.pessoa_status ");
+      }
     }
 
     Long total;
