@@ -33,7 +33,8 @@ public record Pernoite(
             ? rs.getDate(prefix + "data_saida").toLocalDate()
             : null;
 
-    Status status = rs.getObject(prefix + "status", Status.class);
+    String statusStr = rs.getString(prefix + "status");
+    Pernoite.Status status = (statusStr == null) ? null : Pernoite.Status.valueOf(statusStr);
 
     LocalTime horaChegada =
         rs.getTime(prefix + "hora_chegada") != null

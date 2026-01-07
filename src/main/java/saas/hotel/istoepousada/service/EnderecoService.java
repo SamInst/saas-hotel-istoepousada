@@ -18,11 +18,11 @@ public class EnderecoService {
     return localidadeRepository.listarPaises();
   }
 
-  public List<Objeto> listarEstados(Long fkPais) {
-    return localidadeRepository.listarEstadosPorPais(fkPais);
+  public List<Objeto> listarEstados(Long pais) {
+    return localidadeRepository.listarEstadosPorPais(pais);
   }
 
-  public List<Objeto> listarMunicipios(Long fkEstado) {
-    return localidadeRepository.listarMunicipiosPorEstado(fkEstado);
+  public List<Objeto> listarMunicipios(Long estado) {
+    return localidadeRepository.listarMunicipiosPorEstado(estado);
   }
 }

@@ -4,9 +4,11 @@ import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
+import java.util.Objects;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,6 +17,8 @@ import saas.hotel.istoepousada.handler.exceptions.*;
 @ControllerAdvice
 @Order(HIGHEST_PRECEDENCE)
 public class ResourceExceptionHandler {
+  static final String INTERNAL_SERVER_ERROR = "Erro interno no servidor";
+  static final String BAD_SQL_GRAMAR = "SQL COM ERRO DE SINTAXE.";
   static final String UNAUTHORIZED = "Não autorizado";
   static final String CONFLICT = "Conflito";
   static final String NOT_FOUND = "Entidade não encontrada";
@@ -105,6 +109,20 @@ public class ResourceExceptionHandler {
             request.getRequestURI());
     e.printStackTrace();
     return ResponseEntity.status(HttpStatus.BAD_REQUEST.value()).body(error);
+  }
+
+  @ExceptionHandler(BadSqlGrammarException.class)
+  public ResponseEntity<Object> errorInternalServerErrorKeyException(
+      BadSqlGrammarException e, HttpServletRequest request) {
+    var error =
+        new StandardError(
+            Instant.now(),
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            INTERNAL_SERVER_ERROR,
+            BAD_SQL_GRAMAR + " " + Objects.requireNonNull(e.getSQLException()).getMessage(),
+            request.getRequestURI());
+    e.printStackTrace();
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR.value()).body(error);
   }
 
   @ExceptionHandler(NullPointerException.class)

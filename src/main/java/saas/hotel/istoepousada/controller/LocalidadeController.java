@@ -61,7 +61,7 @@ public class LocalidadeController {
   @Operation(
       summary = "Listar estados por país",
       description =
-          "Retorna os estados vinculados a um país (fkPais) para preencher o combobox de estado.")
+          "Retorna os estados vinculados a um país (pais) para preencher o combobox de estado.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -82,18 +82,18 @@ public class LocalidadeController {
                       """))),
     @ApiResponse(responseCode = "400", description = "Parâmetro inválido")
   })
-  @GetMapping("/estados/{fkPais}")
+  @GetMapping("/estados/{pais}")
   public ResponseEntity<List<Objeto>> listarEstadosPorPais(
-      @Parameter(description = "ID do país (fk_pais)", example = "1", required = true) @PathVariable
-          Long fkPais) {
-    List<Objeto> response = enderecoService.listarEstados(fkPais);
+      @Parameter(description = "ID do país (pais)", example = "1", required = true) @PathVariable
+          Long pais) {
+    List<Objeto> response = enderecoService.listarEstados(pais);
     return ResponseEntity.ok(response);
   }
 
   @Operation(
       summary = "Listar municípios por estado",
       description =
-          "Retorna os municípios vinculados a um estado (fkEstado) para preencher o combobox de município.")
+          "Retorna os municípios vinculados a um estado (estado) para preencher o combobox de município.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -114,12 +114,12 @@ public class LocalidadeController {
                       """))),
     @ApiResponse(responseCode = "400", description = "Parâmetro inválido")
   })
-  @GetMapping("/municipios/{fkEstado}")
+  @GetMapping("/municipios/{estado}")
   public ResponseEntity<List<Objeto>> listarMunicipiosPorEstado(
-      @Parameter(description = "ID do estado (fk_estado)", example = "10", required = true)
+      @Parameter(description = "ID do estado (estado)", example = "10", required = true)
           @PathVariable
-          Long fkEstado) {
-    List<Objeto> response = enderecoService.listarMunicipios(fkEstado);
+          Long estado) {
+    List<Objeto> response = enderecoService.listarMunicipios(estado);
     return ResponseEntity.ok(response);
   }
 }

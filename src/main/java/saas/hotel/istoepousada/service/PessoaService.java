@@ -3,6 +3,8 @@ package saas.hotel.istoepousada.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import saas.hotel.istoepousada.repository.VeiculoRepository;
 
 @Service
 public class PessoaService {
+  Logger log = LoggerFactory.getLogger(PessoaService.class);
   private final PessoaRepository pessoaRepository;
   private final VeiculoRepository veiculoRepository;
   private final EmpresaRepository empresaRepository;
@@ -77,7 +80,7 @@ public class PessoaService {
     }
 
     notificacaoService.criar(9L, "SAM HELSON", "ATUALIZOU OS DADOS DO CLIENTE: " + pessoa.nome());
-
+    log.info("Usuário: {} cadastrou um novo cliente [{}]", pessoa.nome(), pessoa);
     return salva;
   }
 
@@ -92,9 +95,7 @@ public class PessoaService {
   }
 
   public void incrementarHospedagem(Long id) {
-    if (id == null) {
-      throw new IllegalArgumentException("id é obrigatório.");
-    }
+    if (id == null) throw new IllegalArgumentException("id é obrigatório.");
     pessoaRepository.incrementarHospedagem(id);
   }
 

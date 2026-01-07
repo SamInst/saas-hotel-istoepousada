@@ -27,7 +27,7 @@ public class LocalidadeRepository {
     return jdbcTemplate.query(sql, mapObjeto);
   }
 
-  public List<Objeto> listarEstadosPorPais(Long fkPais) {
+  public List<Objeto> listarEstadosPorPais(Long pais) {
     String sql =
         """
             SELECT id, descricao
@@ -36,18 +36,18 @@ public class LocalidadeRepository {
             ORDER BY descricao
         """;
 
-    return jdbcTemplate.query(sql, mapObjeto, fkPais);
+    return jdbcTemplate.query(sql, mapObjeto, pais);
   }
 
-  public List<Objeto> listarMunicipiosPorEstado(Long fkEstado) {
+  public List<Objeto> listarMunicipiosPorEstado(Long estado) {
     String sql =
         """
             SELECT id, descricao
             FROM public.municipio
-            WHERE fk_municipio = ?
+            WHERE municipio.fk_estado = ?
             ORDER BY descricao
         """;
 
-    return jdbcTemplate.query(sql, mapObjeto, fkEstado);
+    return jdbcTemplate.query(sql, mapObjeto, estado);
   }
 }

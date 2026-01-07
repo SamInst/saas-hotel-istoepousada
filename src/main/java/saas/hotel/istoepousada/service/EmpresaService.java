@@ -11,7 +11,6 @@ import saas.hotel.istoepousada.repository.PessoaRepository;
 
 @Service
 public class EmpresaService {
-
   private final EmpresaRepository empresaRepository;
   private final NotificacaoService notificacaoService;
   private final PessoaRepository pessoaRepository;
@@ -34,7 +33,7 @@ public class EmpresaService {
     validarEmpresa(empresa);
     var novaEmpresa = empresaRepository.save(empresa);
     notificacaoService.criar(
-        9L, "SAM HELSON", "ATUALIZOU OS DADOS DA EMPRESA: " + empresa.razaoSocial());
+        9L, "SAM HELSON", "ATUALIZOU OS DADOS DA EMPRESA: " + novaEmpresa.razaoSocial());
     return novaEmpresa;
   }
 
@@ -46,11 +45,7 @@ public class EmpresaService {
       throw new IllegalArgumentException("pessoaIds é obrigatório.");
     }
 
-    var pessoa =
-        pessoaRepository
-            .findById(pessoaId)
-            .orElseThrow(
-                () -> new NotFoundException("Pessoa não encontrada para o id: " + pessoaId));
+    var pessoa = pessoaRepository.findById(pessoaId);
     var empresa =
         empresaRepository
             .findById(empresaId)

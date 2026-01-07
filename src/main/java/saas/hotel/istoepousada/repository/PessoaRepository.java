@@ -9,6 +9,8 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -25,7 +27,7 @@ import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
 public class PessoaRepository {
-
+  Logger log = LoggerFactory.getLogger(PessoaRepository.class);
   private final JdbcTemplate jdbcTemplate;
 
   public PessoaRepository(JdbcTemplate jdbcTemplate) {
@@ -88,9 +90,9 @@ public class PessoaRepository {
                 p.rg                   AS pessoa_rg,
                 p.email                AS pessoa_email,
                 p.telefone             AS pessoa_telefone,
-                p.fk_pais              AS pessoa_fk_pais,
-                p.fk_estado            AS pessoa_fk_estado,
-                p.fk_municipio         AS pessoa_fk_municipio,
+                p.pais                 AS pessoa_pais,
+                p.estado               AS pessoa_estado,
+                p.municipio            AS pessoa_municipio,
                 p.endereco             AS pessoa_endereco,
                 p.complemento          AS pessoa_complemento,
                 p.vezes_hospedado      AS pessoa_vezes_hospedado,
@@ -100,24 +102,24 @@ public class PessoaRepository {
                 p.sexo                 AS pessoa_sexo,
                 p.numero               AS pessoa_numero,
                 p.status               AS pessoa_status,
-                e.id                   as empresa_id,
-                e.razao_social         as empresa_razao_social,
-                e.nome_fantasia        as empresa_nome_fantasia,
-                e.cnpj                 as empresa_cnpj,
-                e.inscricao_estadual   as empresa_inscricao_estadual,
-                e.inscricao_municipal  as empresa_inscricao_municipal,
-                e.telefone             as empresa_telefone,
-                e.email                as empresa_email,
-                e.endereco             as empresa_endereco,
-                e.cep                  as empresa_cep,
-                e.numero               as empresa_numero,
-                e.complemento          as empresa_complemento,
-                e.fk_pais              as empresa_fk_pais,
-                e.fk_estado            as empresa_fk_estado,
-                e.fk_municipio         as empresa_fk_municipio,
-                e.bairro               as empresa_bairro,
-                e.tipo_empresa         as empresa_tipo_empresa,
-                e.bloqueado            as empresa_bloqueado
+                e.id                   AS empresa_id,
+                e.razao_social         AS empresa_razao_social,
+                e.nome_fantasia        AS empresa_nome_fantasia,
+                e.cnpj                 AS empresa_cnpj,
+                e.inscricao_estadual   AS empresa_inscricao_estadual,
+                e.inscricao_municipal  AS empresa_inscricao_municipal,
+                e.telefone             AS empresa_telefone,
+                e.email                AS empresa_email,
+                e.endereco             AS empresa_endereco,
+                e.cep                  AS empresa_cep,
+                e.numero               AS empresa_numero,
+                e.complemento          AS empresa_complemento,
+                e.pais                 AS empresa_pais,
+                e.estado               AS empresa_estado,
+                e.municipio            AS empresa_municipio,
+                e.bairro               AS empresa_bairro,
+                e.tipo_empresa         AS empresa_tipo_empresa,
+                e.bloqueado            AS empresa_bloqueado
             FROM pessoa p
             LEFT JOIN empresa_pessoa ep ON p.id = ep.fk_pessoa
             LEFT JOIN empresa e ON ep.fk_empresa = e.id
@@ -139,7 +141,7 @@ public class PessoaRepository {
     }
 
     if (onlyHospedados) {
-      where.append(" AND p.hospedado = true ");
+      where.append(" AND p.status = 'HOSPEDADO'::public.pessoa_status ");
     }
 
     Long total;
@@ -191,11 +193,12 @@ public class PessoaRepository {
     return new PageImpl<>(Objects.requireNonNull(content), pageable, total);
   }
 
-  public Optional<Pessoa> findById(Long id) {
+  public Pessoa findById(Long id) {
     Page<Pessoa> page = buscarPorIdNomeCpfOuHospedados(id, null, null, Pageable.ofSize(1));
-    return page.getContent().isEmpty()
-        ? Optional.empty()
-        : Optional.of(page.getContent().getFirst());
+    if (page.isEmpty()) {
+      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
+    }
+    return page.getContent().getFirst();
   }
 
   @Transactional
@@ -204,9 +207,7 @@ public class PessoaRepository {
       return insert(pessoa);
     } else {
       update(pessoa);
-      return findById(pessoa.id())
-          .orElseThrow(
-              () -> new NotFoundException("Pessoa não encontrada com o id: " + pessoa.id()));
+      return findById(pessoa.id());
     }
   }
 
@@ -221,9 +222,9 @@ public class PessoaRepository {
             rg,
             email,
             telefone,
-            fk_pais,
-            fk_estado,
-            fk_municipio,
+            pais,
+            estado,
+            municipio,
             endereco,
             complemento,
             vezes_hospedado,
@@ -249,9 +250,9 @@ public class PessoaRepository {
           ps.setString(idx++, pessoa.rg());
           ps.setString(idx++, pessoa.email());
           ps.setString(idx++, pessoa.telefone());
-          ps.setObject(idx++, pessoa.fkPais());
-          ps.setObject(idx++, pessoa.fkEstado());
-          ps.setObject(idx++, pessoa.fkMunicipio());
+          ps.setObject(idx++, pessoa.pais());
+          ps.setObject(idx++, pessoa.estado());
+          ps.setObject(idx++, pessoa.municipio());
           ps.setString(idx++, pessoa.endereco());
           ps.setString(idx++, pessoa.complemento());
           ps.setString(idx++, pessoa.cep());
@@ -283,9 +284,9 @@ public class PessoaRepository {
                         rg = ?,
                         email = ?,
                         telefone = ?,
-                        fk_pais = ?,
-                        fk_estado = ?,
-                        fk_municipio = ?,
+                        pais = ?,
+                        estado = ?,
+                        municipio = ?,
                         endereco = ?,
                         complemento = ?,
                         cep = ?,
@@ -313,9 +314,9 @@ public class PessoaRepository {
         pessoa.rg(),
         pessoa.email(),
         pessoa.telefone(),
-        pessoa.fkPais(),
-        pessoa.fkEstado(),
-        pessoa.fkMunicipio(),
+        pessoa.pais(),
+        pessoa.estado(),
+        pessoa.municipio(),
         pessoa.endereco(),
         pessoa.complemento(),
         pessoa.cep(),
@@ -328,12 +329,21 @@ public class PessoaRepository {
 
   @Transactional
   public void alterarStatus(Long id, Pessoa.Status status) {
+    var pessoa = findById(id);
+    Pessoa.Status oldStatus = pessoa.status();
     String sql = "UPDATE pessoa SET status = ?::pessoa_status WHERE id = ?";
     jdbcTemplate.update(sql, status, id);
+    log.info(
+        "Usuário: [{}] alterou o status de: {} -> {} do cliente: [{}]",
+        "usuario",
+        oldStatus,
+        status,
+        pessoa);
   }
 
   @Transactional
   public void incrementarHospedagem(Long id) {
+    var pessoa = findById(id);
     String sql =
         """
             UPDATE pessoa
@@ -341,5 +351,7 @@ public class PessoaRepository {
             WHERE id = ?
         """;
     jdbcTemplate.update(sql, id);
+    log.info(
+        "Cliente: {}, Incrementado hospedagem (1), Total: {}", pessoa, pessoa.vezesHospedado());
   }
 }

@@ -81,9 +81,9 @@ public class EmpresaRepository {
                          e.cep                  AS empresa_cep,
                          e.numero               AS empresa_numero,
                          e.complemento          AS empresa_complemento,
-                         e.fk_pais              AS empresa_fk_pais,
-                         e.fk_estado            AS empresa_fk_estado,
-                         e.fk_municipio         AS empresa_fk_municipio,
+                         e.pais              AS empresa_pais,
+                         e.estado            AS empresa_estado,
+                         e.municipio         AS empresa_municipio,
                          e.bairro               AS empresa_bairro,
                          e.razao_social         AS empresa_razao_social,
                          e.nome_fantasia        AS empresa_nome_fantasia,
@@ -101,9 +101,9 @@ public class EmpresaRepository {
                          p.rg                   AS pessoa_rg,
                          p.email                AS pessoa_email,
                          p.telefone             AS pessoa_telefone,
-                         p.fk_pais              AS pessoa_fk_pais,
-                         p.fk_estado            AS pessoa_fk_estado,
-                         p.fk_municipio         AS pessoa_fk_municipio,
+                         p.pais              AS pessoa_pais,
+                         p.estado            AS pessoa_estado,
+                         p.municipio         AS pessoa_municipio,
                          p.endereco             AS pessoa_endereco,
                          p.complemento          AS pessoa_complemento,
                          p.vezes_hospedado      AS pessoa_vezes_hospedado,
@@ -212,9 +212,9 @@ public class EmpresaRepository {
                     cep,
                     numero,
                     complemento,
-                    fk_pais,
-                    fk_estado,
-                    fk_municipio,
+                    pais,
+                    estado,
+                    municipio,
                     bairro,
                     tipo_empresa,
                     bloqueado
@@ -238,9 +238,9 @@ public class EmpresaRepository {
           ps.setString(idx++, empresa.cep());
           ps.setString(idx++, empresa.numero());
           ps.setString(idx++, empresa.complemento());
-          ps.setObject(idx++, empresa.fkPais());
-          ps.setObject(idx++, empresa.fkEstado());
-          ps.setObject(idx++, empresa.fkMunicipio());
+          ps.setObject(idx++, empresa.pais());
+          ps.setObject(idx++, empresa.estado());
+          ps.setObject(idx++, empresa.municipio());
           ps.setString(idx++, empresa.bairro());
           ps.setString(idx++, empresa.tipoEmpresa());
           ps.setBoolean(idx++, empresa.bloqueado());
@@ -269,9 +269,9 @@ public class EmpresaRepository {
                     cep = ?,
                     numero = ?,
                     complemento = ?,
-                    fk_pais = ?,
-                    fk_estado = ?,
-                    fk_municipio = ?,
+                    pais = ?,
+                    estado = ?,
+                    municipio = ?,
                     bairro = ?,
                     tipo_empresa = ?,
                     bloqueado = ?
@@ -291,9 +291,9 @@ public class EmpresaRepository {
         empresa.cep(),
         empresa.numero(),
         empresa.complemento(),
-        empresa.fkPais(),
-        empresa.fkEstado(),
-        empresa.fkMunicipio(),
+        empresa.pais(),
+        empresa.estado(),
+        empresa.municipio(),
         empresa.bairro(),
         empresa.tipoEmpresa(),
         empresa.bloqueado(),
