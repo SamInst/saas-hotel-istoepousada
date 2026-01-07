@@ -43,8 +43,7 @@ public class PessoaService {
    */
   public Page<Pessoa> buscar(Long id, String termo, Pessoa.Status status, Pageable pageable) {
     String termoNormalizado = StringUtils.hasText(termo) ? termo.trim() : null;
-    return pessoaRepository.buscarPorIdNomeCpfOuHospedados(
-        id, termoNormalizado, status, pageable);
+    return pessoaRepository.buscarPorIdNomeCpfOuHospedados(id, termoNormalizado, status, pageable);
   }
 
   @Transactional
@@ -65,8 +64,8 @@ public class PessoaService {
     if (!veiculos.isEmpty()) {
       List<Veiculo> veiculosSalvos = new ArrayList<>(veiculos.size());
 
-      for (Veiculo v : veiculos) {
-        Veiculo veiculoSalvo = veiculoRepository.save(v);
+      for (Veiculo veiculo : veiculos) {
+        Veiculo veiculoSalvo = veiculoRepository.save(pessoa.id(), veiculo);
 
         if (veiculoSalvo.id() == null) {
           throw new IllegalStateException("Veículo salvo sem ID (verifique o RETURNING id).");

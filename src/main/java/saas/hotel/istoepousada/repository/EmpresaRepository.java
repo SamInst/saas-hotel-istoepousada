@@ -74,7 +74,6 @@ public class EmpresaRepository {
                 SELECT
                      -- empresa_*
                          e.id                   AS empresa_id,
-                         e.nome_empresa         AS empresa_nome_empresa,
                          e.cnpj                 AS empresa_cnpj,
                          e.telefone             AS empresa_telefone,
                          e.email                AS empresa_email,
@@ -224,7 +223,8 @@ public class EmpresaRepository {
                     bairro,
                     tipo_empresa,
                     bloqueado
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                returning id;
                 """;
 
     KeyHolder keyHolder = new GeneratedKeyHolder();

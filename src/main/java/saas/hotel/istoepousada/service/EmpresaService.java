@@ -37,7 +37,7 @@ public class EmpresaService {
     return novaEmpresa;
   }
 
-  public void vincularPessoas(Long empresaId, Long pessoaId, Boolean vinculo) {
+  public void vincularPessoa(Long empresaId, Long pessoaId, Boolean vinculo) {
     if (empresaId == null) {
       throw new IllegalArgumentException("empresaId é obrigatório.");
     }

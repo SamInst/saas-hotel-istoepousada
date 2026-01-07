@@ -84,7 +84,9 @@ public class VeiculoController {
     return ResponseEntity.ok(veiculoService.listarPorPessoa(pessoaId));
   }
 
-  @Operation(summary = "Criar veículo", description = "Cria um novo veículo.")
+  @Operation(
+      summary = "Criar veículo",
+      description = "Cria um novo veículo e o vincula obrigatoriamente a uma pessoa (pessoa_id).")
   @ApiResponses({
     @ApiResponse(
         responseCode = "201",
@@ -98,6 +100,14 @@ public class VeiculoController {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public Veiculo criar(
+      @Parameter(
+              name = "pessoa_id",
+              description = "ID da pessoa à qual o veículo será vinculado",
+              required = true,
+              example = "1",
+              schema = @Schema(type = "integer", format = "int64"))
+          @RequestParam(name = "pessoa_id", required = true)
+          Long pessoaId,
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Dados do veículo",
               required = true,
@@ -110,40 +120,41 @@ public class VeiculoController {
                               name = "Exemplo",
                               value =
                                   """
-                      {
-                        "modelo": "Onix",
-                        "marca": "Chevrolet",
-                        "ano": 2022,
-                        "placa": "ABC1D23",
-                        "cor": "Branco"
-                      }
-                      """)))
+                                            {
+                                              "modelo": "Onix",
+                                              "marca": "Chevrolet",
+                                              "ano": 2022,
+                                              "placa": "ABC1D23",
+                                              "cor": "Branco"
+                                            }
+                                            """)))
           @RequestBody
           Veiculo veiculo) {
-    return veiculoService.salvar(veiculo);
+
+    return veiculoService.salvar(pessoaId, veiculo);
   }
 
-  @Operation(
-      summary = "Atualizar veículo",
-      description = "Atualiza os dados de um veículo pelo ID.")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "Veículo atualizado",
-        content =
-            @Content(
-                mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = Veiculo.class))),
-    @ApiResponse(responseCode = "400", description = "Requisição inválida"),
-    @ApiResponse(responseCode = "404", description = "Veículo não encontrado")
-  })
-  @PutMapping("/{id}")
-  public Veiculo atualizar(
-      @Parameter(description = "ID do veículo", example = "1", required = true) @PathVariable
-          Long id,
-      @RequestBody Veiculo veiculo) {
-    return veiculoService.salvar(veiculo.withId(id));
-  }
+  //  @Operation(
+  //      summary = "Atualizar veículo",
+  //      description = "Atualiza os dados de um veículo pelo ID.")
+  //  @ApiResponses({
+  //    @ApiResponse(
+  //        responseCode = "200",
+  //        description = "Veículo atualizado",
+  //        content =
+  //            @Content(
+  //                mediaType = MediaType.APPLICATION_JSON_VALUE,
+  //                schema = @Schema(implementation = Veiculo.class))),
+  //    @ApiResponse(responseCode = "400", description = "Requisição inválida"),
+  //    @ApiResponse(responseCode = "404", description = "Veículo não encontrado")
+  //  })
+  //  @PutMapping("/{id}")
+  //  public Veiculo atualizar(
+  //      @Parameter(description = "ID do veículo", example = "1", required = true) @PathVariable
+  //          Long id,
+  //      @RequestBody Veiculo veiculo) {
+  //    return veiculoService.salvar(veiculo.withId(id));
+  //  }
 
   @Operation(
       summary = "Vincular veículo a uma pessoa",

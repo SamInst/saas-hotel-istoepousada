@@ -56,7 +56,7 @@ public class VeiculoRepository {
   }
 
   @Transactional
-  public Veiculo save(Veiculo veiculo) {
+  public Veiculo save(Long pessoa_id, Veiculo veiculo) {
     if (veiculo.id() == null) {
       Long id =
           jdbcTemplate.queryForObject(
@@ -72,25 +72,27 @@ public class VeiculoRepository {
               veiculo.placa(),
               veiculo.cor());
 
-      return veiculo.withId(id);
+      var newVeiculo = veiculo.withId(id);
+      vincularPessoa(pessoa_id, newVeiculo.id());
+      return newVeiculo;
+    } else {
+      jdbcTemplate.update(
+          """
+                      UPDATE veiculo SET
+                        modelo = ?,
+                        marca = ?,
+                        ano = ?,
+                        placa = ?,
+                        cor = ?
+                      WHERE id = ?
+                      """,
+          veiculo.modelo(),
+          veiculo.marca(),
+          veiculo.ano(),
+          veiculo.placa(),
+          veiculo.cor(),
+          veiculo.id());
     }
-
-    jdbcTemplate.update(
-        """
-                UPDATE veiculo SET
-                  modelo = ?,
-                  marca = ?,
-                  ano = ?,
-                  placa = ?,
-                  cor = ?
-                WHERE id = ?
-                """,
-        veiculo.modelo(),
-        veiculo.marca(),
-        veiculo.ano(),
-        veiculo.placa(),
-        veiculo.cor(),
-        veiculo.id());
 
     return veiculo;
   }

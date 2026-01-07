@@ -2,7 +2,6 @@ package saas.hotel.istoepousada.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -71,7 +70,7 @@ public class EmpresaController {
 
   @Operation(
       summary = "Criar empresa",
-      description = "Cria uma nova empresa (cliente PJ/parceiro).")
+      description = "Cria uma nova empresa (cliente PJ ou parceiro).")
   @ApiResponses({
     @ApiResponse(
         responseCode = "201",
@@ -88,9 +87,39 @@ public class EmpresaController {
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Dados da empresa",
               required = true,
-              content = @Content(schema = @Schema(implementation = Empresa.class)))
+              content =
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE,
+                      schema = @Schema(implementation = Empresa.class),
+                      examples =
+                          @ExampleObject(
+                              name = "Exemplo de criação de empresa",
+                              summary = "Payload de criação",
+                              value =
+                                  """
+                                            {
+                                              "cnpj": "12.345.678/0001-90",
+                                              "telefone": "(98) 99999-9999",
+                                              "email": "contato@empresa.com",
+                                              "endereco": "Rua das Flores",
+                                              "cep": "65000-000",
+                                              "numero": "123",
+                                              "complemento": "Sala 101",
+                                              "pais": "Brasil",
+                                              "estado": "MA",
+                                              "municipio": "São Luís",
+                                              "bairro": "Centro",
+                                              "bloqueado": false,
+                                              "razao_social": "Empresa Exemplo LTDA",
+                                              "nome_fantasia": "Empresa Exemplo",
+                                              "inscricao_estadual": "123456789",
+                                              "inscricao_municipal": "987654321",
+                                              "tipo_empresa": "CLIENTE"
+                                            }
+                                            """)))
           @RequestBody
           Empresa empresa) {
+
     return empresaService.salvar(empresa);
   }
 
@@ -122,39 +151,34 @@ public class EmpresaController {
   }
 
   @Operation(
-      summary = "Vincular/desvincular pessoas à empresa",
+      summary = "Vincular ou desvincular pessoa à empresa",
       description =
           """
-          Vincula ou desvincula pessoas a uma empresa.
+                    Vincula ou desvincula uma pessoa a uma empresa.
 
-          - vinculo=true: vincula (padrão)
-          - vinculo=false: desvincula
-
-          O corpo da requisição deve conter uma lista de IDs de pessoas.
-          """)
+                    - vinculo=true: vincula (padrão)
+                    - vinculo=false: desvincula
+                    """)
   @ApiResponses({
     @ApiResponse(responseCode = "204", description = "Operação realizada com sucesso"),
     @ApiResponse(responseCode = "400", description = "Requisição inválida"),
-    @ApiResponse(responseCode = "404", description = "Empresa não encontrada")
+    @ApiResponse(responseCode = "404", description = "Empresa ou pessoa não encontrada")
   })
-  @PostMapping("/{empresaId}/pessoas")
+  @PostMapping("/{empresaId}/pessoa")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void vincularOuDesvincularPessoas(
+  public void vincularOuDesvincularPessoa(
       @Parameter(description = "ID da empresa", example = "1", required = true) @PathVariable
           Long empresaId,
+      @Parameter(
+              description = "ID da pessoa a ser vinculada ou desvinculada",
+              example = "10",
+              required = true)
+          @RequestParam(name = "pessoaId", required = true)
+          Long pessoaId,
       @Parameter(description = "true para vincular, false para desvincular", example = "true")
-          @RequestParam(defaultValue = "true")
-          Boolean vinculo,
-      @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Lista de IDs de pessoas",
-              required = true,
-              content =
-                  @Content(
-                      mediaType = MediaType.APPLICATION_JSON_VALUE,
-                      array = @ArraySchema(schema = @Schema(implementation = Long.class)),
-                      examples = @ExampleObject(name = "Exemplo", value = "{1}")))
-          @RequestBody
-          Long pessoaId) {
-    empresaService.vincularPessoas(empresaId, pessoaId, vinculo);
+          @RequestParam(name = "vinculo", defaultValue = "true")
+          Boolean vinculo) {
+
+    empresaService.vincularPessoa(empresaId, pessoaId, vinculo);
   }
 }

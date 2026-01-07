@@ -33,13 +33,13 @@ public class VeiculoService {
   }
 
   @Transactional
-  public Veiculo salvar(Veiculo veiculo) {
+  public Veiculo salvar(Long pessoa_id, Veiculo veiculo) {
     if (veiculo.id() != null) {
       veiculoRepository
           .findById(veiculo.id())
           .orElseThrow(() -> new NotFoundException("Veículo não encontrado: id=" + veiculo.id()));
     }
-    return veiculoRepository.save(veiculo);
+    return veiculoRepository.save(pessoa_id, veiculo);
   }
 
   @Transactional
