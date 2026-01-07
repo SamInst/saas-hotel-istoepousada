@@ -18,6 +18,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Empresa;
 import saas.hotel.istoepousada.dto.Pessoa;
+import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
 public class EmpresaRepository {
@@ -184,7 +185,12 @@ public class EmpresaRepository {
 
   public Optional<Empresa> findById(Long id) {
     Page<Empresa> page = buscarPorIdNomeOuCnpj(id, null, Pageable.ofSize(1));
-    return page.getContent().isEmpty() ? Optional.empty() : Optional.of(page.getContent().get(0));
+
+    if (page.isEmpty()) {
+      throw new NotFoundException("Empresa não cadastrada para o id: " + id);
+    }
+
+    return Optional.of(page.getContent().getFirst());
   }
 
   @Transactional
@@ -302,6 +308,7 @@ public class EmpresaRepository {
 
   @Transactional
   public void vincularPessoa(Long empresaId, Long pessoaId, Boolean vinculo) {
+    findById(empresaId);
     String sql =
         Boolean.TRUE.equals(vinculo)
             ? "INSERT INTO empresa_pessoa (fk_empresa, fk_pessoa) VALUES (?, ?) ON CONFLICT DO NOTHING"
