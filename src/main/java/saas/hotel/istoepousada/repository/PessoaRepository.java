@@ -71,10 +71,9 @@ public class PessoaRepository {
    * página 2) carrega dados completos (pessoa + empresas) via IN (ids)
    */
   public Page<Pessoa> buscarPorIdNomeCpfOuHospedados(
-      Long id, String termo, Boolean hospedados, Pageable pageable) {
+      Long id, String termo, Pessoa.Status status, Pageable pageable) {
     boolean hasId = id != null;
     boolean hasTermo = termo != null && !termo.trim().isEmpty();
-    boolean onlyHospedados = Boolean.TRUE.equals(hospedados);
 
     String termoTrim = hasTermo ? termo.trim() : null;
     String search = hasTermo ? "%" + termoTrim + "%" : null;
@@ -140,8 +139,16 @@ public class PessoaRepository {
       params.add(termoTrim);
     }
 
-    if (onlyHospedados) {
+    if (status.equals(Pessoa.Status.HOSPEDADO)) {
       where.append(" AND p.status = 'HOSPEDADO'::public.pessoa_status ");
+    }
+
+    if (status.equals(Pessoa.Status.BLOQUEADO)) {
+      where.append(" AND p.status = 'BLOQUEADO'::public.pessoa_status ");
+    }
+
+    if (status.equals(Pessoa.Status.ATIVO)) {
+      where.append(" AND p.status = 'ATIVO'::public.pessoa_status ");
     }
 
     Long total;

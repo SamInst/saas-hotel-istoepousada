@@ -68,7 +68,7 @@ public class PessoaController {
           String termo,
       @Parameter(description = "Se true, filtra apenas pessoas hospedadas", example = "true")
           @RequestParam(required = false)
-          Boolean hospedados,
+          Pessoa.Status status,
       @Parameter(description = "Número da página (0-based)", example = "0")
           @RequestParam(defaultValue = "0")
           int page,
@@ -76,7 +76,7 @@ public class PessoaController {
           @RequestParam(defaultValue = "10")
           int size) {
     Pageable pageable = PageRequest.of(page, size);
-    return pessoaService.buscar(id, termo, hospedados, pageable);
+    return pessoaService.buscar(id, termo, status, pageable);
   }
 
   @Operation(summary = "Criar pessoa", description = "Cria uma nova pessoa (hóspede/cliente).")
