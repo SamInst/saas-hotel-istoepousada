@@ -123,41 +123,37 @@ public class EmpresaController {
     return empresaService.salvar(empresa);
   }
 
-    @Operation(
-            summary = "Atualizar empresa",
-            description = "Atualiza os dados de uma empresa pelo ID informado no path.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Empresa atualizada",
-                    content =
-                    @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = Empresa.class))),
-            @ApiResponse(responseCode = "400", description = "Requisição inválida"),
-            @ApiResponse(responseCode = "404", description = "Empresa não encontrada")
-    })
-    @PutMapping("/{id}")
-    public Empresa atualizar(
-            @Parameter(
-                    description = "ID da empresa",
-                    example = "1",
-                    required = true)
-            @PathVariable Long id,
-
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Dados para atualização da empresa (ID informado apenas no path)",
-                    required = true,
-                    content =
-                    @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = Empresa.class),
-                            examples =
-                            @ExampleObject(
-                                    name = "Exemplo de atualização",
-                                    summary = "Payload de atualização da empresa",
-                                    value =
-                                            """
+  @Operation(
+      summary = "Atualizar empresa",
+      description = "Atualiza os dados de uma empresa pelo ID informado no path.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Empresa atualizada",
+        content =
+            @Content(
+                mediaType = MediaType.APPLICATION_JSON_VALUE,
+                schema = @Schema(implementation = Empresa.class))),
+    @ApiResponse(responseCode = "400", description = "Requisição inválida"),
+    @ApiResponse(responseCode = "404", description = "Empresa não encontrada")
+  })
+  @PutMapping("/{id}")
+  public Empresa atualizar(
+      @Parameter(description = "ID da empresa", example = "1", required = true) @PathVariable
+          Long id,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(
+              description = "Dados para atualização da empresa (ID informado apenas no path)",
+              required = true,
+              content =
+                  @Content(
+                      mediaType = MediaType.APPLICATION_JSON_VALUE,
+                      schema = @Schema(implementation = Empresa.class),
+                      examples =
+                          @ExampleObject(
+                              name = "Exemplo de atualização",
+                              summary = "Payload de atualização da empresa",
+                              value =
+                                  """
                                             {
                                               "cnpj": "12.345.678/0001-90",
                                               "telefone": "(98) 99999-9999",
@@ -178,13 +174,13 @@ public class EmpresaController {
                                               "tipo_empresa": "CLIENTE"
                                             }
                                             """)))
-            @RequestBody Empresa empresa) {
+          @RequestBody
+          Empresa empresa) {
 
-        return empresaService.salvar(empresa.withId(id));
-    }
+    return empresaService.salvar(empresa.withId(id));
+  }
 
-
-    @Operation(
+  @Operation(
       summary = "Vincular ou desvincular pessoa à empresa",
       description =
           """
