@@ -4,7 +4,7 @@ spring:
       on-profile: dev
 
   datasource:
-    url: ${DATABASE}?ApplicationName=ms-evento
+    url: ${DATABASE}?ApplicationName=istoepousada
     username: ${USERNAME}
     password: ${PASSWORD}
     driver-class-name: org.postgresql.Driver
