@@ -72,9 +72,7 @@ public class VeiculoRepository {
               veiculo.placa(),
               veiculo.cor());
 
-      var newVeiculo = veiculo.withId(id);
-      vincularPessoa(pessoa_id, newVeiculo.id());
-      return newVeiculo;
+        return veiculo.withId(id);
     } else {
       jdbcTemplate.update(
           """
@@ -93,6 +91,7 @@ public class VeiculoRepository {
           veiculo.cor(),
           veiculo.id());
     }
+    vincularPessoa(pessoa_id, veiculo.id());
 
     return veiculo;
   }
