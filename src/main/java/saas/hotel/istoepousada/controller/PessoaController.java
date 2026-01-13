@@ -186,7 +186,17 @@ public class PessoaController {
                                               "bairro": "string",
                                               "sexo": 0,
                                               "numero": "string",
-                                              "bloqueado": true
+                                              "status": "ATIVO",
+                                              "veiculos": [
+                                                {
+                                                  "modelo": "string",
+                                                  "marca": "string",
+                                                  "ano": 1999,
+                                                  "placa": "string",
+                                                  "cor": "string"
+                                                }
+                                              ],
+                                              "empresasVinculadas": [{"id": 15 }]
                                             }
                                             """)))
           @RequestBody

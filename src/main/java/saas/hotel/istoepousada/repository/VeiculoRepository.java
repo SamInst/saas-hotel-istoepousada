@@ -74,6 +74,7 @@ public class VeiculoRepository {
 
         return veiculo.withId(id);
     } else {
+      System.out.println(veiculo.id());
       jdbcTemplate.update(
           """
                       UPDATE veiculo SET

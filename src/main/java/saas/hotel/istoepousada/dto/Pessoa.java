@@ -207,6 +207,12 @@ public record Pessoa(
     @Schema(description = "Pessoa atualmente hospedada")
     HOSPEDADO,
 
+    @Schema(description = "Funcionario atualmente contratado")
+    CONTRATADO,
+
+    @Schema(description = "Funcionario atualmente demitido")
+    DEMITIDO,
+
     @Schema(description = "Pessoa bloqueada para novas hospedagens")
     BLOQUEADO;
 

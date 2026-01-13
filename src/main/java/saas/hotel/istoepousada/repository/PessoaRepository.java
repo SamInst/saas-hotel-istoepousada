@@ -2,6 +2,7 @@ package saas.hotel.istoepousada.repository;
 
 import static saas.hotel.istoepousada.dto.Empresa.mapEmpresa;
 import static saas.hotel.istoepousada.dto.Pessoa.mapPessoa;
+import static saas.hotel.istoepousada.dto.Veiculo.mapVeiculo;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Empresa;
 import saas.hotel.istoepousada.dto.Pessoa;
+import saas.hotel.istoepousada.dto.Veiculo;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
@@ -35,30 +37,44 @@ public class PessoaRepository {
   }
 
   private final ResultSetExtractor<List<Pessoa>> PESSOA_COM_EMPRESAS_EXTRACTOR =
-      rs -> {
-        Map<Long, Pessoa> pessoaMap = new LinkedHashMap<>();
-        Map<Long, List<Empresa>> empresasPorPessoa = new HashMap<>();
+          rs -> {
+            Map<Long, Pessoa> pessoaMap = new LinkedHashMap<>();
+            Map<Long, List<Empresa>> empresasPorPessoa = new HashMap<>();
+            Map<Long, List<Veiculo>> veiculosPorPessoa = new HashMap<>();
 
-        while (rs.next()) {
-          Long pessoaId = rs.getLong("pessoa_id");
+            while (rs.next()) {
+              Long pessoaId = rs.getLong("pessoa_id");
 
-          if (!pessoaMap.containsKey(pessoaId)) {
-            Pessoa pessoa = mapPessoa(rs);
-            pessoaMap.put(pessoaId, pessoa);
-            empresasPorPessoa.put(pessoaId, new ArrayList<>());
-          }
+              if (!pessoaMap.containsKey(pessoaId)) {
+                Pessoa pessoa = mapPessoa(rs);
+                pessoaMap.put(pessoaId, pessoa);
+                empresasPorPessoa.put(pessoaId, new ArrayList<>());
+                veiculosPorPessoa.put(pessoaId, new ArrayList<>());
+              }
 
-          Long empresaId = rs.getObject("empresa_id", Long.class);
-          if (empresaId != null) {
-            Empresa empresa = mapEmpresa(rs);
-            empresasPorPessoa.get(pessoaId).add(empresa);
-          }
-        }
+              Long empresaId = rs.getObject("empresa_id", Long.class);
+              if (empresaId != null) {
+                Empresa empresa = mapEmpresa(rs);
+                empresasPorPessoa.get(pessoaId).add(empresa);
+              }
 
-        return pessoaMap.entrySet().stream()
-            .map(entry -> entry.getValue().withEmpresas(empresasPorPessoa.get(entry.getKey())))
-            .toList();
-      };
+              Long veiculoId = rs.getObject("veiculo_id", Long.class);
+              if (veiculoId != null) {
+                Veiculo veiculo = mapVeiculo(rs, "veiculo_");
+                veiculosPorPessoa.get(pessoaId).add(veiculo);
+              }
+            }
+
+            return pessoaMap.entrySet().stream()
+                    .map(
+                            entry ->
+                                    entry
+                                            .getValue()
+                                            .withEmpresas(empresasPorPessoa.get(entry.getKey()))
+                                            .withVeiculos(veiculosPorPessoa.get(entry.getKey())))
+                    .toList();
+          };
+
 
   /**
    * Busca unificada paginada: - id != null => filtra por p.id - termo preenchido => filtra por
@@ -101,6 +117,7 @@ public class PessoaRepository {
                 p.sexo                 AS pessoa_sexo,
                 p.numero               AS pessoa_numero,
                 p.status               AS pessoa_status,
+        
                 e.id                   AS empresa_id,
                 e.razao_social         AS empresa_razao_social,
                 e.nome_fantasia        AS empresa_nome_fantasia,
@@ -118,10 +135,26 @@ public class PessoaRepository {
                 e.municipio            AS empresa_municipio,
                 e.bairro               AS empresa_bairro,
                 e.tipo_empresa         AS empresa_tipo_empresa,
-                e.bloqueado            AS empresa_bloqueado
+                e.bloqueado            AS empresa_bloqueado,
+        
+                v.id                   AS veiculo_id,
+                v.modelo               AS veiculo_modelo,
+                v.marca                AS veiculo_marca,
+                v.ano                  AS veiculo_ano,
+                v.placa                AS veiculo_placa,
+                v.cor                  AS veiculo_cor
             FROM pessoa p
             LEFT JOIN empresa_pessoa ep ON p.id = ep.fk_pessoa
             LEFT JOIN empresa e ON ep.fk_empresa = e.id
+            LEFT JOIN LATERAL (
+                SELECT v.*
+                FROM pessoa_veiculo pv
+                         JOIN veiculo v ON v.id = pv.veiculo_id
+                WHERE pv.pessoa_id = p.id
+                  AND pv.vinculo_ativo = true
+                ORDER BY v.id
+                LIMIT 1
+                ) v ON true
         """;
 
     // WHERE dinâmico: se nada vier, fica WHERE 1=1 => findAll paginado
@@ -302,7 +335,7 @@ public class PessoaRepository {
                         bairro = ?,
                         sexo = ?,
                         numero = ?,
-                        status = ?
+                        status = ?::pessoa_status
                     WHERE id = ?
                 """;
 
@@ -332,7 +365,7 @@ public class PessoaRepository {
         pessoa.bairro(),
         pessoa.sexo(),
         pessoa.numero(),
-        pessoa.status(),
+        pessoa.status().toDb(),
         pessoa.id());
   }
 

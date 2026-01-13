@@ -60,11 +60,12 @@ public class PessoaService {
           .forEach(empresaId -> empresaRepository.vincularPessoa(empresaId, finalSalva.id(), true));
     }
 
-    List<Veiculo> veiculos = pessoa.veiculos() == null ? List.of() : pessoa.veiculos();
-    if (!veiculos.isEmpty()) {
-      List<Veiculo> veiculosSalvos = new ArrayList<>(veiculos.size());
+    var veiculos = veiculoRepository.findAllByPessoaId(pessoa.id());
 
-      for (Veiculo veiculo : veiculos) {
+    if (veiculos.isEmpty()) {
+      List<Veiculo> veiculosSalvos = new ArrayList<>(pessoa.veiculos().size());
+
+      for (Veiculo veiculo : pessoa.veiculos()) {
         Veiculo veiculoSalvo = veiculoRepository.save(pessoa.id(), veiculo);
 
         if (veiculoSalvo.id() == null) {
@@ -76,6 +77,18 @@ public class PessoaService {
       }
 
       salva = salva.withVeiculos(veiculosSalvos);
+    } else {
+      var oldVeiculo = veiculos.getFirst();
+      var newVeiculo = pessoa.veiculos().getFirst();
+      Veiculo veiculo = new Veiculo(
+              oldVeiculo.id(),
+              newVeiculo.modelo(),
+              newVeiculo.marca(),
+              newVeiculo.ano(),
+              newVeiculo.placa(),
+              newVeiculo.cor()
+      );
+      veiculoRepository.save(pessoa.id(), veiculo);
     }
 
     notificacaoService.criar(9L, "SAM HELSON", "ATUALIZOU OS DADOS DO CLIENTE: " + pessoa.nome());

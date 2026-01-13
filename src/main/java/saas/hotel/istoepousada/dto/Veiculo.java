@@ -1,5 +1,8 @@
 package saas.hotel.istoepousada.dto;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 public record Veiculo(Long id, String modelo, String marca, Integer ano, String placa, String cor) {
   public Veiculo withId(Long id) {
     return new Veiculo(id, modelo, marca, ano, placa, cor);
@@ -13,5 +16,15 @@ public record Veiculo(Long id, String modelo, String marca, Integer ano, String 
         rs.getObject("ano", Integer.class),
         rs.getString("placa"),
         rs.getString("cor"));
+  }
+  public static Veiculo mapVeiculo(ResultSet rs, String prefix) throws SQLException {
+    return new Veiculo(
+            rs.getLong(prefix + "id"),
+            rs.getString(prefix + "modelo"),
+            rs.getString(prefix + "marca"),
+            rs.getObject(prefix + "ano", Integer.class),
+            rs.getString(prefix + "placa"),
+            rs.getString(prefix + "cor")
+    );
   }
 }
