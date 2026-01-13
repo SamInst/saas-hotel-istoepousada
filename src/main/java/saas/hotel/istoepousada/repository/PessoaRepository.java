@@ -144,17 +144,24 @@ public class PessoaRepository {
                 v.placa                AS veiculo_placa,
                 v.cor                  AS veiculo_cor
             FROM pessoa p
-            LEFT JOIN empresa_pessoa ep ON p.id = ep.fk_pessoa
-            LEFT JOIN empresa e ON ep.fk_empresa = e.id
             LEFT JOIN LATERAL (
-                SELECT v.*
-                FROM pessoa_veiculo pv
-                         JOIN veiculo v ON v.id = pv.veiculo_id
-                WHERE pv.pessoa_id = p.id
-                  AND pv.vinculo_ativo = true
-                ORDER BY v.id
-                LIMIT 1
-                ) v ON true
+                 SELECT e.*
+                 FROM empresa_pessoa ep
+                 JOIN empresa e ON e.id = ep.fk_empresa
+                 WHERE ep.fk_pessoa = p.id
+                 ORDER BY e.id DESC
+                 LIMIT 1
+             ) e ON true
+
+             LEFT JOIN LATERAL (
+                 SELECT v.*
+                 FROM pessoa_veiculo pv
+                 JOIN veiculo v ON v.id = pv.veiculo_id
+                 WHERE pv.pessoa_id = p.id
+                   AND pv.vinculo_ativo = true
+                 ORDER BY v.id DESC
+                 LIMIT 1
+             ) v ON true 
         """;
 
     // WHERE dinâmico: se nada vier, fica WHERE 1=1 => findAll paginado
