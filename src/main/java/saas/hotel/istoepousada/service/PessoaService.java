@@ -63,7 +63,7 @@ public class PessoaService {
     var veiculos = veiculoRepository.findAllByPessoaId(pessoa.id());
 
     if (veiculos.isEmpty()) {
-      if (pessoa.veiculos() != null){
+      if (pessoa.veiculos() != null) {
         List<Veiculo> veiculosSalvos = new ArrayList<>(pessoa.veiculos().size());
         for (Veiculo veiculo : pessoa.veiculos()) {
           Veiculo veiculoSalvo = veiculoRepository.save(pessoa.id(), veiculo);
@@ -78,14 +78,14 @@ public class PessoaService {
     } else {
       var oldVeiculo = veiculos.getFirst();
       var newVeiculo = pessoa.veiculos().getFirst();
-      Veiculo veiculo = new Veiculo(
+      Veiculo veiculo =
+          new Veiculo(
               oldVeiculo.id(),
               newVeiculo.modelo(),
               newVeiculo.marca(),
               newVeiculo.ano(),
               newVeiculo.placa(),
-              newVeiculo.cor()
-      );
+              newVeiculo.cor());
       veiculoRepository.save(pessoa.id(), veiculo);
     }
 

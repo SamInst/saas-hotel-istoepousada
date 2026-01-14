@@ -72,7 +72,7 @@ public class VeiculoRepository {
               veiculo.placa(),
               veiculo.cor());
 
-        return veiculo.withId(id);
+      return veiculo.withId(id);
     } else {
       System.out.println(veiculo.id());
       jdbcTemplate.update(
