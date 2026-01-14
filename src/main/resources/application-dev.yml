@@ -4,7 +4,7 @@ spring:
       on-profile: dev
 
   datasource:
-    url: ${DATABASE}?ApplicationName=istoepousada
-    username: ${USERNAME}
-    password: ${PASSWORD}
+    url: jdbc:postgresql://ep-misty-hat-acgo91wq-pooler.sa-east-1.aws.neon.tech:5432/isto_e_pousada?ApplicationName=istoepousada
+    username: neondb_owner
+    password: npg_kpGd86QWaZNL
     driver-class-name: org.postgresql.Driver
