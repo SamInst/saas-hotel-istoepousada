@@ -77,17 +77,21 @@ public class PessoaService {
       }
 
     } else {
-      var oldVeiculo = veiculos.getFirst();
-      var newVeiculo = pessoa.veiculos().getFirst();
-      Veiculo veiculo =
-          new Veiculo(
-              oldVeiculo.id(),
-              newVeiculo.modelo(),
-              newVeiculo.marca(),
-              newVeiculo.ano(),
-              newVeiculo.placa(),
-              newVeiculo.cor());
-      veiculoRepository.save(pessoa.id(), veiculo);
+      if (pessoa.veiculos() != null) {
+        if (!pessoa.veiculos().isEmpty()) {
+          var oldVeiculo = veiculos.getFirst();
+          var newVeiculo = pessoa.veiculos().getFirst();
+          Veiculo veiculo =
+                  new Veiculo(
+                          oldVeiculo.id(),
+                          newVeiculo.modelo(),
+                          newVeiculo.marca(),
+                          newVeiculo.ano(),
+                          newVeiculo.placa(),
+                          newVeiculo.cor());
+          veiculoRepository.save(pessoa.id(), veiculo);
+        }
+      }
     }
 
     notificacaoService.criar(9L, "SAM HELSON", "ATUALIZOU OS DADOS DO CLIENTE: " + pessoa.nome());
