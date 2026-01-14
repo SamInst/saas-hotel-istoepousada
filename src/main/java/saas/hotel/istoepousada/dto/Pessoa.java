@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -9,6 +10,7 @@ import java.util.List;
 
 public record Pessoa(
     Long id,
+    @JsonFormat(pattern = "dd/MM/yyyy HH:mm")
     LocalDateTime dataHoraCadastro,
     String nome,
     LocalDate dataNascimento,
