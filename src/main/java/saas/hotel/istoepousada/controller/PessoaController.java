@@ -122,7 +122,6 @@ public class PessoaController {
                                             "bairro": "string",
                                             "sexo": 1,
                                             "numero": "string",
-                                            "bloqueado": true,
                                             "empresasVinculadas": [
                                               { "id": 1 }
                                             ],
