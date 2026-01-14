@@ -135,7 +135,7 @@ public class PessoaRepository {
                 e.municipio            AS empresa_municipio,
                 e.bairro               AS empresa_bairro,
                 e.tipo_empresa         AS empresa_tipo_empresa,
-                e.bloqueado            AS empresa_bloqueado,
+                e.status               AS empresa_status,
 
                 v.id                   AS veiculo_id,
                 v.modelo               AS veiculo_modelo,
