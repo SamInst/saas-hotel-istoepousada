@@ -59,13 +59,13 @@ public class PessoaController {
   })
   @GetMapping
   public Page<Pessoa> listar(
-      @Parameter(description = "ID da pessoa", example = "10") @RequestParam(required = false)
-          Long id,
-      @Parameter(
-              description = "Termo para busca por nome (ILIKE) ou CPF exato sem ponto e traço",
-              example = "João | 12345678910")
+      @Parameter(description = "ID da pessoa") @RequestParam(required = false) Long id,
+      @Parameter(description = "Termo para busca por nome (ILIKE) ou CPF exato sem ponto e traço")
           @RequestParam(required = false)
           String termo,
+      @Parameter(description = "Termo para busca por placa de veiculo (ILIKE) sem ponto e traço")
+          @RequestParam(required = false)
+          String placaVeiculo,
       @Parameter(description = "Se true, filtra apenas pessoas hospedadas", example = "true")
           @RequestParam(required = false)
           Pessoa.Status status,
@@ -76,7 +76,7 @@ public class PessoaController {
           @RequestParam(defaultValue = "10")
           int size) {
     Pageable pageable = PageRequest.of(page, size);
-    return pessoaService.buscar(id, termo, status, pageable);
+    return pessoaService.buscar(id, termo, placaVeiculo, status, pageable);
   }
 
   @Operation(summary = "Criar pessoa", description = "Cria uma nova pessoa (hóspede/cliente).")

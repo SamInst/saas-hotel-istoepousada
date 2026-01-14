@@ -85,11 +85,12 @@ public class PessoaRepository {
    * <p>Paginação é feita em duas etapas para não duplicar por JOIN: 1) busca IDs da pessoa da
    * página 2) carrega dados completos (pessoa + empresas) via IN (ids)
    */
-  public Page<Pessoa> buscarPorIdNomeCpfOuHospedados(
-      Long id, String termo, Pessoa.Status status, Pageable pageable) {
+  public Page<Pessoa> buscar(
+      Long id, String termo, String placaVeiculo, Pessoa.Status status, Pageable pageable) {
     boolean hasId = id != null;
     boolean hasTermo = termo != null && !termo.trim().isEmpty();
-
+    boolean hasPlaca = placaVeiculo != null && !placaVeiculo.trim().isEmpty();
+    String placaTrim = hasPlaca ? placaVeiculo.trim().toUpperCase() : null;
     String termoTrim = hasTermo ? termo.trim() : null;
     String search = hasTermo ? "%" + termoTrim + "%" : null;
 
@@ -192,6 +193,21 @@ public class PessoaRepository {
       }
     }
 
+    if (hasPlaca) {
+      where.append(
+          """
+      AND EXISTS (
+          SELECT 1
+          FROM pessoa_veiculo pv
+          JOIN veiculo v ON v.id = pv.veiculo_id
+          WHERE pv.pessoa_id = p.id
+            AND pv.vinculo_ativo = true
+            AND UPPER(v.placa) = ?
+      )
+      """);
+      params.add(placaTrim);
+    }
+
     Long total;
     try {
       String countSql = "SELECT COUNT(*) FROM pessoa p" + where;
@@ -242,7 +258,7 @@ public class PessoaRepository {
   }
 
   public Pessoa findById(Long id) {
-    Page<Pessoa> page = buscarPorIdNomeCpfOuHospedados(id, null, null, Pageable.ofSize(1));
+    Page<Pessoa> page = buscar(id, null, null, null, Pageable.ofSize(1));
     if (page.isEmpty()) {
       throw new NotFoundException("Pessoa não encontrada para o id: " + id);
     }

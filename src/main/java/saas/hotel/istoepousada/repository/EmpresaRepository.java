@@ -90,7 +90,7 @@ public class EmpresaRepository {
                          e.inscricao_estadual   AS empresa_inscricao_estadual,
                          e.inscricao_municipal  AS empresa_inscricao_municipal,
                          e.tipo_empresa         AS empresa_tipo_empresa,
-                         e.bloqueado            AS empresa_bloqueado,
+                         e.status               AS empresa_status,
 
                          -- pessoa_*
                          p.id                   AS pessoa_id,
@@ -221,9 +221,8 @@ public class EmpresaRepository {
                     estado,
                     municipio,
                     bairro,
-                    tipo_empresa,
-                    bloqueado
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tipo_empresa
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 returning id;
                 """;
 
@@ -249,7 +248,6 @@ public class EmpresaRepository {
           ps.setObject(idx++, empresa.municipio());
           ps.setString(idx++, empresa.bairro());
           ps.setString(idx++, empresa.tipoEmpresa());
-          ps.setBoolean(idx++, empresa.bloqueado());
           return ps;
         },
         keyHolder);
@@ -280,7 +278,7 @@ public class EmpresaRepository {
                     municipio = ?,
                     bairro = ?,
                     tipo_empresa = ?,
-                    bloqueado = ?
+                    status = ?::empresa_status
                 WHERE id = ?
                 """;
 
@@ -302,7 +300,7 @@ public class EmpresaRepository {
         empresa.municipio(),
         empresa.bairro(),
         empresa.tipoEmpresa(),
-        empresa.bloqueado(),
+        empresa.status().toDb(),
         empresa.id());
   }
 

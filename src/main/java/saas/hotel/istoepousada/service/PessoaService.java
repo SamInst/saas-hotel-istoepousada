@@ -41,9 +41,10 @@ public class PessoaService {
    * (ILIKE) ou CPF exato - hospedados == true => filtra hospedados - se todos nulos/vazios => lista
    * todos paginado (ordenado por nome asc no repo)
    */
-  public Page<Pessoa> buscar(Long id, String termo, Pessoa.Status status, Pageable pageable) {
+  public Page<Pessoa> buscar(
+      Long id, String termo, String placaVeiculo, Pessoa.Status status, Pageable pageable) {
     String termoNormalizado = StringUtils.hasText(termo) ? termo.trim() : null;
-    return pessoaRepository.buscarPorIdNomeCpfOuHospedados(id, termoNormalizado, status, pageable);
+    return pessoaRepository.buscar(id, termoNormalizado, placaVeiculo, status, pageable);
   }
 
   @Transactional

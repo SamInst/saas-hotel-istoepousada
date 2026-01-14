@@ -10,7 +10,8 @@ import java.util.List;
 
 public record Pessoa(
     Long id,
-    @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime dataHoraCadastro,
+    @JsonFormat(pattern = "dd/MM/yyyy HH:mm")
+    LocalDateTime dataHoraCadastro,
     String nome,
     LocalDate dataNascimento,
     String cpf,

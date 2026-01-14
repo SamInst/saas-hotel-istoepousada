@@ -1,6 +1,8 @@
 package saas.hotel.istoepousada.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -23,7 +25,7 @@ public record Empresa(
     String municipio,
     String bairro,
     @JsonProperty("tipo_empresa") String tipoEmpresa,
-    Boolean bloqueado,
+    Status status,
     @JsonProperty("pessoasVinculadas") List<Pessoa> pessoas) {
   public Empresa withId(Long newId) {
     return new Empresa(
@@ -44,7 +46,7 @@ public record Empresa(
         municipio,
         bairro,
         tipoEmpresa,
-        bloqueado,
+        status,
         pessoas);
   }
 
@@ -67,7 +69,7 @@ public record Empresa(
         municipio,
         bairro,
         tipoEmpresa,
-        bloqueado,
+        status,
         newPessoas);
   }
 
@@ -76,6 +78,8 @@ public record Empresa(
   }
 
   public static Empresa mapEmpresa(ResultSet rs, String prefix) throws SQLException {
+    String statusDb = rs.getString(prefix + "status");
+    Empresa.Status status = statusDb != null ? Empresa.Status.valueOf(statusDb) : null;
     return new Empresa(
         rs.getLong(prefix + "id"),
         rs.getString(prefix + "razao_social"),
@@ -94,7 +98,28 @@ public record Empresa(
         rs.getString(prefix + "municipio"),
         rs.getString(prefix + "bairro"),
         rs.getString(prefix + "tipo_empresa"),
-        rs.getBoolean(prefix + "bloqueado"),
+        status,
         List.of());
+  }
+
+  @Schema(description = "Status da Empresa no sistema")
+  public enum Status {
+    @Schema(description = "Empresa ativa (padrão)")
+    ATIVO,
+
+    @Schema(description = "Empresa atualmente hospedada")
+    HOSPEDADO,
+
+    @Schema(description = "Empresa bloqueada para novas hospedagens")
+    BLOQUEADO;
+
+    public static Pessoa.Status fromDb(String value) {
+      if (value == null || value.isBlank()) return null;
+      return Pessoa.Status.valueOf(value.trim().toUpperCase());
+    }
+
+    public String toDb() {
+      return name();
+    }
   }
 }
