@@ -63,20 +63,18 @@ public class PessoaService {
     var veiculos = veiculoRepository.findAllByPessoaId(pessoa.id());
 
     if (veiculos.isEmpty()) {
-      List<Veiculo> veiculosSalvos = new ArrayList<>(pessoa.veiculos().size());
-
-      for (Veiculo veiculo : pessoa.veiculos()) {
-        Veiculo veiculoSalvo = veiculoRepository.save(pessoa.id(), veiculo);
-
-        if (veiculoSalvo.id() == null) {
-          throw new IllegalStateException("Veículo salvo sem ID (verifique o RETURNING id).");
+      if (pessoa.veiculos() != null){
+        List<Veiculo> veiculosSalvos = new ArrayList<>(pessoa.veiculos().size());
+        for (Veiculo veiculo : pessoa.veiculos()) {
+          Veiculo veiculoSalvo = veiculoRepository.save(pessoa.id(), veiculo);
+          if (veiculoSalvo.id() == null)
+            throw new IllegalStateException("Veículo salvo sem ID (verifique o RETURNING id).");
+          veiculoRepository.setVinculoAtivo(salva.id(), veiculoSalvo.id(), true);
+          veiculosSalvos.add(veiculoSalvo);
         }
-
-        veiculoRepository.setVinculoAtivo(salva.id(), veiculoSalvo.id(), true);
-        veiculosSalvos.add(veiculoSalvo);
+        salva = salva.withVeiculos(veiculosSalvos);
       }
 
-      salva = salva.withVeiculos(veiculosSalvos);
     } else {
       var oldVeiculo = veiculos.getFirst();
       var newVeiculo = pessoa.veiculos().getFirst();
