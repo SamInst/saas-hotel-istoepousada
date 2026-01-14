@@ -282,7 +282,7 @@ public class PessoaRepository {
             bairro,
             sexo,
             numero
-        ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+        ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?);
         """;
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
