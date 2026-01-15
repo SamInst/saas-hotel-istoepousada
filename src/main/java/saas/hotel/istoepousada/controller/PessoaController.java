@@ -117,7 +117,6 @@ public class PessoaController {
                                             "municipio": "string",
                                             "endereco": "string",
                                             "complemento": "string",
-                                            "hospedado": true,
                                             "cep": "string",
                                             "bairro": "string",
                                             "sexo": 1,

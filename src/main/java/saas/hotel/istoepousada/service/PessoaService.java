@@ -82,13 +82,13 @@ public class PessoaService {
           var oldVeiculo = veiculos.getFirst();
           var newVeiculo = pessoa.veiculos().getFirst();
           Veiculo veiculo =
-                  new Veiculo(
-                          oldVeiculo.id(),
-                          newVeiculo.modelo(),
-                          newVeiculo.marca(),
-                          newVeiculo.ano(),
-                          newVeiculo.placa(),
-                          newVeiculo.cor());
+              new Veiculo(
+                  oldVeiculo.id(),
+                  newVeiculo.modelo(),
+                  newVeiculo.marca(),
+                  newVeiculo.ano(),
+                  newVeiculo.placa(),
+                  newVeiculo.cor());
           veiculoRepository.save(pessoa.id(), veiculo);
         }
       }
