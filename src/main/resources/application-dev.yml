@@ -4,7 +4,7 @@ spring:
       on-profile: dev
 
   datasource:
-    url: ${DATABASE}?ApplicationName=istoepousada
+    url: ${DATABASE}
     username: ${USER_DATABASE}
     password: ${PASSWORD_DATABASE}
     driver-class-name: org.postgresql.Driver
