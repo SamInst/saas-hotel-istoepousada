@@ -111,8 +111,6 @@ public class EmpresaController {
                                               "bairro": "Centro",
                                               "razao_social": "Empresa Exemplo LTDA",
                                               "nome_fantasia": "Empresa Exemplo",
-                                              "inscricao_estadual": "123456789",
-                                              "inscricao_municipal": "987654321",
                                               "tipo_empresa": "CLIENTE"
                                             }
                                             """)))
@@ -168,8 +166,6 @@ public class EmpresaController {
                                               "status": "ATIVO",
                                               "razao_social": "Empresa Exemplo LTDA",
                                               "nome_fantasia": "Empresa Exemplo",
-                                              "inscricao_estadual": "123456789",
-                                              "inscricao_municipal": "987654321",
                                               "tipo_empresa": "CLIENTE"
                                             }
                                             """)))
