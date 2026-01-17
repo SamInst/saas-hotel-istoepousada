@@ -282,6 +282,9 @@ public class EmpresaRepository {
                 WHERE id = ?
                 """;
 
+    String status =
+        empresa.status() == null ? Empresa.Status.ATIVO.toDb() : empresa.status().toDb();
+
     jdbcTemplate.update(
         sql,
         empresa.razaoSocial(),
@@ -300,7 +303,7 @@ public class EmpresaRepository {
         empresa.municipio(),
         empresa.bairro(),
         empresa.tipoEmpresa(),
-        empresa.status().toDb(),
+        status,
         empresa.id());
   }
 
