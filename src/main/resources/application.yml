@@ -7,7 +7,7 @@ spring:
     name: istoepousada
 
   jackson:
-    time-zone: GMT+3
+    time-zone: America/Sao_Paulo
 
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
