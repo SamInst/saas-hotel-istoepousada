@@ -369,6 +369,8 @@ public class PessoaRepository {
             ? Period.between(pessoa.dataNascimento(), LocalDate.now()).getYears()
             : null;
 
+    String status = pessoa.status() == null ? Pessoa.Status.ATIVO.toDb() : pessoa.status().toDb();
+
     jdbcTemplate.update(
         sql,
         pessoa.nome(),
@@ -387,7 +389,7 @@ public class PessoaRepository {
         pessoa.bairro(),
         pessoa.sexo(),
         pessoa.numero(),
-        pessoa.status().toDb(),
+        status,
         pessoa.id());
   }
 
