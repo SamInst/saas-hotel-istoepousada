@@ -122,8 +122,6 @@ public class PessoaRepository {
                 e.razao_social         AS empresa_razao_social,
                 e.nome_fantasia        AS empresa_nome_fantasia,
                 e.cnpj                 AS empresa_cnpj,
-                e.inscricao_estadual   AS empresa_inscricao_estadual,
-                e.inscricao_municipal  AS empresa_inscricao_municipal,
                 e.telefone             AS empresa_telefone,
                 e.email                AS empresa_email,
                 e.endereco             AS empresa_endereco,
