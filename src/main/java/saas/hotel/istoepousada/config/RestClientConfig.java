@@ -7,10 +7,13 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class RestClientConfig {
 
-    @Bean
-    public RestClient restClient() {
-        return RestClient.builder()
-                .baseUrl("https://viacep.com.br")
-                .build();
-    }
+  @Bean("viaCepClient")
+  public RestClient restClient() {
+    return RestClient.builder().baseUrl("https://viacep.com.br").build();
+  }
+
+  @Bean("cnpjaClient")
+  public RestClient cnpjaClient() {
+    return RestClient.builder().baseUrl("https://open.cnpja.com").build();
+  }
 }
