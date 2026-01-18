@@ -247,7 +247,7 @@ public class PessoaRepository {
             + " WHERE p.id IN ("
             + inPlaceholders
             + ") "
-            + " ORDER BY p.nome, e.razao_social";
+            + " ORDER BY p.data_hora_cadastro, e.razao_social";
 
     List<Pessoa> content =
         jdbcTemplate.query(pageSql, PESSOA_COM_EMPRESAS_EXTRACTOR, ids.toArray());

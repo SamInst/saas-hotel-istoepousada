@@ -111,8 +111,7 @@ public class LocalidadeRepository {
             """;
 
     try {
-      return Optional.ofNullable(
-          jdbcTemplate.queryForObject(sql, mapObjeto, nomeEstado));
+      return Optional.ofNullable(jdbcTemplate.queryForObject(sql, mapObjeto, nomeEstado));
     } catch (EmptyResultDataAccessException e) {
       return Optional.empty();
     }

@@ -36,37 +36,37 @@ public class EnderecoService {
       }
 
       Objeto pais =
-              localidadeRepository
-                      .buscarPaisPorNome("Brasil")
-                      .orElseThrow(
-                              () -> new RuntimeException("País 'Brasil' não encontrado no banco de dados"));
+          localidadeRepository
+              .buscarPaisPorNome("Brasil")
+              .orElseThrow(
+                  () -> new RuntimeException("País 'Brasil' não encontrado no banco de dados"));
 
       Objeto estado =
-              localidadeRepository
-                      .buscarEstadoPorNome(viaCep.estado())
-                      .orElseThrow(
-                              () ->
-                                      new RuntimeException(
-                                              "Estado '" + viaCep.estado() + "' não encontrado no banco de dados"));
+          localidadeRepository
+              .buscarEstadoPorNome(viaCep.estado())
+              .orElseThrow(
+                  () ->
+                      new RuntimeException(
+                          "Estado '" + viaCep.estado() + "' não encontrado no banco de dados"));
 
       Objeto municipio =
-              localidadeRepository
-                      .buscarMunicipioPorNome(viaCep.localidade(), estado.id())
-                      .orElseThrow(
-                              () ->
-                                      new RuntimeException(
-                                              "Município '"
-                                                      + viaCep.localidade()
-                                                      + "' não encontrado no banco de dados"));
+          localidadeRepository
+              .buscarMunicipioPorNome(viaCep.localidade(), estado.id())
+              .orElseThrow(
+                  () ->
+                      new RuntimeException(
+                          "Município '"
+                              + viaCep.localidade()
+                              + "' não encontrado no banco de dados"));
 
       return new Endereco(
-              viaCep.cep().replaceAll("\\D", ""),
-              viaCep.logradouro(),
-              viaCep.bairro(),
-              viaCep.complemento(),
-              pais,
-              estado,
-              municipio);
+          viaCep.cep().replaceAll("\\D", ""),
+          viaCep.logradouro(),
+          viaCep.bairro(),
+          viaCep.complemento(),
+          pais,
+          estado,
+          municipio);
 
     } catch (RestClientException e) {
       throw new RuntimeException("Erro ao consultar CEP na API ViaCEP: " + e.getMessage(), e);
@@ -85,22 +85,25 @@ public class EnderecoService {
       Endereco endereco = buscarEnderecoPorCep(cnpjaData.address().zip());
       String telefone = formatarTelefone(cnpjaData.phones());
       String email =
-              cnpjaData.emails() != null && !cnpjaData.emails().isEmpty()
-                      ? cnpjaData.emails().getFirst().address()
-                      : null;
+          cnpjaData.emails() != null && !cnpjaData.emails().isEmpty()
+              ? cnpjaData.emails().getFirst().address()
+              : null;
 
-      Empresa.Status status = cnpjaData.status().text().contains("Ativa") ? Empresa.Status.ATIVO : Empresa.Status.BLOQUEADO;
+      Empresa.Status status =
+          cnpjaData.status().text().contains("Ativa")
+              ? Empresa.Status.ATIVO
+              : Empresa.Status.BLOQUEADO;
 
       return new EmpresaResponse(
-              formatarCnpj(cnpjaData.taxId()),
-              cnpjaData.company().name(),
-              cnpjaData.alias(),
-              tipoEmpresa,
-              status,
-              formatarData(cnpjaData.founded()),
-              endereco,
-              telefone,
-              email);
+          formatarCnpj(cnpjaData.taxId()),
+          cnpjaData.company().name(),
+          cnpjaData.alias(),
+          tipoEmpresa,
+          status,
+          formatarData(cnpjaData.founded()),
+          endereco,
+          telefone,
+          email);
 
     } catch (RestClientException e) {
       throw new RuntimeException("Erro ao consultar CNPJ na API CNPJA: " + e.getMessage(), e);
