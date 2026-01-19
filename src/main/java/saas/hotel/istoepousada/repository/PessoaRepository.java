@@ -396,7 +396,7 @@ public class PessoaRepository {
     var pessoa = findById(id);
     Pessoa.Status oldStatus = pessoa.status();
     String sql = "UPDATE pessoa SET status = ?::pessoa_status WHERE id = ?";
-    jdbcTemplate.update(sql, status, id);
+    jdbcTemplate.update(sql, status.toDb(), id);
     log.info(
         "Usuário: [{}] alterou o status de: {} -> {} do cliente: [{}]",
         "usuario",

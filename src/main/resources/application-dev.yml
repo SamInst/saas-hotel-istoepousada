@@ -8,3 +8,7 @@ spring:
     username: ${USER_DATABASE}
     password: ${PASSWORD_DATABASE}
     driver-class-name: org.postgresql.Driver
+
+jwt:
+  secret: ${JWT_SECRET:dev-secret-key-minimo-256-bits-apenas-para-desenvolvimento-nao-usar-em-producao}
+  expiration: 86400000 # 24 horas

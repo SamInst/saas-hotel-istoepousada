@@ -18,3 +18,9 @@ springdoc:
 
 server:
   port: ${PORT:8080}
+
+jwt:
+  secret: ${JWT_SECRET:sua-chave-super-secreta-com-no-minimo-256-bits-de-seguranca-para-desenvolvimento-local}
+  expiration: ${JWT_EXPIRATION:86400000}
+  # 86400000 ms = 24 horas
+

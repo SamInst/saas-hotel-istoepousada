@@ -36,11 +36,6 @@ public class PessoaService {
     this.notificacaoService = notificacaoService;
   }
 
-  /**
-   * Busca unificada paginada: - id != null => busca por id - termo preenchido => busca por nome
-   * (ILIKE) ou CPF exato - hospedados == true => filtra hospedados - se todos nulos/vazios => lista
-   * todos paginado (ordenado por nome asc no repo)
-   */
   public Page<Pessoa> buscar(
       Long id, String termo, String placaVeiculo, Pessoa.Status status, Pageable pageable) {
     String termoNormalizado = StringUtils.hasText(termo) ? termo.trim() : null;
