@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import saas.hotel.istoepousada.dto.FuncionarioAuth;
 import saas.hotel.istoepousada.dto.Login;
 import saas.hotel.istoepousada.dto.LoginResponse;
 import saas.hotel.istoepousada.service.AuthService;
@@ -17,7 +18,6 @@ import saas.hotel.istoepousada.service.AuthService;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
-
   private final AuthService authService;
 
   public AuthController(AuthService authService) {
@@ -74,12 +74,11 @@ public class AuthController {
         content =
             @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = LoginResponse.FuncionarioAuth.class))),
+                schema = @Schema(implementation = FuncionarioAuth.class))),
     @ApiResponse(responseCode = "401", description = "Token inválido")
   })
   @GetMapping("/validate")
-  public LoginResponse.FuncionarioAuth validarToken(
-      @RequestHeader("Authorization") String authHeader) {
+  public FuncionarioAuth validarToken(@RequestHeader("Authorization") String authHeader) {
     String token = authHeader.replace("Bearer ", "");
     return authService.validarToken(token);
   }

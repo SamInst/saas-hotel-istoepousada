@@ -23,7 +23,7 @@ import saas.hotel.istoepousada.service.HistoricoHospedagemService;
 import saas.hotel.istoepousada.service.PessoaService;
 
 @Tag(
-    name = "Pessoas",
+    name = "Cadastro de Pessoas",
     description = "Endpoints de cadastro e consulta de pessoas (hóspedes/clientes).")
 @RestController
 @RequestMapping("/pessoa")

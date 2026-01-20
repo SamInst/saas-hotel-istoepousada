@@ -18,12 +18,11 @@ import saas.hotel.istoepousada.dto.Empresa;
 import saas.hotel.istoepousada.service.EmpresaService;
 
 @Tag(
-    name = "Empresas",
+    name = "Cadastro de Empresas",
     description = "Cadastro e consulta de empresas (parceiros, clientes PJ) e vínculo com pessoas.")
 @RestController
 @RequestMapping("/empresas")
 public class EmpresaController {
-
   private final EmpresaService empresaService;
 
   public EmpresaController(EmpresaService empresaService) {
