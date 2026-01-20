@@ -45,7 +45,10 @@ public class PessoaService {
   @Transactional
   public Pessoa salvar(Pessoa pessoa) {
     validarPessoa(pessoa);
-    Pessoa salva = pessoaRepository.save(pessoa);
+    Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
+    var funcionario = pessoaRepository.findById(funcionarioIdLogado);
+
+    Pessoa salva = pessoaRepository.save(pessoa, funcionarioIdLogado);
 
     if (pessoa.empresasVinculadas() != null && !pessoa.empresasVinculadas().isEmpty()) {
       Pessoa finalSalva = salva;
@@ -88,19 +91,18 @@ public class PessoaService {
         }
       }
     }
-
-    notificacaoService.criar(9L, "SAM HELSON", "ATUALIZOU OS DADOS DO CLIENTE: " + pessoa.nome());
-    log.info("Usuário: {} cadastrou um novo cliente [{}]", pessoa.nome(), pessoa);
+    notificacaoService.criar(funcionario, "ATUALIZOU OS DADOS DO CLIENTE: " + pessoa.nome());
+    log.info(
+        "Funcionário [{} - {}] cadastrou/atualizou o cliente [{}]",
+        funcionario.id(),
+        funcionario.nome(),
+        pessoa.nome());
     return salva;
   }
 
   public void alterarStatus(Long id, Pessoa.Status status) {
-    if (id == null) {
-      throw new IllegalArgumentException("id é obrigatório.");
-    }
-    if (status == null) {
-      throw new IllegalArgumentException("status é obrigatório.");
-    }
+    if (id == null) throw new IllegalArgumentException("id é obrigatório.");
+    if (status == null) throw new IllegalArgumentException("status é obrigatório.");
     pessoaRepository.alterarStatus(id, status);
   }
 
@@ -110,14 +112,10 @@ public class PessoaService {
   }
 
   private void validarPessoa(Pessoa pessoa) {
-    if (pessoa == null) {
-      throw new IllegalArgumentException("Pessoa é obrigatória.");
-    }
-    if (!StringUtils.hasText(pessoa.nome())) {
+    if (pessoa == null) throw new IllegalArgumentException("Pessoa é obrigatória.");
+    if (!StringUtils.hasText(pessoa.nome()))
       throw new IllegalArgumentException("Nome é obrigatório.");
-    }
-    if (!StringUtils.hasText(pessoa.cpf())) {
+    if (!StringUtils.hasText(pessoa.cpf()))
       throw new IllegalArgumentException("CPF é obrigatório.");
-    }
   }
 }

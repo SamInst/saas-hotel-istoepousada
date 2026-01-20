@@ -61,6 +61,6 @@ public class NotificacaoController {
       @Parameter(description = "ID da pessoa", example = "10", required = true) @PathVariable
           Long pessoaId,
       @RequestParam Integer quantidade) {
-    return ResponseEntity.ok(notificacaoService.listarUltimas20PorPessoa(pessoaId, quantidade));
+    return ResponseEntity.ok(notificacaoService.listarUltimasPorPessoa(pessoaId, quantidade));
   }
 }

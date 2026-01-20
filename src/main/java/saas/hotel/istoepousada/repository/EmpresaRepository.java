@@ -110,10 +110,18 @@ public class EmpresaRepository {
                          p.bairro               AS pessoa_bairro,
                          p.sexo                 AS pessoa_sexo,
                          p.numero               AS pessoa_numero,
-                         p.status               AS pessoa_status
+                         p.status               AS pessoa_status,
+
+                         p.fk_funcionario               AS pessoa_fk_funcionario,
+                         p.fk_titular                   AS pessoa_fk_titular,
+
+                         func.nome                      AS pessoa_funcionario_nome,
+                         titular.nome                   AS pessoa_titular_nome
                 FROM empresa e
                 LEFT JOIN empresa_pessoa ep ON e.id = ep.fk_empresa
                 LEFT JOIN pessoa p ON ep.fk_pessoa = p.id
+                LEFT JOIN pessoa func ON func.id = p.fk_funcionario
+                LEFT JOIN pessoa titular ON titular.id = p.fk_titular
                 """;
 
     StringBuilder where = new StringBuilder(" WHERE 1=1 ");

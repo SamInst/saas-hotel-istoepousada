@@ -112,13 +112,22 @@ public class FuncionarioRepository {
                     t.id                           AS tela_id,
                     t.nome                         AS tela_nome,
                     t.descricao                    AS tela_descricao,
-                    t.rota                         AS tela_rota
+                    t.rota                         AS tela_rota,
+
+                    p.fk_funcionario               AS pessoa_fk_funcionario,
+                    p.fk_titular                   AS pessoa_fk_titular,
+
+                    func.nome                      AS pessoa_funcionario_nome,
+                    titular.nome                   AS pessoa_titular_nome
+
                 FROM funcionario f
                 INNER JOIN pessoa p ON p.id = f.fk_pessoa
                 INNER JOIN cargo c ON c.id = f.fk_cargo
                 LEFT JOIN usuario u ON u.id = f.fk_usuario
                 LEFT JOIN cargo_tela ct ON ct.cargo_id = c.id
                 LEFT JOIN tela t ON t.id = ct.tela_id
+                LEFT JOIN pessoa func ON func.id = p.fk_funcionario
+                LEFT JOIN pessoa titular ON titular.id = p.fk_titular
                 """;
 
     StringBuilder where = new StringBuilder(" WHERE p.status = 'CONTRATADO'::pessoa_status ");

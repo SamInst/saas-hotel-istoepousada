@@ -18,9 +18,12 @@ import saas.hotel.istoepousada.dto.FuncionarioAuth;
 public class JwtUtil {
   @Value("${jwt.secret}")
   private String jwtSecret;
+
   @Value("${jwt.expiration}")
   private long jwtExpiration;
+
   private final ObjectMapper objectMapper;
+
   public JwtUtil(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
   }
@@ -79,6 +82,18 @@ public class JwtUtil {
     } catch (JwtException | IllegalArgumentException e) {
       return false;
     }
+  }
+
+  public Long getFuncionarioIdFromToken(String token) {
+    Claims claims =
+        Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+    return claims.get("funcionarioId", Long.class);
+  }
+
+  public Long getUsuarioIdFromToken(String token) {
+    Claims claims =
+        Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+    return claims.get("usuarioId", Long.class);
   }
 
   public Long getPessoaIdFromToken(String token) {
