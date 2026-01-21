@@ -32,8 +32,10 @@ public class EmpresaService {
   public Empresa salvar(Empresa empresa) {
     validarEmpresa(empresa);
     var novaEmpresa = empresaRepository.save(empresa);
+    Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
+    var funcionario = pessoaRepository.findById(funcionarioIdLogado);
     notificacaoService.criar(
-        9L, "SAM HELSON", "ATUALIZOU OS DADOS DA EMPRESA: " + novaEmpresa.razaoSocial());
+        funcionario, "ATUALIZOU OS DADOS DA EMPRESA: " + novaEmpresa.razaoSocial());
     return novaEmpresa;
   }
 
@@ -44,6 +46,8 @@ public class EmpresaService {
     if (pessoaId == null) {
       throw new IllegalArgumentException("pessoaIds é obrigatório.");
     }
+    Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
+    var funcionario = pessoaRepository.findById(funcionarioIdLogado);
 
     var pessoa = pessoaRepository.findById(pessoaId);
     var empresa =
@@ -55,8 +59,7 @@ public class EmpresaService {
     empresaRepository.vincularPessoa(empresaId, pessoaId, vinculo);
 
     notificacaoService.criar(
-        9L,
-        "SAM HELSON",
+        funcionario,
         "VINCULOU O HOSPEDE [" + pessoa.nome() + "] À EMPRESA [" + empresa.razaoSocial() + "]");
   }
 

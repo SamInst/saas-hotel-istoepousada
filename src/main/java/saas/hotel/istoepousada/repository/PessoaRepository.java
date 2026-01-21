@@ -4,9 +4,11 @@ import static saas.hotel.istoepousada.dto.Empresa.mapEmpresa;
 import static saas.hotel.istoepousada.dto.Pessoa.mapPessoa;
 import static saas.hotel.istoepousada.dto.Veiculo.mapVeiculo;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
+import java.sql.Types;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.*;
@@ -22,7 +24,10 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import saas.hotel.istoepousada.dto.Empresa;
+import saas.hotel.istoepousada.dto.FuncionarioAuth;
 import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.dto.Veiculo;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
@@ -75,16 +80,6 @@ public class PessoaRepository {
             .toList();
       };
 
-  /**
-   * Busca unificada paginada: - id != null => filtra por p.id - termo preenchido => filtra por
-   * p.nome ILIKE %termo% OU p.cpf = termo - hospedados == true => filtra por p.hospedado = true -
-   * se todos forem nulos/vazios => faz findAll paginado
-   *
-   * <p>Ordenação: p.nome ASC (sempre)
-   *
-   * <p>Paginação é feita em duas etapas para não duplicar por JOIN: 1) busca IDs da pessoa da
-   * página 2) carrega dados completos (pessoa + empresas) via IN (ids)
-   */
   public Page<Pessoa> buscar(
       Long id, String termo, String placaVeiculo, Pessoa.Status status, Pageable pageable) {
     boolean hasId = id != null;
@@ -96,73 +91,79 @@ public class PessoaRepository {
 
     String baseSelect =
         """
-            SELECT
-                p.id                   AS pessoa_id,
-                p.data_hora_cadastro   AS pessoa_data_hora_cadastro,
-                p.nome                 AS pessoa_nome,
-                p.data_nascimento      AS pessoa_data_nascimento,
-                p.cpf                  AS pessoa_cpf,
-                p.rg                   AS pessoa_rg,
-                p.email                AS pessoa_email,
-                p.telefone             AS pessoa_telefone,
-                p.pais                 AS pessoa_pais,
-                p.estado               AS pessoa_estado,
-                p.municipio            AS pessoa_municipio,
-                p.endereco             AS pessoa_endereco,
-                p.complemento          AS pessoa_complemento,
-                p.vezes_hospedado      AS pessoa_vezes_hospedado,
-                p.cep                  AS pessoa_cep,
-                p.idade                AS pessoa_idade,
-                p.bairro               AS pessoa_bairro,
-                p.sexo                 AS pessoa_sexo,
-                p.numero               AS pessoa_numero,
-                p.status               AS pessoa_status,
+                SELECT
+                    p.id                   AS pessoa_id,
+                    p.data_hora_cadastro   AS pessoa_data_hora_cadastro,
+                    p.nome                 AS pessoa_nome,
+                    p.data_nascimento      AS pessoa_data_nascimento,
+                    p.cpf                  AS pessoa_cpf,
+                    p.rg                   AS pessoa_rg,
+                    p.email                AS pessoa_email,
+                    p.telefone             AS pessoa_telefone,
+                    p.pais                 AS pessoa_pais,
+                    p.estado               AS pessoa_estado,
+                    p.municipio            AS pessoa_municipio,
+                    p.endereco             AS pessoa_endereco,
+                    p.complemento          AS pessoa_complemento,
+                    p.vezes_hospedado      AS pessoa_vezes_hospedado,
+                    p.cep                  AS pessoa_cep,
+                    p.idade                AS pessoa_idade,
+                    p.bairro               AS pessoa_bairro,
+                    p.sexo                 AS pessoa_sexo,
+                    p.numero               AS pessoa_numero,
+                    p.status               AS pessoa_status,
+                    p.fk_funcionario       AS pessoa_fk_funcionario,
+                    p.fk_titular           AS pessoa_fk_titular,
 
-                e.id                   AS empresa_id,
-                e.razao_social         AS empresa_razao_social,
-                e.nome_fantasia        AS empresa_nome_fantasia,
-                e.cnpj                 AS empresa_cnpj,
-                e.telefone             AS empresa_telefone,
-                e.email                AS empresa_email,
-                e.endereco             AS empresa_endereco,
-                e.cep                  AS empresa_cep,
-                e.numero               AS empresa_numero,
-                e.complemento          AS empresa_complemento,
-                e.pais                 AS empresa_pais,
-                e.estado               AS empresa_estado,
-                e.municipio            AS empresa_municipio,
-                e.bairro               AS empresa_bairro,
-                e.tipo_empresa         AS empresa_tipo_empresa,
-                e.status               AS empresa_status,
+                    func.nome              AS pessoa_funcionario_nome,
+                    titular.nome           AS pessoa_titular_nome,
 
-                v.id                   AS veiculo_id,
-                v.modelo               AS veiculo_modelo,
-                v.marca                AS veiculo_marca,
-                v.ano                  AS veiculo_ano,
-                v.placa                AS veiculo_placa,
-                v.cor                  AS veiculo_cor
-            FROM pessoa p
-            LEFT JOIN LATERAL (
-                 SELECT e.*
-                 FROM empresa_pessoa ep
-                 JOIN empresa e ON e.id = ep.fk_empresa
-                 WHERE ep.fk_pessoa = p.id
-                 ORDER BY e.id DESC
-                 LIMIT 1
-             ) e ON true
+                    e.id                   AS empresa_id,
+                    e.razao_social         AS empresa_razao_social,
+                    e.nome_fantasia        AS empresa_nome_fantasia,
+                    e.cnpj                 AS empresa_cnpj,
+                    e.telefone             AS empresa_telefone,
+                    e.email                AS empresa_email,
+                    e.endereco             AS empresa_endereco,
+                    e.cep                  AS empresa_cep,
+                    e.numero               AS empresa_numero,
+                    e.complemento          AS empresa_complemento,
+                    e.pais                 AS empresa_pais,
+                    e.estado               AS empresa_estado,
+                    e.municipio            AS empresa_municipio,
+                    e.bairro               AS empresa_bairro,
+                    e.tipo_empresa         AS empresa_tipo_empresa,
+                    e.status               AS empresa_status,
 
-             LEFT JOIN LATERAL (
-                 SELECT v.*
-                 FROM pessoa_veiculo pv
-                 JOIN veiculo v ON v.id = pv.veiculo_id
-                 WHERE pv.pessoa_id = p.id
-                   AND pv.vinculo_ativo = true
-                 ORDER BY v.id DESC
-                 LIMIT 1
-             ) v ON true
-        """;
+                    v.id                   AS veiculo_id,
+                    v.modelo               AS veiculo_modelo,
+                    v.marca                AS veiculo_marca,
+                    v.ano                  AS veiculo_ano,
+                    v.placa                AS veiculo_placa,
+                    v.cor                  AS veiculo_cor
+                FROM pessoa p
+                LEFT JOIN pessoa func ON func.id = p.fk_funcionario
+                LEFT JOIN pessoa titular ON titular.id = p.fk_titular
+                LEFT JOIN LATERAL (
+                     SELECT e.*
+                     FROM empresa_pessoa ep
+                     JOIN empresa e ON e.id = ep.fk_empresa
+                     WHERE ep.fk_pessoa = p.id
+                     ORDER BY e.id DESC
+                     LIMIT 1
+                 ) e ON true
 
-    // WHERE dinâmico: se nada vier, fica WHERE 1=1 => findAll paginado
+                 LEFT JOIN LATERAL (
+                     SELECT v.*
+                     FROM pessoa_veiculo pv
+                     JOIN veiculo v ON v.id = pv.veiculo_id
+                     WHERE pv.pessoa_id = p.id
+                       AND pv.vinculo_ativo = true
+                     ORDER BY v.id DESC
+                     LIMIT 1
+                 ) v ON true
+            """;
+
     StringBuilder where = new StringBuilder(" WHERE 1=1 ");
     List<Object> params = new ArrayList<>();
 
@@ -178,31 +179,22 @@ public class PessoaRepository {
     }
 
     if (status != null) {
-      if (status.equals(Pessoa.Status.HOSPEDADO)) {
-        where.append(" AND p.status = 'HOSPEDADO'::public.pessoa_status ");
-      }
-
-      if (status.equals(Pessoa.Status.BLOQUEADO)) {
-        where.append(" AND p.status = 'BLOQUEADO'::public.pessoa_status ");
-      }
-
-      if (status.equals(Pessoa.Status.ATIVO)) {
-        where.append(" AND p.status = 'ATIVO'::public.pessoa_status ");
-      }
+      where.append(" AND p.status = ?::public.pessoa_status ");
+      params.add(status.toDb());
     }
 
     if (hasPlaca) {
       where.append(
           """
-      AND EXISTS (
-          SELECT 1
-          FROM pessoa_veiculo pv
-          JOIN veiculo v ON v.id = pv.veiculo_id
-          WHERE pv.pessoa_id = p.id
-            AND pv.vinculo_ativo = true
-            AND UPPER(v.placa) = ?
-      )
-      """);
+          AND EXISTS (
+              SELECT 1
+              FROM pessoa_veiculo pv
+              JOIN veiculo v ON v.id = pv.veiculo_id
+              WHERE pv.pessoa_id = p.id
+                AND pv.vinculo_ativo = true
+                AND UPPER(v.placa) = ?
+          )
+          """);
       params.add(placaTrim);
     }
 
@@ -220,9 +212,9 @@ public class PessoaRepository {
 
     String idsSql =
         """
-            SELECT p.id
-            FROM pessoa p
-        """
+                SELECT p.id
+                FROM pessoa p
+            """
             + where
             + """
             ORDER BY p.nome ASC
@@ -264,39 +256,41 @@ public class PessoaRepository {
   }
 
   @Transactional
-  public Pessoa save(Pessoa pessoa) {
+  public Pessoa save(Pessoa pessoa, Long funcionarioId) {
     if (pessoa.id() == null) {
-      return insert(pessoa);
+      return insert(pessoa, funcionarioId);
     } else {
-      update(pessoa);
+      update(pessoa, funcionarioId);
       return findById(pessoa.id());
     }
   }
 
-  private Pessoa insert(Pessoa pessoa) {
+  private Pessoa insert(Pessoa pessoa, Long funcionarioId) {
     String sql =
         """
-        INSERT INTO pessoa (
-            data_hora_cadastro,
-            nome,
-            data_nascimento,
-            cpf,
-            rg,
-            email,
-            telefone,
-            pais,
-            estado,
-            municipio,
-            endereco,
-            complemento,
-            vezes_hospedado,
-            cep,
-            idade,
-            bairro,
-            sexo,
-            numero
-        ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?);
-        """;
+            INSERT INTO pessoa (
+                data_hora_cadastro,
+                nome,
+                data_nascimento,
+                cpf,
+                rg,
+                email,
+                telefone,
+                pais,
+                estado,
+                municipio,
+                endereco,
+                complemento,
+                vezes_hospedado,
+                cep,
+                idade,
+                bairro,
+                sexo,
+                numero,
+                fk_funcionario,
+                fk_titular
+            ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?);
+            """;
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -322,6 +316,12 @@ public class PessoaRepository {
           ps.setString(idx++, pessoa.bairro());
           ps.setObject(idx++, pessoa.sexo());
           ps.setString(idx++, pessoa.numero());
+
+          if (funcionarioId != null) ps.setLong(idx++, funcionarioId);
+          else ps.setNull(idx++, Types.BIGINT);
+
+          if (pessoa.titularId() != null) ps.setLong(idx++, pessoa.titularId());
+          else ps.setNull(idx++, Types.BIGINT);
           return ps;
         },
         keyHolder);
@@ -334,30 +334,32 @@ public class PessoaRepository {
   }
 
   @Transactional
-  public void update(Pessoa pessoa) {
+  public void update(Pessoa pessoa, Long funcionarioId) {
     findById(pessoa.id());
     String sql =
         """
-                    UPDATE pessoa SET
-                        nome = ?,
-                        data_nascimento = ?,
-                        idade = ?,
-                        cpf = ?,
-                        rg = ?,
-                        email = ?,
-                        telefone = ?,
-                        pais = ?,
-                        estado = ?,
-                        municipio = ?,
-                        endereco = ?,
-                        complemento = ?,
-                        cep = ?,
-                        bairro = ?,
-                        sexo = ?,
-                        numero = ?,
-                        status = ?::pessoa_status
-                    WHERE id = ?
-                """;
+                        UPDATE pessoa SET
+                            nome = ?,
+                            data_nascimento = ?,
+                            idade = ?,
+                            cpf = ?,
+                            rg = ?,
+                            email = ?,
+                            telefone = ?,
+                            pais = ?,
+                            estado = ?,
+                            municipio = ?,
+                            endereco = ?,
+                            complemento = ?,
+                            cep = ?,
+                            bairro = ?,
+                            sexo = ?,
+                            numero = ?,
+                            status = ?::pessoa_status,
+                            fk_funcionario = ?,
+                            fk_titular = ?
+                        WHERE id = ?
+                    """;
 
     Date dataNascimentoSql =
         pessoa.dataNascimento() != null ? Date.valueOf(pessoa.dataNascimento()) : null;
@@ -388,6 +390,8 @@ public class PessoaRepository {
         pessoa.sexo(),
         pessoa.numero(),
         status,
+        funcionarioId,
+        pessoa.titularId(),
         pessoa.id());
   }
 
@@ -396,7 +400,7 @@ public class PessoaRepository {
     var pessoa = findById(id);
     Pessoa.Status oldStatus = pessoa.status();
     String sql = "UPDATE pessoa SET status = ?::pessoa_status WHERE id = ?";
-    jdbcTemplate.update(sql, status, id);
+    jdbcTemplate.update(sql, status.toDb(), id);
     log.info(
         "Usuário: [{}] alterou o status de: {} -> {} do cliente: [{}]",
         "usuario",
@@ -410,12 +414,28 @@ public class PessoaRepository {
     var pessoa = findById(id);
     String sql =
         """
-            UPDATE pessoa
-            SET vezes_hospedado = COALESCE(vezes_hospedado, 0) + 1
-            WHERE id = ?
-        """;
+                UPDATE pessoa
+                SET vezes_hospedado = COALESCE(vezes_hospedado, 0) + 1
+                WHERE id = ?
+            """;
     jdbcTemplate.update(sql, id);
     log.info(
         "Cliente: {}, Incrementado hospedagem (1), Total: {}", pessoa, pessoa.vezesHospedado());
+  }
+
+  public Long getFuncionarioPessoaIdFromRequest() {
+    ServletRequestAttributes attributes =
+        (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+    if (attributes == null) {
+      log.warn("RequestAttributes não disponível, funcionário não será registrado");
+      return null;
+    }
+    HttpServletRequest request = attributes.getRequest();
+    FuncionarioAuth funcionario = (FuncionarioAuth) request.getAttribute("funcionario");
+    if (funcionario == null) {
+      log.warn("Funcionário não encontrado no request, operação sem registro de responsável");
+      return null;
+    }
+    return funcionario.pessoaId();
   }
 }
