@@ -199,7 +199,7 @@ public class EmpresaController {
               description = "ID da pessoa a ser vinculada ou desvinculada",
               example = "10",
               required = true)
-          @RequestParam(name = "pessoaId", required = true)
+          @RequestParam(name = "pessoaId")
           Long pessoaId,
       @Parameter(description = "true para vincular, false para desvincular", example = "true")
           @RequestParam(name = "vinculo", defaultValue = "true")

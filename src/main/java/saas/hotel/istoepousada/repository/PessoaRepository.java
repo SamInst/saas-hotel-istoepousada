@@ -228,9 +228,7 @@ public class PessoaRepository {
     List<Long> ids =
         jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
 
-    if (ids.isEmpty()) {
-      return new PageImpl<>(List.of(), pageable, total);
-    }
+    if (ids.isEmpty()) return new PageImpl<>(List.of(), pageable, total);
 
     String inPlaceholders = String.join(",", Collections.nCopies(ids.size(), "?"));
 
@@ -249,9 +247,7 @@ public class PessoaRepository {
 
   public Pessoa findById(Long id) {
     Page<Pessoa> page = buscar(id, null, null, null, Pageable.ofSize(1));
-    if (page.isEmpty()) {
-      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
-    }
+    if (page.isEmpty()) throw new NotFoundException("Pessoa não encontrada para o id: " + id);
     return page.getContent().getFirst();
   }
 
