@@ -26,10 +26,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-import saas.hotel.istoepousada.dto.Empresa;
-import saas.hotel.istoepousada.dto.FuncionarioAuth;
-import saas.hotel.istoepousada.dto.Pessoa;
-import saas.hotel.istoepousada.dto.Veiculo;
+import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
@@ -228,9 +225,7 @@ public class PessoaRepository {
     List<Long> ids =
         jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
 
-    if (ids.isEmpty()) {
-      return new PageImpl<>(List.of(), pageable, total);
-    }
+    if (ids.isEmpty()) return new PageImpl<>(List.of(), pageable, total);
 
     String inPlaceholders = String.join(",", Collections.nCopies(ids.size(), "?"));
 
@@ -249,9 +244,7 @@ public class PessoaRepository {
 
   public Pessoa findById(Long id) {
     Page<Pessoa> page = buscar(id, null, null, null, Pageable.ofSize(1));
-    if (page.isEmpty()) {
-      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
-    }
+    if (page.isEmpty()) throw new NotFoundException("Pessoa não encontrada para o id: " + id);
     return page.getContent().getFirst();
   }
 

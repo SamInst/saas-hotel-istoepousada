@@ -15,11 +15,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Funcionario;
+import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.FuncionarioService;
 
 @Tag(name = "Funcionários", description = "Endpoints de cadastro e consulta de funcionários.")
 @RestController
 @RequestMapping("/funcionario")
+@RequireTela("ADMIN")
 public class FuncionarioController {
   private final FuncionarioService funcionarioService;
 
