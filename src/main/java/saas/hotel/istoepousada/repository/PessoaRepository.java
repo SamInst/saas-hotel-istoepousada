@@ -26,10 +26,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-import saas.hotel.istoepousada.dto.Empresa;
-import saas.hotel.istoepousada.dto.FuncionarioAuth;
-import saas.hotel.istoepousada.dto.Pessoa;
-import saas.hotel.istoepousada.dto.Veiculo;
+import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository

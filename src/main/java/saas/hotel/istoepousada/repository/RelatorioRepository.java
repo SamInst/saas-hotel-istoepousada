@@ -12,6 +12,7 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Relatorio;
+import saas.hotel.istoepousada.dto.RelatorioDia;
 import saas.hotel.istoepousada.dto.RelatorioExtratoResponse;
 import saas.hotel.istoepousada.dto.enums.Valores;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
@@ -49,11 +50,14 @@ public class RelatorioRepository {
       Long tipoPagamentoId,
       Valores valores,
       Pageable pageable) {
-    String baseFromCount =
+
+    // -------- BASES ----------
+    String baseFrom =
         """
             FROM relatorio r
             INNER JOIN pessoa pbase ON pbase.id = r.fk_funcionario
             """;
+
     String baseSelect =
         """
             SELECT
@@ -68,7 +72,6 @@ public class RelatorioRepository {
                 q.id                 AS quarto_id,
                 q.descricao          AS quarto_descricao,
 
-                -- funcionario_ (pessoa)
                 p.id                 AS funcionario_id,
                 p.data_hora_cadastro AS funcionario_data_hora_cadastro,
                 p.nome               AS funcionario_nome,
@@ -93,7 +96,6 @@ public class RelatorioRepository {
                 p.fk_titular         AS funcionario_fk_titular,
                 func.nome            AS funcionario_funcionario_nome,
                 titular.nome         AS funcionario_titular_nome
-
             FROM relatorio r
             INNER JOIN pessoa p ON p.id = r.fk_funcionario
             LEFT JOIN pessoa func ON func.id = p.fk_funcionario
@@ -101,6 +103,8 @@ public class RelatorioRepository {
             LEFT JOIN tipo_pagamento tp ON tp.id = r.fk_tipo_pagamento
             LEFT JOIN quarto q ON q.id = r.quarto_id
             """;
+
+    // -------- WHERE BASE (sem tipoPagamento, igual seu padrão) ----------
     StringBuilder whereBase = new StringBuilder(" WHERE 1=1 ");
     List<Object> paramsBase = new ArrayList<>();
 
@@ -112,8 +116,8 @@ public class RelatorioRepository {
       whereBase.append(" AND r.data_hora >= ? ");
       paramsBase.add(Timestamp.valueOf(dataInicio.atStartOfDay()));
     }
-
     if (dataFim != null) {
+      // exclusivo do dia seguinte (range correto)
       whereBase.append(" AND r.data_hora < ? ");
       paramsBase.add(Timestamp.valueOf(dataFim.plusDays(1).atStartOfDay()));
     }
@@ -125,12 +129,12 @@ public class RelatorioRepository {
       whereBase.append(" AND r.quarto_id = ? ");
       paramsBase.add(quartoId);
     }
-
     if (valores != null) {
       if (valores == Valores.ENTRADA) whereBase.append(" AND r.valor > 0 ");
       else if (valores == Valores.SAIDA) whereBase.append(" AND r.valor < 0 ");
     }
 
+    // -------- WHERE LIST (com tipoPagamento) ----------
     StringBuilder whereList = new StringBuilder(whereBase);
     List<Object> paramsList = new ArrayList<>(paramsBase);
 
@@ -139,13 +143,11 @@ public class RelatorioRepository {
       paramsList.add(tipoPagamentoId);
     }
 
-    Totais totaisGerais = buscarTotaisGerais(baseFromCount, whereList.toString(), paramsList);
-
-    List<Object> paramsDinheiro = new ArrayList<>(paramsBase);
+    // -------- TOTAIS (mantém sua regra atual) ----------
+    Totais totaisGerais = buscarTotaisGerais(baseFrom, whereList.toString(), paramsList);
 
     TotaisDinheiro totaisDinheiro =
-        buscarTotaisDinheiro(
-            baseFromCount, whereBase + " AND r.fk_tipo_pagamento = 1 ", paramsDinheiro);
+        buscarTotaisDinheiro(baseFrom, whereBase + " AND r.fk_tipo_pagamento = 1 ", paramsBase);
 
     Float totalEntradas = toFloat(totaisGerais.totalEntradas());
     Float totalSaidas = toFloat(totaisGerais.totalSaidas());
@@ -155,16 +157,19 @@ public class RelatorioRepository {
     Float totalDinheiroSaida = toFloat(totaisDinheiro.totalDinheiroSaida());
     Float balancoDinheiro = totalDinheiro + totalDinheiroSaida;
 
-    Long total;
+    // -------- PAGINAÇÃO POR DIA ----------
+    Long totalDias;
     try {
-      total =
+      totalDias =
           jdbcTemplate.queryForObject(
-              "SELECT COUNT(*) " + baseFromCount + whereList, Long.class, paramsList.toArray());
+              "SELECT COUNT(DISTINCT DATE(r.data_hora)) " + baseFrom + whereList,
+              Long.class,
+              paramsList.toArray());
     } catch (EmptyResultDataAccessException ex) {
-      total = 0L;
+      totalDias = 0L;
     }
 
-    if (total == null || total == 0) {
+    if (totalDias == null || totalDias == 0) {
       return new RelatorioExtratoResponse(
           balancoGeral,
           totalEntradas,
@@ -175,25 +180,26 @@ public class RelatorioRepository {
           new PageImpl<>(List.of(), pageable, 0));
     }
 
-    String idsSql =
+    String diasSql =
         """
-            SELECT r.id AS id
+            SELECT DISTINCT DATE(r.data_hora) AS dia
             """
-            + baseFromCount
+            + baseFrom
             + whereList
             + """
-        ORDER BY r.data_hora DESC NULLS LAST, r.id DESC
+        ORDER BY dia DESC
         LIMIT ? OFFSET ?
         """;
 
-    List<Object> idsParams = new ArrayList<>(paramsList);
-    idsParams.add(pageable.getPageSize());
-    idsParams.add((int) pageable.getOffset());
+    List<Object> diasParams = new ArrayList<>(paramsList);
+    diasParams.add(pageable.getPageSize());
+    diasParams.add((int) pageable.getOffset());
 
-    List<Long> ids =
-        jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
+    List<LocalDate> dias =
+        jdbcTemplate.query(
+            diasSql, (rs, rowNum) -> rs.getObject("dia", LocalDate.class), diasParams.toArray());
 
-    if (ids.isEmpty()) {
+    if (dias.isEmpty()) {
       return new RelatorioExtratoResponse(
           balancoGeral,
           totalEntradas,
@@ -201,19 +207,63 @@ public class RelatorioRepository {
           totalDinheiro,
           totalDinheiroSaida,
           balancoDinheiro,
-          new PageImpl<>(List.of(), pageable, total));
+          new PageImpl<>(List.of(), pageable, totalDias));
     }
 
-    String inPlaceholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+    // -------- BUSCAR RELATÓRIOS DOS DIAS DA PÁGINA ----------
+    // Em vez de IN (ids), vamos filtrar por range diário para cada dia.
+    // Para performance: monta OR ranges: (data_hora>=d0 and <d0+1) OR (data_hora>=d1 and <d1+1)...
+    StringBuilder dayRanges = new StringBuilder(" WHERE 1=1 ");
+
+    // Reaplica os mesmos filtros (whereList) mas removendo o "WHERE 1=1" inicial duplicado:
+    // Melhor: usar whereList direto, e adicionar "AND (" + ranges + ")"
+    String whereListStr = whereList.toString();
+
+    StringBuilder ranges = new StringBuilder();
+    List<Object> rangeParams = new ArrayList<>();
+
+    for (int i = 0; i < dias.size(); i++) {
+      if (i > 0) ranges.append(" OR ");
+      ranges.append("(r.data_hora >= ? AND r.data_hora < ?)");
+      rangeParams.add(Timestamp.valueOf(dias.get(i).atStartOfDay()));
+      rangeParams.add(Timestamp.valueOf(dias.get(i).plusDays(1).atStartOfDay()));
+    }
 
     String pageSql =
         baseSelect
-            + " WHERE r.id IN ("
-            + inPlaceholders
+            + whereListStr
+            + " AND ("
+            + ranges
             + ") "
-            + " ORDER BY r.data_hora DESC NULLS LAST, r.id DESC";
+            + " ORDER BY DATE(r.data_hora) DESC, r.data_hora DESC NULLS LAST, r.id DESC";
 
-    List<Relatorio> content = jdbcTemplate.query(pageSql, RELATORIO_EXTRACTOR, ids.toArray());
+    List<Object> pageParams = new ArrayList<>(paramsList);
+    pageParams.addAll(rangeParams);
+
+    List<Relatorio> relatorios =
+        jdbcTemplate.query(pageSql, RELATORIO_EXTRACTOR, pageParams.toArray());
+
+    // -------- TOTAL DO DIA (somente positivos) + AGRUPAMENTO ----------
+    // totalDia respeita os mesmos filtros da listagem (whereList) + dia específico + valor>0
+    Map<LocalDate, Float> totalDiaMap =
+        buscarTotaisPorDiaPositivos(baseFrom, whereListStr, paramsList, dias);
+
+    Map<LocalDate, List<Relatorio>> porDia = new LinkedHashMap<>();
+    for (LocalDate d : dias) porDia.put(d, new ArrayList<>());
+    for (Relatorio r : relatorios) {
+      LocalDate dia = r.dataHora() != null ? r.dataHora().toLocalDate() : null;
+      if (dia != null && porDia.containsKey(dia)) porDia.get(dia).add(r);
+    }
+
+    List<RelatorioDia> grupos =
+        dias.stream()
+            .map(
+                d ->
+                    new RelatorioDia(
+                        d, totalDiaMap.getOrDefault(d, 0f), porDia.getOrDefault(d, List.of())))
+            .toList();
+
+    Page<RelatorioDia> pageDias = new PageImpl<>(grupos, pageable, totalDias);
 
     return new RelatorioExtratoResponse(
         balancoGeral,
@@ -222,7 +272,7 @@ public class RelatorioRepository {
         totalDinheiro,
         totalDinheiroSaida,
         balancoDinheiro,
-        new PageImpl<>(Objects.requireNonNull(content), pageable, total));
+        pageDias);
   }
 
   @Transactional
@@ -290,18 +340,22 @@ public class RelatorioRepository {
             id);
 
     if (rows == 0) throw new NotFoundException("Relatório não encontrado para o id: " + id);
-
     return getByIdOrThrow(id);
   }
 
   private Relatorio getByIdOrThrow(Long id) {
     if (id == null) throw new IllegalStateException("Registro salvo sem ID (verifique RETURNING).");
+
     RelatorioExtratoResponse resp =
         buscar(id, null, null, null, null, null, null, Pageable.ofSize(1));
-
     if (resp == null || resp.page() == null || resp.page().isEmpty())
       throw new NotFoundException("Relatório não encontrado para o id: " + id);
-    return resp.page().getContent().getFirst();
+
+    RelatorioDia dia = resp.page().getContent().getFirst();
+    if (dia.content() == null || dia.content().isEmpty())
+      throw new NotFoundException("Relatório não encontrado para o id: " + id);
+
+    return dia.content().getFirst();
   }
 
   private Totais buscarTotaisGerais(String baseFromCount, String where, List<Object> params) {
@@ -349,5 +403,43 @@ public class RelatorioRepository {
     } catch (EmptyResultDataAccessException ex) {
       return new TotaisDinheiro(0d, 0d);
     }
+  }
+
+  private Map<LocalDate, Float> buscarTotaisPorDiaPositivos(
+      String baseFrom, String whereList, List<Object> paramsList, List<LocalDate> dias) {
+
+    if (dias == null || dias.isEmpty()) return Map.of();
+
+    // monta IN em datas
+    String in = String.join(",", Collections.nCopies(dias.size(), "?"));
+
+    String sql =
+        """
+            SELECT
+              DATE(r.data_hora) AS dia,
+              COALESCE(SUM(CASE WHEN r.valor > 0 THEN r.valor ELSE 0 END), 0) AS total_dia
+            """
+            + baseFrom
+            + whereList
+            + " AND DATE(r.data_hora) IN ("
+            + in
+            + ") "
+            + " GROUP BY DATE(r.data_hora) ";
+
+    List<Object> params = new ArrayList<>(paramsList);
+    params.addAll(dias);
+
+    return jdbcTemplate.query(
+        sql,
+        rs -> {
+          Map<LocalDate, Float> map = new HashMap<>();
+          while (rs.next()) {
+            LocalDate dia = rs.getObject("dia", LocalDate.class);
+            Double totalDia = rs.getObject("total_dia", Double.class);
+            map.put(dia, toFloat(totalDia));
+          }
+          return map;
+        },
+        params.toArray());
   }
 }

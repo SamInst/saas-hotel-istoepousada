@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Schema(description = "Relatório financeiro / operacional")
 public record Relatorio(
     @Schema(description = "ID do relatório") Long id,
-    @Schema(description = "Data e hora do lançamento") @JsonFormat(pattern = "dd/MM/yyyy HH:mm")
+    @Schema(description = "Data e hora do lançamento") @JsonFormat(pattern = "HH:mm")
         LocalDateTime dataHora,
     @Schema(description = "Descrição do relatório") String relatorio,
     @Schema(description = "Valor") Double valor,

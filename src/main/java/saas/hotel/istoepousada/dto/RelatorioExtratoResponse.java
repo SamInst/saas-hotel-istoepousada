@@ -16,4 +16,4 @@ public record RelatorioExtratoResponse(
         Float totalDinheiroSaida,
     @Schema(description = "Balanço dinheiro = totalDinheiro + totalDinheiroSaida")
         Float balancoDinheiro,
-    @Schema(description = "Página de relatórios") Page<Relatorio> page) {}
+    @Schema(description = "Página de relatórios agrupados por dia") Page<RelatorioDia> page) {}
