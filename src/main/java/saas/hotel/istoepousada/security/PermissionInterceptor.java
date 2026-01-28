@@ -22,15 +22,17 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
   @Override
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
-          throws Exception {
+      throws Exception {
 
     if (!(handler instanceof HandlerMethod handlerMethod)) return true;
 
     RequireTela requireTela = handlerMethod.getMethodAnnotation(RequireTela.class);
-    if (requireTela == null) requireTela = handlerMethod.getBeanType().getAnnotation(RequireTela.class);
+    if (requireTela == null)
+      requireTela = handlerMethod.getBeanType().getAnnotation(RequireTela.class);
 
     RequirePermissao requirePermissao = handlerMethod.getMethodAnnotation(RequirePermissao.class);
-    if (requirePermissao == null) requirePermissao = handlerMethod.getBeanType().getAnnotation(RequirePermissao.class);
+    if (requirePermissao == null)
+      requirePermissao = handlerMethod.getBeanType().getAnnotation(RequirePermissao.class);
 
     if (requireTela == null && requirePermissao == null) return true;
 
@@ -38,7 +40,8 @@ public class PermissionInterceptor implements HandlerInterceptor {
     log.info("FuncionarioAuth no request: {}", funcionario);
 
     if (funcionario == null) {
-      writeJson(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized", "Usuário não autenticado");
+      writeJson(
+          response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized", "Usuário não autenticado");
       return false;
     }
 
@@ -50,9 +53,9 @@ public class PermissionInterceptor implements HandlerInterceptor {
     }
 
     List<FuncionarioAuth.CargoAuth.TelaAuth> telas =
-            (funcionario.cargo() == null || funcionario.cargo().telas() == null)
-                    ? List.of()
-                    : funcionario.cargo().telas();
+        (funcionario.cargo() == null || funcionario.cargo().telas() == null)
+            ? List.of()
+            : funcionario.cargo().telas();
 
     FuncionarioAuth.CargoAuth.TelaAuth telaContexto = null;
 
@@ -60,17 +63,17 @@ public class PermissionInterceptor implements HandlerInterceptor {
       String telaRequerida = safe(requireTela.value()).trim();
 
       telaContexto =
-              telas.stream()
-                      .filter(t -> t != null && safe(t.nome()).equalsIgnoreCase(telaRequerida))
-                      .findFirst()
-                      .orElse(null);
+          telas.stream()
+              .filter(t -> t != null && safe(t.nome()).equalsIgnoreCase(telaRequerida))
+              .findFirst()
+              .orElse(null);
 
       if (telaContexto == null) {
         writeJson(
-                response,
-                HttpServletResponse.SC_FORBIDDEN,
-                "Forbidden",
-                "Você não tem permissão para acessar essa tela: " + telaRequerida);
+            response,
+            HttpServletResponse.SC_FORBIDDEN,
+            "Forbidden",
+            "Você não tem permissão para acessar essa tela: " + telaRequerida);
         return false;
       }
     }
@@ -87,10 +90,10 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
         if (!ok) {
           writeJson(
-                  response,
-                  HttpServletResponse.SC_FORBIDDEN,
-                  "Forbidden",
-                  "Você não tem as permissões necessárias: " + required);
+              response,
+              HttpServletResponse.SC_FORBIDDEN,
+              "Forbidden",
+              "Você não tem as permissões necessárias: " + required);
           return false;
         }
       }
@@ -128,10 +131,12 @@ public class PermissionInterceptor implements HandlerInterceptor {
   }
 
   private void writeJson(HttpServletResponse response, int status, String error, String message)
-          throws Exception {
+      throws Exception {
     response.setStatus(status);
     response.setContentType("application/json");
     response.setCharacterEncoding("UTF-8");
-    response.getWriter().write(objectMapper.writeValueAsString(Map.of("error", error, "message", message)));
+    response
+        .getWriter()
+        .write(objectMapper.writeValueAsString(Map.of("error", error, "message", message)));
   }
 }

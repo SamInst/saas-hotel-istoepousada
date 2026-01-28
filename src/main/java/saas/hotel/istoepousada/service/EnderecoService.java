@@ -2,6 +2,7 @@ package saas.hotel.istoepousada.service;
 
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.repository.LocalidadeRepository;
@@ -105,6 +106,8 @@ public class EnderecoService {
           telefone,
           email);
 
+    } catch (HttpClientErrorException e) {
+      throw new IllegalArgumentException("CNPJ inválido(inativo).", e);
     } catch (RestClientException e) {
       throw new RuntimeException("Erro ao consultar CNPJ na API CNPJA: " + e.getMessage(), e);
     }

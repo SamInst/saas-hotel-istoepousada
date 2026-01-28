@@ -22,8 +22,9 @@ public record Quarto(
     String descricao = rs.getString(prefix + "descricao");
     Integer qtdPessoas = rs.getObject(prefix + "qtd_pessoas", Integer.class);
 
-    Short statusDb = rs.getObject(prefix + "status", Short.class);
-    StatusQuarto status = statusDb == null ? null : StatusQuarto.values()[statusDb.intValue()];
+    String statusDb = rs.getString(prefix + "status");
+    StatusQuarto status =
+        (statusDb == null || statusDb.isBlank()) ? null : StatusQuarto.valueOf(statusDb);
 
     Integer camaCasal = rs.getObject(prefix + "qtd_cama_casal", Integer.class);
     Integer camaSolteiro = rs.getObject(prefix + "qtd_cama_solteiro", Integer.class);

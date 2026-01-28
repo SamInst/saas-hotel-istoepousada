@@ -76,8 +76,8 @@ public class LocalidadeController {
   @GetMapping("/cnpj/{cnpj}")
   public ResponseEntity<EmpresaResponse> buscarPorCnpj(
       @Parameter(
-              description = "CNPJ a ser consultado (com ou sem formatação)",
-              example = "52.006.953/0001-60",
+              description = "CNPJ a ser consultado (sem formatação)",
+              example = "52006953000160",
               required = true)
           @PathVariable
           String cnpj) {

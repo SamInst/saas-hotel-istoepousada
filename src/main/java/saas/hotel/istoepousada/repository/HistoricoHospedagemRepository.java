@@ -124,8 +124,8 @@ public class HistoricoHospedagemRepository {
 
           q.id                  AS quarto_id,
           q.descricao           AS quarto_descricao,
-          q.quantidade_pessoas  AS quarto_qtd_pessoas,
-          q.status_quarto_enum  AS quarto_status,
+          q.qtd_pessoas         AS quarto_qtd_pessoas,
+          q.status              AS quarto_status,
           q.qtd_cama_casal      AS quarto_qtd_cama_casal,
           q.qtd_cama_solteiro   AS quarto_qtd_cama_solteiro,
           q.qtd_rede            AS quarto_qtd_rede,

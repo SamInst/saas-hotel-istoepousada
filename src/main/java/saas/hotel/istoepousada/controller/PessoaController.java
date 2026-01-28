@@ -195,7 +195,8 @@ public class PessoaController {
                                                   "cor": "string"
                                                 }
                                               ],
-                                              "empresasVinculadas": [{"id": 15 }]
+                                              "empresasVinculadas": [{"id": 15 }],
+                                              "titularId": 1
                                             }
                                             """)))
           @RequestBody

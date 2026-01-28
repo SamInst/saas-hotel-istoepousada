@@ -21,8 +21,10 @@ public class ObjectRepository {
     return jdbcTemplate.query("select id, nome as descricao from tela", Objeto.mapObjeto);
   }
 
-  public List<Objeto> permissoes() {
-    return jdbcTemplate.query("select id, permissao.permissao as descricao from permissao", Objeto.mapObjeto);
+  public List<Objeto> permissoes(Long telaId) {
+    return jdbcTemplate.query(
+        "select id, permissao.permissao as descricao from permissao where fk_tela = ?",
+            Objeto.mapObjeto, telaId);
   }
 
   public Objeto findById(Long id) {

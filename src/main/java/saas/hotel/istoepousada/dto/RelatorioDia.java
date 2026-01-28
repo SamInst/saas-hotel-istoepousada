@@ -7,7 +7,6 @@ import java.util.List;
 
 @Schema(description = "Grupo de relatórios por dia")
 public record RelatorioDia(
-    @JsonFormat(pattern = "dd/MM/yyyy")
-    @Schema(description = "Data do grupo") LocalDate data,
+    @JsonFormat(pattern = "dd/MM/yyyy") @Schema(description = "Data do grupo") LocalDate data,
     @Schema(description = "Total do dia (somente valores positivos)") Float totalDia,
     @Schema(description = "Relatórios do dia") List<Relatorio> content) {}
