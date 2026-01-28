@@ -16,11 +16,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Usuario;
+import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.UsuarioService;
 
 @Tag(name = "Usuários", description = "Endpoints de cadastro e consulta de usuários do sistema.")
 @RestController
 @RequestMapping("/usuario")
+@RequireTela("CADASTRO")
 public class UsuarioController {
   private final UsuarioService usuarioService;
 

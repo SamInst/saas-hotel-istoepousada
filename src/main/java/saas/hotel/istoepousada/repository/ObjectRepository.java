@@ -17,6 +17,14 @@ public class ObjectRepository {
     return jdbcTemplate.query("select id, descricao from tipo_pagamento", Objeto.mapObjeto);
   }
 
+  public List<Objeto> telas() {
+    return jdbcTemplate.query("select id, nome as descricao from tela", Objeto.mapObjeto);
+  }
+
+  public List<Objeto> permissoes() {
+    return jdbcTemplate.query("select id, permissao.permissao as descricao from permissao", Objeto.mapObjeto);
+  }
+
   public Objeto findById(Long id) {
     return jdbcTemplate.queryForObject(
         "select id, descricao from tipo_pagamento where id = ?", Objeto.mapObjeto, id);
