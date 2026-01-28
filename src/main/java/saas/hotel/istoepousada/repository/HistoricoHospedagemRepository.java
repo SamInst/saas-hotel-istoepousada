@@ -104,7 +104,6 @@ public class HistoricoHospedagemRepository {
   private String buildBaseSql() {
     return """
         SELECT
-          -- pernoite (prefix pernoite_)
           pe.id                 AS pernoite_id,
           pe.data_entrada       AS pernoite_data_entrada,
           pe.data_saida         AS pernoite_data_saida,
@@ -114,7 +113,6 @@ public class HistoricoHospedagemRepository {
           pe.valor_total        AS pernoite_valor_total,
           pe.ativo              AS pernoite_ativo,
 
-          -- diária (prefix diaria_)
           d.id                  AS diaria_id,
           d.data_inicio         AS diaria_data_inicio,
           d.data_fim            AS diaria_data_fim,
@@ -124,7 +122,6 @@ public class HistoricoHospedagemRepository {
           d.quantidade_pessoa   AS diaria_quantidade_pessoa,
           d.observacao          AS diaria_observacao,
 
-          -- quarto (prefix quarto_) (Diaria.mapDiaria -> Quarto.mapQuarto)
           q.id                  AS quarto_id,
           q.descricao           AS quarto_descricao,
           q.quantidade_pessoas  AS quarto_qtd_pessoas,
@@ -134,10 +131,8 @@ public class HistoricoHospedagemRepository {
           q.qtd_rede            AS quarto_qtd_rede,
           q.qtd_beliche         AS quarto_qtd_beliche,
 
-          -- marca se a pessoa da linha é representante
           dp.representante      AS diaria_pessoa_representante,
 
-          -- pessoa (prefix pessoa_)
           p.id                  AS pessoa_id,
           p.data_hora_cadastro  AS pessoa_data_hora_cadastro,
           p.nome                AS pessoa_nome,
@@ -146,9 +141,9 @@ public class HistoricoHospedagemRepository {
           p.rg                  AS pessoa_rg,
           p.email               AS pessoa_email,
           p.telefone            AS pessoa_telefone,
-          p.pais             AS pessoa_pais,
-          p.estado           AS pessoa_estado,
-          p.municipio        AS pessoa_municipio,
+          p.pais                AS pessoa_pais,
+          p.estado              AS pessoa_estado,
+          p.municipio           AS pessoa_municipio,
           p.endereco            AS pessoa_endereco,
           p.complemento         AS pessoa_complemento,
           p.vezes_hospedado     AS pessoa_vezes_hospedado,
@@ -159,8 +154,6 @@ public class HistoricoHospedagemRepository {
           p.numero              AS pessoa_numero,
           p.status              AS pessoa_status,
 
-
-          -- pagamentos (prefix diaria_pagamento_)
           pg.id                  AS diaria_pagamento_id,
           pg.descricao           AS diaria_pagamento_descricao,
           pg.valor               AS diaria_pagamento_valor,
@@ -168,7 +161,6 @@ public class HistoricoHospedagemRepository {
           tp.id                  AS diaria_pagamento_tipo_pagamento_id,
           tp.descricao           AS diaria_pagamento_tipo_pagamento_descricao,
 
-          -- consumos (prefix diaria_consumo_) + item (prefix item_) + categoria_item (prefix categoria_)
           cs.id                 AS diaria_consumo_id,
           cs.data_hora_consumo  AS diaria_consumo_data_hora,
           cs.quantidade         AS diaria_consumo_quantidade,
@@ -179,28 +171,32 @@ public class HistoricoHospedagemRepository {
           it.descricao               AS item_descricao,
           it.data_hora_registro_item AS item_data_hora,
           ci.id                      AS categoria_id,
-          ci.descricao               AS categoria_categoria
+          ci.descricao               AS categoria_categoria,
+
+          p.fk_funcionario               AS pessoa_fk_funcionario,
+          p.fk_titular                   AS pessoa_fk_titular,
+
+          func.nome                      AS pessoa_funcionario_nome,
+          titular.nome                   AS pessoa_titular_nome
 
         FROM pernoite pe
         JOIN diaria d ON d.pernoite_id = pe.id
         LEFT JOIN quarto q ON q.id = d.quarto_id
 
-        -- filtro principal: garante que a pessoa informada pertence à diária
         JOIN diaria_pessoa dpf ON dpf.diaria_id = d.id AND dpf.pessoa_id = ?
-
-        -- lista todos os hóspedes da diária (rep + acompanhantes)
         LEFT JOIN diaria_pessoa dp ON dp.diaria_id = d.id
         LEFT JOIN pessoa p ON p.id = dp.pessoa_id
 
-        -- pagamentos
         LEFT JOIN diaria_pagamento pg ON pg.diaria_id = d.id
         LEFT JOIN tipo_pagamento tp ON tp.id = pg.tipo_pagamento_id
 
-        -- consumos
         LEFT JOIN diaria_consumo cs ON cs.diaria_id = d.id
         LEFT JOIN item it ON it.id = cs.item_id
         LEFT JOIN categoria_item ci ON ci.id = it.fk_categoria
         LEFT JOIN tipo_pagamento ctp ON ctp.id = cs.tipo_pagamento_id
+
+        LEFT JOIN pessoa func ON func.id = p.fk_funcionario
+        LEFT JOIN pessoa titular ON titular.id = p.fk_titular
         """;
   }
 

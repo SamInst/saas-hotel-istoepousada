@@ -8,6 +8,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import saas.hotel.istoepousada.dto.Notificacao;
+import saas.hotel.istoepousada.dto.Pessoa;
 
 @Repository
 public class NotificacaoRepository {
@@ -42,7 +43,7 @@ public class NotificacaoRepository {
     return jdbcTemplate.query(sql, (rs, rowNum) -> mapNotificacao(rs), pessoaId, quantidade);
   }
 
-  public Notificacao criar(Long fkPessoa, String nome, String descricao) {
+  public Notificacao criar(Pessoa pessoa, String descricao) {
     String sql =
         """
                 INSERT INTO notificacao (fk_pessoa, nome_pessoa, descricao, data_hora)
@@ -52,9 +53,9 @@ public class NotificacaoRepository {
 
     try {
       return jdbcTemplate.queryForObject(
-          sql, (rs, rowNum) -> mapNotificacao(rs), fkPessoa, nome, descricao);
+          sql, (rs, rowNum) -> mapNotificacao(rs), pessoa.id(), pessoa.nome(), descricao);
     } catch (EmptyResultDataAccessException ex) {
-      return new Notificacao(null, fkPessoa, nome, descricao, LocalDateTime.now());
+      return new Notificacao(null, pessoa.id(), pessoa.nome(), descricao, LocalDateTime.now());
     }
   }
 }

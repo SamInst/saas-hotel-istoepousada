@@ -15,15 +15,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Empresa;
+import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.EmpresaService;
 
 @Tag(
-    name = "Empresas",
+    name = "Cadastro de Empresas",
     description = "Cadastro e consulta de empresas (parceiros, clientes PJ) e vínculo com pessoas.")
 @RestController
 @RequestMapping("/empresas")
+@RequireTela("CADASTRO")
 public class EmpresaController {
-
   private final EmpresaService empresaService;
 
   public EmpresaController(EmpresaService empresaService) {
@@ -111,8 +112,6 @@ public class EmpresaController {
                                               "bairro": "Centro",
                                               "razao_social": "Empresa Exemplo LTDA",
                                               "nome_fantasia": "Empresa Exemplo",
-                                              "inscricao_estadual": "123456789",
-                                              "inscricao_municipal": "987654321",
                                               "tipo_empresa": "CLIENTE"
                                             }
                                             """)))
@@ -168,8 +167,6 @@ public class EmpresaController {
                                               "status": "ATIVO",
                                               "razao_social": "Empresa Exemplo LTDA",
                                               "nome_fantasia": "Empresa Exemplo",
-                                              "inscricao_estadual": "123456789",
-                                              "inscricao_municipal": "987654321",
                                               "tipo_empresa": "CLIENTE"
                                             }
                                             """)))
@@ -202,7 +199,7 @@ public class EmpresaController {
               description = "ID da pessoa a ser vinculada ou desvinculada",
               example = "10",
               required = true)
-          @RequestParam(name = "pessoaId", required = true)
+          @RequestParam(name = "pessoaId")
           Long pessoaId,
       @Parameter(description = "true para vincular, false para desvincular", example = "true")
           @RequestParam(name = "vinculo", defaultValue = "true")

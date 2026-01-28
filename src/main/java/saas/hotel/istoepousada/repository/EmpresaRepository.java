@@ -54,21 +54,11 @@ public class EmpresaRepository {
             .toList();
       };
 
-  /**
-   * Busca unificada paginada: - Se 'id' for informado, filtra por e.id - Se 'termo' for informado,
-   * filtra por razão social/nome fantasia (ILIKE) ou CNPJ exato - Se ambos vierem, aplica os dois
-   * filtros (AND) - Se nenhum vier (id=null e termo vazio/nulo), faz o findAll paginado
-   *
-   * <p>Paginação é feita em duas etapas: 1) busca os IDs da página (para não duplicar por causa do
-   * JOIN) 2) busca os dados completos (empresa + pessoas) via IN (ids)
-   */
   public Page<Empresa> buscarPorIdNomeOuCnpj(Long id, String termo, Pageable pageable) {
     boolean hasId = id != null;
     boolean hasTermo = termo != null && !termo.trim().isEmpty();
-
     String termoTrim = hasTermo ? termo.trim() : null;
     String search = hasTermo ? "%" + termoTrim + "%" : null;
-
     String baseSelect =
         """
                 SELECT
@@ -87,8 +77,6 @@ public class EmpresaRepository {
                          e.bairro               AS empresa_bairro,
                          e.razao_social         AS empresa_razao_social,
                          e.nome_fantasia        AS empresa_nome_fantasia,
-                         e.inscricao_estadual   AS empresa_inscricao_estadual,
-                         e.inscricao_municipal  AS empresa_inscricao_municipal,
                          e.tipo_empresa         AS empresa_tipo_empresa,
                          e.status               AS empresa_status,
 
@@ -112,12 +100,19 @@ public class EmpresaRepository {
                          p.bairro               AS pessoa_bairro,
                          p.sexo                 AS pessoa_sexo,
                          p.numero               AS pessoa_numero,
-                         p.status               AS pessoa_status
+                         p.status               AS pessoa_status,
+
+                         p.fk_funcionario       AS pessoa_fk_funcionario,
+                         p.fk_titular           AS pessoa_fk_titular,
+
+                         func.nome              AS pessoa_funcionario_nome,
+                         titular.nome           AS pessoa_titular_nome
                 FROM empresa e
                 LEFT JOIN empresa_pessoa ep ON e.id = ep.fk_empresa
                 LEFT JOIN pessoa p ON ep.fk_pessoa = p.id
+                LEFT JOIN pessoa func ON func.id = p.fk_funcionario
+                LEFT JOIN pessoa titular ON titular.id = p.fk_titular
                 """;
-
     StringBuilder where = new StringBuilder(" WHERE 1=1 ");
     List<Object> params = new ArrayList<>();
 
@@ -141,9 +136,7 @@ public class EmpresaRepository {
       total = 0L;
     }
 
-    if (total == null || total == 0) {
-      return new PageImpl<>(List.of(), pageable, 0);
-    }
+    if (total == null || total == 0) return new PageImpl<>(List.of(), pageable, 0);
 
     String idsSql =
         """
@@ -163,9 +156,7 @@ public class EmpresaRepository {
     List<Long> ids =
         jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
 
-    if (ids.isEmpty()) {
-      return new PageImpl<>(List.of(), pageable, total);
-    }
+    if (ids.isEmpty()) return new PageImpl<>(List.of(), pageable, total);
 
     String inPlaceholders = String.join(",", Collections.nCopies(ids.size(), "?"));
 
@@ -184,19 +175,15 @@ public class EmpresaRepository {
 
   public Optional<Empresa> findById(Long id) {
     Page<Empresa> page = buscarPorIdNomeOuCnpj(id, null, Pageable.ofSize(1));
-
-    if (page.isEmpty()) {
-      throw new NotFoundException("Empresa não cadastrada para o id: " + id);
-    }
+    if (page.isEmpty()) throw new NotFoundException("Empresa não cadastrada para o id: " + id);
 
     return Optional.of(page.getContent().getFirst());
   }
 
   @Transactional
   public Empresa save(Empresa empresa) {
-    if (empresa.id() == null) {
-      return insert(empresa);
-    } else {
+    if (empresa.id() == null) return insert(empresa);
+    else {
       update(empresa);
       return findById(empresa.id()).orElse(empresa);
     }
@@ -209,8 +196,6 @@ public class EmpresaRepository {
                     razao_social,
                     nome_fantasia,
                     cnpj,
-                    inscricao_estadual,
-                    inscricao_municipal,
                     telefone,
                     email,
                     endereco,
@@ -222,12 +207,11 @@ public class EmpresaRepository {
                     municipio,
                     bairro,
                     tipo_empresa
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 returning id;
                 """;
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
-
     jdbcTemplate.update(
         connection -> {
           PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
@@ -235,8 +219,6 @@ public class EmpresaRepository {
           ps.setString(idx++, empresa.razaoSocial());
           ps.setString(idx++, empresa.nomeFantasia());
           ps.setString(idx++, empresa.cnpj());
-          ps.setString(idx++, empresa.inscricaoEstadual());
-          ps.setString(idx++, empresa.inscricaoMunicipal());
           ps.setString(idx++, empresa.telefone());
           ps.setString(idx++, empresa.email());
           ps.setString(idx++, empresa.endereco());
@@ -251,9 +233,7 @@ public class EmpresaRepository {
           return ps;
         },
         keyHolder);
-
     Long generatedId = Objects.requireNonNull(keyHolder.getKey()).longValue();
-
     return findById(generatedId).orElse(empresa.withId(generatedId));
   }
 
@@ -265,8 +245,6 @@ public class EmpresaRepository {
                     razao_social = ?,
                     nome_fantasia = ?,
                     cnpj = ?,
-                    inscricao_estadual = ?,
-                    inscricao_municipal = ?,
                     telefone = ?,
                     email = ?,
                     endereco = ?,
@@ -282,13 +260,14 @@ public class EmpresaRepository {
                 WHERE id = ?
                 """;
 
+    String status =
+        empresa.status() == null ? Empresa.Status.ATIVO.toDb() : empresa.status().toDb();
+
     jdbcTemplate.update(
         sql,
         empresa.razaoSocial(),
         empresa.nomeFantasia(),
         empresa.cnpj(),
-        empresa.inscricaoEstadual(),
-        empresa.inscricaoMunicipal(),
         empresa.telefone(),
         empresa.email(),
         empresa.endereco(),
@@ -300,7 +279,7 @@ public class EmpresaRepository {
         empresa.municipio(),
         empresa.bairro(),
         empresa.tipoEmpresa(),
-        empresa.status().toDb(),
+        status,
         empresa.id());
   }
 
@@ -311,7 +290,6 @@ public class EmpresaRepository {
         Boolean.TRUE.equals(vinculo)
             ? "INSERT INTO empresa_pessoa (fk_empresa, fk_pessoa) VALUES (?, ?) ON CONFLICT DO NOTHING"
             : "DELETE FROM empresa_pessoa WHERE fk_empresa = ? AND fk_pessoa = ?";
-
     jdbcTemplate.update(sql, empresaId, pessoaId);
   }
 }

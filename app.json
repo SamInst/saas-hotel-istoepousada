@@ -1,0 +1,31 @@
+{
+  "name": "saas-hotel-istoe-pousada",
+  "description": "API do sistema de hotel/pousada (Spring Boot + PostgreSQL).",
+  "repository": "https://github.com/SamInst/saas-hotel-istoe-pousada",
+  "keywords": ["java", "spring-boot", "postgres", "hotel", "saas"],
+  "stack": "heroku-22",
+  "buildpacks": [
+    { "url": "heroku/java" }
+  ],
+  "addons": [
+    {
+      "plan": "heroku-postgresql:essential-0"
+    }
+  ],
+  "env": {
+    "SPRING_PROFILES_ACTIVE": {
+      "description": "Perfil ativo do Spring Boot.",
+      "value": "prod"
+    },
+    "JAVA_TOOL_OPTIONS": {
+      "description": "Opções de JVM (ajuste conforme necessidade).",
+      "value": "-XX:MaxRAMPercentage=75.0"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  }
+}

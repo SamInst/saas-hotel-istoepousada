@@ -18,16 +18,17 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.HistoricoHospedagem;
 import saas.hotel.istoepousada.dto.Pessoa;
+import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.HistoricoHospedagemService;
 import saas.hotel.istoepousada.service.PessoaService;
 
 @Tag(
-    name = "Pessoas",
+    name = "Cadastro de Pessoas",
     description = "Endpoints de cadastro e consulta de pessoas (hóspedes/clientes).")
 @RestController
 @RequestMapping("/pessoa")
+@RequireTela("CADASTRO")
 public class PessoaController {
-
   private final PessoaService pessoaService;
   private final HistoricoHospedagemService historicoHospedagemService;
 
