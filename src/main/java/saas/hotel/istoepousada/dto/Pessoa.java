@@ -36,8 +36,13 @@ public record Pessoa(
     @Schema(description = "ID do funcionário responsável") Long funcionarioId,
     @Schema(description = "Nome do funcionário responsável") String funcionarioNome,
     @Schema(description = "ID do titular") Long titularId,
-    @Schema(description = "Nome do titular") String titularNome) {
-
+    @Schema(description = "Nome do titular") String titularNome,
+    @Schema(
+            description =
+                "Indica se o titular possui acompanhantes (apenas quando titularId = null)")
+        Boolean possuiAcompanhantes,
+    @Schema(description = "Lista de acompanhantes do titular (apenas quando titularId = null)")
+        List<Pessoa> acompanhantes) {
   public Pessoa(
       Long id,
       LocalDateTime dataHoraCadastro,
@@ -85,7 +90,9 @@ public record Pessoa(
         null,
         null,
         null,
-        null);
+        null,
+        false,
+        List.of());
   }
 
   public Pessoa withId(Long id) {
@@ -115,7 +122,9 @@ public record Pessoa(
         this.funcionarioId,
         this.funcionarioNome,
         this.titularId,
-        this.titularNome);
+        this.titularNome,
+        this.possuiAcompanhantes,
+        this.acompanhantes);
   }
 
   public Pessoa withEmpresas(List<Empresa> empresas) {
@@ -145,7 +154,9 @@ public record Pessoa(
         this.funcionarioId,
         this.funcionarioNome,
         this.titularId,
-        this.titularNome);
+        this.titularNome,
+        this.possuiAcompanhantes,
+        this.acompanhantes);
   }
 
   public Pessoa withVeiculos(List<Veiculo> veiculos) {
@@ -175,7 +186,9 @@ public record Pessoa(
         this.funcionarioId,
         this.funcionarioNome,
         this.titularId,
-        this.titularNome);
+        this.titularNome,
+        this.possuiAcompanhantes,
+        this.acompanhantes);
   }
 
   public Pessoa withFuncionario(Long funcionarioId, String funcionarioNome) {
@@ -205,7 +218,9 @@ public record Pessoa(
         funcionarioId,
         funcionarioNome,
         this.titularId,
-        this.titularNome);
+        this.titularNome,
+        this.possuiAcompanhantes,
+        this.acompanhantes);
   }
 
   public Pessoa withTitular(Long titularId) {
@@ -235,7 +250,43 @@ public record Pessoa(
         this.funcionarioId,
         this.funcionarioNome,
         titularId,
-        this.titularNome);
+        this.titularNome,
+        this.possuiAcompanhantes,
+        this.acompanhantes);
+  }
+
+  public Pessoa withAcompanhantes(List<Pessoa> acompanhantes) {
+    List<Pessoa> safe = acompanhantes == null ? List.of() : acompanhantes;
+    boolean possui = !safe.isEmpty();
+    return new Pessoa(
+        this.id,
+        this.dataHoraCadastro,
+        this.nome,
+        this.dataNascimento,
+        this.cpf,
+        this.rg,
+        this.email,
+        this.telefone,
+        this.pais,
+        this.estado,
+        this.municipio,
+        this.endereco,
+        this.complemento,
+        this.vezesHospedado,
+        this.cep,
+        this.idade,
+        this.bairro,
+        this.sexo,
+        this.numero,
+        this.status,
+        this.empresasVinculadas,
+        this.veiculos,
+        this.funcionarioId,
+        this.funcionarioNome,
+        this.titularId,
+        this.titularNome,
+        possui,
+        safe);
   }
 
   public static Pessoa mapPessoa(ResultSet rs) throws SQLException {
@@ -248,13 +299,16 @@ public record Pessoa(
         rs.getTimestamp(prefix + "data_hora_cadastro") != null
             ? rs.getTimestamp(prefix + "data_hora_cadastro").toLocalDateTime()
             : null;
+
     LocalDate dataNascimento = rs.getObject(prefix + "data_nascimento", LocalDate.class);
     String statusDb = rs.getString(prefix + "status");
     Status status = Status.fromDb(statusDb);
+
     Long funcionarioId = rs.getObject(prefix + "fk_funcionario", Long.class);
     String funcionarioNome = rs.getString(prefix + "funcionario_nome");
     Long titularId = rs.getObject(prefix + "fk_titular", Long.class);
     String titularNome = rs.getString(prefix + "titular_nome");
+
     return new Pessoa(
         id,
         dataHoraCadastro,
@@ -281,7 +335,9 @@ public record Pessoa(
         funcionarioId,
         funcionarioNome,
         titularId,
-        titularNome);
+        titularNome,
+        false,
+        List.of());
   }
 
   public enum Status {

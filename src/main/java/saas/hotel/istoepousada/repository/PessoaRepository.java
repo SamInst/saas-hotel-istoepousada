@@ -238,8 +238,32 @@ public class PessoaRepository {
 
     List<Pessoa> content =
         jdbcTemplate.query(pageSql, PESSOA_COM_EMPRESAS_EXTRACTOR, ids.toArray());
+    List<Pessoa> enriched = adicionarAcompanhantesParaTitulares(content);
+    return new PageImpl<>(Objects.requireNonNull(enriched), pageable, total);
+  }
 
-    return new PageImpl<>(Objects.requireNonNull(content), pageable, total);
+  private List<Pessoa> adicionarAcompanhantesParaTitulares(List<Pessoa> pessoas) {
+    if (pessoas == null || pessoas.isEmpty()) return pessoas;
+
+    List<Long> titularIds =
+        pessoas.stream()
+            .filter(p -> p.titularId() == null)
+            .map(Pessoa::id)
+            .filter(Objects::nonNull)
+            .toList();
+
+    if (titularIds.isEmpty()) return pessoas;
+
+    Map<Long, List<Pessoa>> acompanhantesPorTitular = buscarAcompanhantesPorTitularIds(titularIds);
+
+    return pessoas.stream()
+        .map(
+            p -> {
+              if (p.titularId() != null) return p; // acompanhante
+              List<Pessoa> acompanhantes = acompanhantesPorTitular.getOrDefault(p.id(), List.of());
+              return p.withAcompanhantes(acompanhantes);
+            })
+        .toList();
   }
 
   public Pessoa findById(Long id) {
@@ -430,5 +454,59 @@ public class PessoaRepository {
       return null;
     }
     return funcionario.pessoaId();
+  }
+
+  private Map<Long, List<Pessoa>> buscarAcompanhantesPorTitularIds(List<Long> titularIds) {
+    if (titularIds == null || titularIds.isEmpty()) return Map.of();
+
+    String inPlaceholders = String.join(",", Collections.nCopies(titularIds.size(), "?"));
+
+    String sql =
+        """
+            SELECT
+                p.id                   AS pessoa_id,
+                p.data_hora_cadastro   AS pessoa_data_hora_cadastro,
+                p.nome                 AS pessoa_nome,
+                p.data_nascimento      AS pessoa_data_nascimento,
+                p.cpf                  AS pessoa_cpf,
+                p.rg                   AS pessoa_rg,
+                p.email                AS pessoa_email,
+                p.telefone             AS pessoa_telefone,
+                p.pais                 AS pessoa_pais,
+                p.estado               AS pessoa_estado,
+                p.municipio            AS pessoa_municipio,
+                p.endereco             AS pessoa_endereco,
+                p.complemento          AS pessoa_complemento,
+                p.vezes_hospedado      AS pessoa_vezes_hospedado,
+                p.cep                  AS pessoa_cep,
+                p.idade                AS pessoa_idade,
+                p.bairro               AS pessoa_bairro,
+                p.sexo                 AS pessoa_sexo,
+                p.numero               AS pessoa_numero,
+                p.status               AS pessoa_status,
+                p.fk_funcionario       AS pessoa_fk_funcionario,
+                p.fk_titular           AS pessoa_fk_titular,
+                func.nome              AS pessoa_funcionario_nome,
+                titular.nome           AS pessoa_titular_nome
+            FROM pessoa p
+            LEFT JOIN pessoa func ON func.id = p.fk_funcionario
+            LEFT JOIN pessoa titular ON titular.id = p.fk_titular
+            WHERE p.fk_titular IN ("""
+            + inPlaceholders
+            + ") ORDER BY p.fk_titular, p.nome";
+
+    return jdbcTemplate.query(
+        sql,
+        rs -> {
+          Map<Long, List<Pessoa>> map = new LinkedHashMap<>();
+          while (rs.next()) {
+            Pessoa acompanhante = mapPessoa(rs);
+            Long tId = acompanhante.titularId();
+            if (tId == null) continue;
+            map.computeIfAbsent(tId, k -> new ArrayList<>()).add(acompanhante);
+          }
+          return map;
+        },
+        titularIds.toArray());
   }
 }

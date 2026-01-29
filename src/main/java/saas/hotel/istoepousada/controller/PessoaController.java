@@ -2,6 +2,7 @@ package saas.hotel.istoepousada.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.HistoricoHospedagem;
 import saas.hotel.istoepousada.dto.Pessoa;
+import saas.hotel.istoepousada.dto.PessoaBatchRequest;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.HistoricoHospedagemService;
 import saas.hotel.istoepousada.service.PessoaService;
@@ -80,65 +83,100 @@ public class PessoaController {
     return pessoaService.buscar(id, termo, placaVeiculo, status, pageable);
   }
 
-  @Operation(summary = "Criar pessoa", description = "Cria uma nova pessoa (hóspede/cliente).")
+  @Operation(
+      summary = "Criar pessoas",
+      description = "Cria um titular (titularId=null) e seus acompanhantes.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "201",
-        description = "Pessoa criada",
+        description = "Pessoas criadas",
         content =
             @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = Pessoa.class))),
+                array = @ArraySchema(schema = @Schema(implementation = Pessoa.class)))),
     @ApiResponse(responseCode = "400", description = "Requisição inválida")
   })
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public Pessoa criar(
+  public List<Pessoa> criar(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Dados da pessoa",
+              description =
+                  "Lista de pessoas (1 titular + N acompanhantes). O servidor define o titularId dos acompanhantes.",
               required = true,
               content =
                   @Content(
-                      mediaType = org.springframework.http.MediaType.APPLICATION_JSON_VALUE,
-                      schema = @Schema(implementation = Pessoa.class),
+                      mediaType = MediaType.APPLICATION_JSON_VALUE,
+                      array = @ArraySchema(schema = @Schema(implementation = Pessoa.class)),
                       examples =
                           @ExampleObject(
-                              name = "Exemplo de requisição",
+                              name = "Exemplo (titular + acompanhantes)",
                               value =
                                   """
-                                          {
-                                            "nome": "string",
-                                            "dataNascimento": "2025-12-31",
-                                            "cpf": "string",
-                                            "rg": "string",
-                                            "email": "string",
-                                            "telefone": "string",
-                                            "pais": "string",
-                                            "estado": "string",
-                                            "municipio": "string",
-                                            "endereco": "string",
-                                            "complemento": "string",
-                                            "cep": "string",
-                                            "bairro": "string",
-                                            "sexo": 1,
-                                            "numero": "string",
-                                            "empresasVinculadas": [
-                                              { "id": 1 }
-                                            ],
-                                            "veiculos": [
-                                              {
-                                                "modelo": "string",
-                                                "marca": "string",
-                                                "ano": 1999,
-                                                "placa": "string",
-                                                "cor": "string"
-                                              }
-                                            ]
-                                          }
-                                          """)))
+                                  {
+                                       "pessoas": [
+                                           {
+                                               "nome": "Titular da Silva",
+                                               "dataNascimento": "1999-01-01",
+                                               "cpf": "00000000000",
+                                               "rg": "000000",
+                                               "email": "titular@email.com",
+                                               "telefone": "999999999",
+                                               "pais": "BR",
+                                               "estado": "MA",
+                                               "municipio": "São Luís",
+                                               "endereco": "Rua X",
+                                               "complemento": "Apto 1",
+                                               "cep": "65000-000",
+                                               "bairro": "Centro",
+                                               "sexo": 1,
+                                               "numero": "10",
+                                               "veiculos": [
+                                                   {
+                                                       "modelo": "Gol",
+                                                       "marca": "VW",
+                                                       "ano": 2015,
+                                                       "placa": "ABC1D23",
+                                                       "cor": "Branco"
+                                                   }
+                                               ],
+                                               "titularId": null
+                                           },
+                                           {
+                                               "nome": "Acompanhante da Silva",
+                                               "dataNascimento": "1999-01-01",
+                                               "cpf": "00000000000",
+                                               "rg": "000000",
+                                               "email": "acompanhante@email.com",
+                                               "telefone": "999999999",
+                                               "pais": "BR",
+                                               "estado": "MA",
+                                               "municipio": "São Luís",
+                                               "endereco": "Rua X",
+                                               "complemento": "Apto 1",
+                                               "cep": "65000-000",
+                                               "bairro": "Centro",
+                                               "sexo": 1,
+                                               "numero": "10",
+                                               "veiculos": [
+                                                   {
+                                                       "modelo": "Gol 2",
+                                                       "marca": "VW",
+                                                       "ano": 2015,
+                                                       "placa": "ABC1D24",
+                                                       "cor": "Branco"
+                                                   }
+                                               ],
+                                               "titularId": 1
+                                           }
+                                       ],
+                                       "empresasIds": [
+                                           15
+                                       ]
+                                   }
+        """)))
           @RequestBody
-          Pessoa pessoa) {
-    return pessoaService.salvar(pessoa);
+          PessoaBatchRequest request) {
+    return pessoaService.salvarListaPessoas(request.pessoas(), request.empresasIds());
   }
 
   @Operation(summary = "Atualizar pessoa", description = "Atualiza os dados de uma pessoa pelo ID.")
@@ -201,7 +239,7 @@ public class PessoaController {
                                             """)))
           @RequestBody
           Pessoa pessoa) {
-    return pessoaService.salvar(pessoa.withId(id));
+    return pessoaService.salvarPessoaIndividual(pessoa.withId(id));
   }
 
   @Operation(

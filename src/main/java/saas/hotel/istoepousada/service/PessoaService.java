@@ -1,8 +1,6 @@
 package saas.hotel.istoepousada.service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -43,7 +41,7 @@ public class PessoaService {
   }
 
   @Transactional
-  public Pessoa salvar(Pessoa pessoa) {
+  public Pessoa salvarPessoaIndividual(Pessoa pessoa) {
     validarPessoa(pessoa);
     Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
     var funcionario = pessoaRepository.findById(funcionarioIdLogado);
@@ -97,6 +95,123 @@ public class PessoaService {
         funcionario.id(),
         funcionario.nome(),
         pessoa.nome());
+    return salva;
+  }
+
+  @Transactional
+  public List<Pessoa> salvarListaPessoas(List<Pessoa> pessoas, List<Long> empresasIds) {
+    if (pessoas == null || pessoas.isEmpty()) {
+      throw new IllegalArgumentException("Lista de pessoas é obrigatória.");
+    }
+
+    List<Pessoa> titulares = pessoas.stream().filter(p -> p.titularId() == null).toList();
+    if (titulares.isEmpty()) {
+      throw new IllegalArgumentException("É obrigatório informar 1 titular com titularId = null.");
+    }
+    if (titulares.size() > 1) {
+      throw new IllegalArgumentException(
+          "Informe apenas 1 titular (somente um item com titularId = null).");
+    }
+
+    Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
+    Pessoa funcionario =
+        funcionarioIdLogado != null ? pessoaRepository.findById(funcionarioIdLogado) : null;
+
+    Pessoa titularReq = titulares.getFirst();
+    Pessoa titularSalvo = salvarInternoSemVinculoEmpresa(titularReq, funcionarioIdLogado);
+
+    List<Pessoa> acompanhantesSalvos = new ArrayList<>();
+    for (Pessoa p : pessoas) {
+      if (p == titularReq) continue;
+
+      Pessoa acompanhanteReq = p.withTitular(titularSalvo.id());
+      Pessoa acompanhanteSalvo =
+          salvarInternoSemVinculoEmpresa(acompanhanteReq, funcionarioIdLogado);
+      acompanhantesSalvos.add(acompanhanteSalvo);
+    }
+
+    if (!empresasIds.isEmpty()) {
+      List<Pessoa> todos = new ArrayList<>();
+      todos.add(titularSalvo);
+      todos.addAll(acompanhantesSalvos);
+
+      for (Long empresaId : empresasIds) {
+        for (Pessoa p : todos) {
+          empresaRepository.vincularPessoa(empresaId, p.id(), true);
+        }
+      }
+    }
+
+    Pessoa titularComAcompanhantes = titularSalvo.withAcompanhantes(acompanhantesSalvos);
+
+    if (funcionario != null) {
+      notificacaoService.criar(
+          funcionario,
+          "CADASTROU/ATUALIZOU CLIENTE: "
+              + titularComAcompanhantes.nome()
+              + " + "
+              + acompanhantesSalvos.size()
+              + " acompanhante(s)");
+      log.info(
+          "Funcionário [{} - {}] cadastrou/atualizou o cliente [{}] + {} acompanhante(s)",
+          funcionario.id(),
+          funcionario.nome(),
+          titularComAcompanhantes.nome(),
+          acompanhantesSalvos.size());
+    }
+
+    List<Pessoa> retorno = new ArrayList<>();
+    retorno.add(titularComAcompanhantes);
+    retorno.addAll(acompanhantesSalvos);
+    return retorno;
+  }
+
+  private Pessoa salvarInternoSemVinculoEmpresa(Pessoa pessoa, Long funcionarioIdLogado) {
+    validarPessoa(pessoa);
+
+    Pessoa salva = pessoaRepository.save(pessoa, funcionarioIdLogado);
+    salva = salvarOuAtualizarVeiculos(salva, pessoa.veiculos());
+
+    return salva;
+  }
+
+  private Pessoa salvarOuAtualizarVeiculos(Pessoa salva, List<Veiculo> veiculosRequest) {
+    if (veiculosRequest == null) return salva;
+
+    var veiculosExistentes = veiculoRepository.findAllByPessoaId(salva.id());
+
+    if (veiculosExistentes.isEmpty()) {
+      if (!veiculosRequest.isEmpty()) {
+        List<Veiculo> veiculosSalvos = new ArrayList<>(veiculosRequest.size());
+        for (Veiculo veiculo : veiculosRequest) {
+          Veiculo veiculoSalvo = veiculoRepository.save(salva.id(), veiculo);
+          if (veiculoSalvo.id() == null) {
+            throw new IllegalStateException("Veículo salvo sem ID (verifique o RETURNING id).");
+          }
+          veiculoRepository.setVinculoAtivo(salva.id(), veiculoSalvo.id(), true);
+          veiculosSalvos.add(veiculoSalvo);
+        }
+        return salva.withVeiculos(veiculosSalvos);
+      }
+      return salva;
+    }
+    if (!veiculosRequest.isEmpty()) {
+      var oldVeiculo = veiculosExistentes.getFirst();
+      var newVeiculo = veiculosRequest.getFirst();
+
+      Veiculo veiculoAtualizado =
+          new Veiculo(
+              oldVeiculo.id(),
+              newVeiculo.modelo(),
+              newVeiculo.marca(),
+              newVeiculo.ano(),
+              newVeiculo.placa(),
+              newVeiculo.cor());
+
+      veiculoRepository.save(salva.id(), veiculoAtualizado);
+      veiculoRepository.setVinculoAtivo(salva.id(), oldVeiculo.id(), true);
+      return salva.withVeiculos(List.of(veiculoAtualizado));
+    }
     return salva;
   }
 
