@@ -27,7 +27,7 @@ public class FuncionarioService {
   @Transactional
   public Funcionario criar(Funcionario.FuncionarioRequest request) {
     Pessoa pessoaRequest = request.pessoa().withId(null);
-    Pessoa pessoaSalva = pessoaService.salvar(pessoaRequest);
+    Pessoa pessoaSalva = pessoaService.salvarPessoaIndividual(pessoaRequest);
 
     pessoaService.alterarStatus(pessoaSalva.id(), Pessoa.Status.CONTRATADO);
 
