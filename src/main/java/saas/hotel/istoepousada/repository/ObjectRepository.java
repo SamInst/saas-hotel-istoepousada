@@ -24,7 +24,8 @@ public class ObjectRepository {
   public List<Objeto> permissoes(Long telaId) {
     return jdbcTemplate.query(
         "select id, permissao.permissao as descricao from permissao where fk_tela = ?",
-            Objeto.mapObjeto, telaId);
+        Objeto.mapObjeto,
+        telaId);
   }
 
   public Objeto findById(Long id) {
