@@ -18,7 +18,6 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Relatorio;
 import saas.hotel.istoepousada.dto.RelatorioExtratoResponse;
-import saas.hotel.istoepousada.dto.enums.Valores;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.RelatorioService;
 
@@ -81,7 +80,7 @@ public class RelatorioController {
               description = "Filtro por tipo de valor: ENTRADA (valor > 0) ou SAIDA (valor < 0)",
               example = "ENTRADA")
           @RequestParam(required = false)
-          Valores valores,
+          Relatorio.Valores valores,
       @Parameter(description = "Número da página (0-based)") @RequestParam(defaultValue = "0")
           int page,
       @Parameter(description = "Tamanho da página") @RequestParam(defaultValue = "10") int size) {

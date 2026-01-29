@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Relatorio;
 import saas.hotel.istoepousada.dto.RelatorioExtratoResponse;
-import saas.hotel.istoepousada.dto.enums.Valores;
 import saas.hotel.istoepousada.repository.PessoaRepository;
 import saas.hotel.istoepousada.repository.RelatorioRepository;
 
@@ -34,7 +33,7 @@ public class RelatorioService {
       Long funcionarioId,
       Long quartoId,
       Long tipoPagamentoId,
-      Valores valores,
+      Relatorio.Valores valores,
       Pageable pageable) {
     if (dataInicio == null && dataFim == null) {
       LocalDate hoje = LocalDate.now();

@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Relatorio;
 import saas.hotel.istoepousada.dto.RelatorioDia;
 import saas.hotel.istoepousada.dto.RelatorioExtratoResponse;
-import saas.hotel.istoepousada.dto.enums.Valores;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
@@ -48,10 +47,9 @@ public class RelatorioRepository {
       Long funcionarioId,
       Long quartoId,
       Long tipoPagamentoId,
-      Valores valores,
+      Relatorio.Valores valores,
       Pageable pageable) {
 
-    // -------- BASES ----------
     String baseFrom =
         """
             FROM relatorio r
@@ -104,7 +102,6 @@ public class RelatorioRepository {
             LEFT JOIN quarto q ON q.id = r.quarto_id
             """;
 
-    // -------- WHERE BASE (sem tipoPagamento, igual seu padrão) ----------
     StringBuilder whereBase = new StringBuilder(" WHERE 1=1 ");
     List<Object> paramsBase = new ArrayList<>();
 
@@ -117,7 +114,6 @@ public class RelatorioRepository {
       paramsBase.add(Timestamp.valueOf(dataInicio.atStartOfDay()));
     }
     if (dataFim != null) {
-      // exclusivo do dia seguinte (range correto)
       whereBase.append(" AND r.data_hora < ? ");
       paramsBase.add(Timestamp.valueOf(dataFim.plusDays(1).atStartOfDay()));
     }
@@ -130,11 +126,10 @@ public class RelatorioRepository {
       paramsBase.add(quartoId);
     }
     if (valores != null) {
-      if (valores == Valores.ENTRADA) whereBase.append(" AND r.valor > 0 ");
-      else if (valores == Valores.SAIDA) whereBase.append(" AND r.valor < 0 ");
+      if (valores == Relatorio.Valores.ENTRADA) whereBase.append(" AND r.valor > 0 ");
+      else if (valores == Relatorio.Valores.SAIDA) whereBase.append(" AND r.valor < 0 ");
     }
 
-    // -------- WHERE LIST (com tipoPagamento) ----------
     StringBuilder whereList = new StringBuilder(whereBase);
     List<Object> paramsList = new ArrayList<>(paramsBase);
 
@@ -143,7 +138,6 @@ public class RelatorioRepository {
       paramsList.add(tipoPagamentoId);
     }
 
-    // -------- TOTAIS (mantém sua regra atual) ----------
     Totais totaisGerais = buscarTotaisGerais(baseFrom, whereList.toString(), paramsList);
 
     TotaisDinheiro totaisDinheiro =
@@ -157,7 +151,6 @@ public class RelatorioRepository {
     Float totalDinheiroSaida = toFloat(totaisDinheiro.totalDinheiroSaida());
     Float balancoDinheiro = totalDinheiro + totalDinheiroSaida;
 
-    // -------- PAGINAÇÃO POR DIA ----------
     Long totalDias;
     try {
       totalDias =
@@ -210,13 +203,8 @@ public class RelatorioRepository {
           new PageImpl<>(List.of(), pageable, totalDias));
     }
 
-    // -------- BUSCAR RELATÓRIOS DOS DIAS DA PÁGINA ----------
-    // Em vez de IN (ids), vamos filtrar por range diário para cada dia.
-    // Para performance: monta OR ranges: (data_hora>=d0 and <d0+1) OR (data_hora>=d1 and <d1+1)...
     StringBuilder dayRanges = new StringBuilder(" WHERE 1=1 ");
 
-    // Reaplica os mesmos filtros (whereList) mas removendo o "WHERE 1=1" inicial duplicado:
-    // Melhor: usar whereList direto, e adicionar "AND (" + ranges + ")"
     String whereListStr = whereList.toString();
 
     StringBuilder ranges = new StringBuilder();
@@ -243,8 +231,6 @@ public class RelatorioRepository {
     List<Relatorio> relatorios =
         jdbcTemplate.query(pageSql, RELATORIO_EXTRACTOR, pageParams.toArray());
 
-    // -------- TOTAL DO DIA (somente positivos) + AGRUPAMENTO ----------
-    // totalDia respeita os mesmos filtros da listagem (whereList) + dia específico + valor>0
     Map<LocalDate, Float> totalDiaMap =
         buscarTotaisPorDiaPositivos(baseFrom, whereListStr, paramsList, dias);
 
@@ -407,10 +393,8 @@ public class RelatorioRepository {
 
   private Map<LocalDate, Float> buscarTotaisPorDiaPositivos(
       String baseFrom, String whereList, List<Object> paramsList, List<LocalDate> dias) {
-
     if (dias == null || dias.isEmpty()) return Map.of();
 
-    // monta IN em datas
     String in = String.join(",", Collections.nCopies(dias.size(), "?"));
 
     String sql =
