@@ -5,6 +5,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import saas.hotel.istoepousada.dto.*;
+import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
+import saas.hotel.istoepousada.handler.exceptions.UnauthorizedException;
+import saas.hotel.istoepousada.handler.exceptions.UnavaiableException;
 import saas.hotel.istoepousada.repository.LocalidadeRepository;
 
 @Service
@@ -33,21 +36,21 @@ public class EnderecoService {
       ViaCep viaCep = localidadeRepository.buscarPorCep(cep);
 
       if (viaCep == null || Boolean.TRUE.equals(viaCep.erro())) {
-        throw new RuntimeException("CEP não encontrado");
+        throw new NotFoundException("CEP não encontrado ou invalido");
       }
 
       Objeto pais =
           localidadeRepository
               .buscarPaisPorNome("Brasil")
               .orElseThrow(
-                  () -> new RuntimeException("País 'Brasil' não encontrado no banco de dados"));
+                  () -> new NotFoundException("País 'Brasil' não encontrado no banco de dados"));
 
       Objeto estado =
           localidadeRepository
               .buscarEstadoPorNome(viaCep.estado())
               .orElseThrow(
                   () ->
-                      new RuntimeException(
+                      new NotFoundException(
                           "Estado '" + viaCep.estado() + "' não encontrado no banco de dados"));
 
       Objeto municipio =
@@ -55,7 +58,7 @@ public class EnderecoService {
               .buscarMunicipioPorNome(viaCep.localidade(), estado.id())
               .orElseThrow(
                   () ->
-                      new RuntimeException(
+                      new NotFoundException(
                           "Município '"
                               + viaCep.localidade()
                               + "' não encontrado no banco de dados"));
@@ -70,7 +73,7 @@ public class EnderecoService {
           municipio);
 
     } catch (RestClientException e) {
-      throw new RuntimeException("Erro ao consultar CEP na API ViaCEP: " + e.getMessage(), e);
+      throw new UnavaiableException("Erro ao consultar CEP na API ViaCEP: " + e.getMessage(), e);
     }
   }
 
@@ -79,7 +82,7 @@ public class EnderecoService {
       CnpjaResponse cnpjaData = localidadeRepository.buscarPorCnpj(cnpj);
 
       if (cnpjaData == null || cnpjaData.address() == null)
-        throw new RuntimeException("CNPJ não encontrado");
+        throw new NotFoundException("CNPJ não encontrado");
 
       String tipoEmpresa = formatarTipoEmpresa(cnpjaData.company().size());
 
@@ -109,7 +112,7 @@ public class EnderecoService {
     } catch (HttpClientErrorException e) {
       throw new IllegalArgumentException("CNPJ inválido(inativo).", e);
     } catch (RestClientException e) {
-      throw new RuntimeException("Erro ao consultar CNPJ na API CNPJA: " + e.getMessage(), e);
+      throw new UnavaiableException("Erro ao consultar CNPJ na API CNPJA: " + e.getMessage(), e);
     }
   }
 
