@@ -61,4 +61,9 @@ public record Relatorio(
       @Schema(description = "Valor", example = "250.00") Double valor,
       @Schema(description = "ID do tipo de pagamento", example = "1") Long tipoPagamentoId,
       @Schema(description = "ID do quarto (opcional)", example = "5") Long quartoId) {}
+
+  public enum Valores {
+    ENTRADA,
+    SAIDA
+  }
 }
