@@ -6,7 +6,6 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
-import saas.hotel.istoepousada.handler.exceptions.UnauthorizedException;
 import saas.hotel.istoepousada.handler.exceptions.UnavaiableException;
 import saas.hotel.istoepousada.repository.LocalidadeRepository;
 

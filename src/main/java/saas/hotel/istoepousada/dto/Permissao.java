@@ -13,7 +13,7 @@ public record Permissao(
 
   public static Permissao mapPermissao(ResultSet rs, String prefix) throws SQLException {
     Long id = rs.getObject(prefix + "id", Long.class);
-    if (id == null) return null; // útil quando vier LEFT JOIN
+    if (id == null) return null;
     return new Permissao(
         id, rs.getString(prefix + "permissao"), rs.getString(prefix + "descricao"));
   }

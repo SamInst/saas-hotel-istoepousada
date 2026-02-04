@@ -95,7 +95,7 @@ public class ObjectController {
                                   ]
                                   """)))
   @GetMapping("/telas")
-  @RequireTela("ADMINISTRADOR")
+  @RequireTela("ADMIN")
   public List<Objeto> telas() {
     return objectRepository.telas();
   }
@@ -138,5 +138,41 @@ public class ObjectController {
   @RequireTela("ADMIN")
   public List<Objeto> permissoes(@RequestParam Long telaId) {
     return objectRepository.permissoes(telaId);
+  }
+
+  @Operation(
+      summary = "Listar cargos do sistema",
+      description =
+          """
+                    Retorna a lista de cargos cadastrados.
+                    Normalmente usado no front para:
+                    - cadastro/edição de funcionário
+                    - filtros de listagem
+                    - associação de cargo (telas/permissões) ao funcionário
+
+                    Observação: este endpoint é apenas de leitura.
+                    """)
+  @ApiResponse(
+      responseCode = "200",
+      description = "Lista de cargos",
+      content =
+          @Content(
+              mediaType = MediaType.APPLICATION_JSON_VALUE,
+              array = @ArraySchema(schema = @Schema(implementation = Objeto.class)),
+              examples =
+                  @ExampleObject(
+                      name = "Exemplo",
+                      value =
+                          """
+                                    [
+                                      { "id": 1, "descricao": "RECEPCAO" },
+                                      { "id": 2, "descricao": "FINANCEIRO" },
+                                      { "id": 3, "descricao": "GERENCIA" }
+                                    ]
+                                    """)))
+  @GetMapping("/cargos")
+  @RequireTela("ADMIN")
+  public List<Objeto> cargos() {
+    return objectRepository.cargos();
   }
 }

@@ -11,27 +11,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.*;
 
-/**
- * Histórico de hospedagem (por pessoa) com suporte a: - sem datas: último histórico (pernoite mais
- * recente) - só dataInicio: desta data em diante (pe.data_saida >= dataInicio) - só dataFim: desta
- * data pra trás (pe.data_entrada <= dataFim) - dataInicio + dataFim: range por "overlap"
- * (pe.data_entrada <= dataFim AND pe.data_saida >= dataInicio)
- *
- * <p>Cálculos: - tipoHospedagem: baseado em diaria.quantidadePessoas; se variar entre diárias,
- * concatena (ex: "DUPLA, TRIPLA") - subTotal diária: (diaria.total se existir, senão
- * diaria.valorDiaria) + soma(pagamentos.valor) + soma(consumosValor) Observação: sua tabela
- * diaria_consumo não tem valor; consumo fica 0 no subtotal (mas lista os consumos). -
- * valorTotalHospedagem: soma dos subtotais de todas as diárias do pernoite - totalDiasHospedado:
- * soma do número de diárias de todos os pernoites (cada linha de diaria = 1 dia) - valorTotal: soma
- * dos valores de todas as hospedagens (pernoites)
- *
- * <p>Mappers usados (dos records): - Pernoite.mapPernoite(rs, "pernoite_") - Diaria.mapDiaria(rs,
- * "diaria_") (que chama Quarto.mapQuarto(rs) internamente) - Pessoa.mapPessoa(rs, "pessoa_") -
- * Item.mapItem(rs, "item_") (que chama Categoria.mapCategoria(rs)) -
- * DiariaPagamento.mapDiariaPagamento(rs, "diaria_pagamento_")
- *
- * <p>TipoPagamento: montado manualmente em pagamento/consumo por causa de aliases distintos.
- */
 @Repository
 public class HistoricoHospedagemRepository {
 
@@ -46,7 +25,6 @@ public class HistoricoHospedagemRepository {
       Long pessoaId, LocalDate dataInicio, LocalDate dataFim) {
     if (pessoaId == null) return Optional.empty();
 
-    // Sem datas -> último pernoite (mais recente)
     if (dataInicio == null && dataFim == null) {
       Long ultimoPernoiteId = buscarUltimoPernoiteId(pessoaId).orElse(null);
       if (ultimoPernoiteId == null) return Optional.empty();
@@ -65,25 +43,19 @@ public class HistoricoHospedagemRepository {
       return Optional.ofNullable(historico);
     }
 
-    // Com datas -> regras novas
     StringBuilder where = new StringBuilder(" WHERE dpf.pessoa_id = ? ");
     List<Object> params = new ArrayList<>();
     params.add(pessoaId);
     params.add(pessoaId);
 
-    // dataInicio + dataFim => overlap fechado
     if (dataInicio != null && dataFim != null) {
       where.append(" AND pe.data_entrada <= ? AND pe.data_saida >= ? ");
       params.add(dataFim);
       params.add(dataInicio);
-    }
-    // somente inicio => datas em diante
-    else if (dataInicio != null) {
+    } else if (dataInicio != null) {
       where.append(" AND pe.data_saida >= ? ");
       params.add(dataInicio);
-    }
-    // somente fim => datas pra trás
-    else {
+    } else {
       where.append(" AND pe.data_entrada <= ? ");
       params.add(dataFim);
     }
@@ -237,7 +209,6 @@ public class HistoricoHospedagemRepository {
         Integer qtdPessoas = rs.getObject("diaria_quantidade_pessoa", Integer.class);
         if (qtdPessoas != null) qtdPessoasSet.add(qtdPessoas);
 
-        // pessoa (rep/acompanhante)
         Long hospedeId = rs.getObject("pessoa_id", Long.class);
         if (hospedeId != null) {
           boolean representante =
@@ -251,7 +222,6 @@ public class HistoricoHospedagemRepository {
           }
         }
 
-        // pagamento
         Long pagId = rs.getObject("diaria_pagamento_id", Long.class);
         if (pagId != null) {
           DiariaPagamento pagamento = DiariaPagamento.mapDiariaPagamento(rs, "diaria_pagamento_");
@@ -272,7 +242,6 @@ public class HistoricoHospedagemRepository {
           dAgg.pagamentos.putIfAbsent(pagId, pagamento);
         }
 
-        // consumo
         Long consId = rs.getObject("diaria_consumo_id", Long.class);
         if (consId != null) {
           LocalDateTime dh =

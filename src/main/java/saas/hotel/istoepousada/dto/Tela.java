@@ -41,4 +41,6 @@ public record Tela(
   public int hashCode() {
     return Objects.hash(id);
   }
+
+  public record Request(Long id, List<Long> permissoesIds) {}
 }

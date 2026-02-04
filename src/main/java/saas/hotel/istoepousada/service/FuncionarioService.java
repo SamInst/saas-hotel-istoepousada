@@ -14,14 +14,17 @@ public class FuncionarioService {
   private final FuncionarioRepository funcionarioRepository;
   private final PessoaService pessoaService;
   private final UsuarioService usuarioService;
+  private final CargoTelaPermissaoService cargoTelaPermissaoService;
 
   public FuncionarioService(
       FuncionarioRepository funcionarioRepository,
       PessoaService pessoaService,
-      UsuarioService usuarioService) {
+      UsuarioService usuarioService,
+      CargoTelaPermissaoService cargoTelaPermissaoService) {
     this.funcionarioRepository = funcionarioRepository;
     this.pessoaService = pessoaService;
     this.usuarioService = usuarioService;
+    this.cargoTelaPermissaoService = cargoTelaPermissaoService;
   }
 
   @Transactional
@@ -37,6 +40,11 @@ public class FuncionarioService {
           usuarioService.criar(request.usuario().username(), request.usuario().senha());
       usuarioId = usuario.id();
     }
+
+    cargoTelaPermissaoService.vincularCargoTelas(request.cargoId(), request.telas(), true);
+
+    cargoTelaPermissaoService.vincularPermissoesPessoa(
+        pessoaSalva.id(), request.permissoes(), true);
 
     return funcionarioRepository.insert(
         pessoaSalva.id(), request.cargoId(), request.dataAdmissao(), usuarioId);

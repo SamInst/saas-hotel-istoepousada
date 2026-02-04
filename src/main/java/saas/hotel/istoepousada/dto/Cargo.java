@@ -26,4 +26,6 @@ public record Cargo(
   public static Cargo mapCargo(ResultSet rs, String prefix) throws SQLException {
     return new Cargo(rs.getLong(prefix + "id"), rs.getString(prefix + "cargo"));
   }
+
+  public record Request(Long id, String descricao, List<Tela.Request> telasIds) {}
 }

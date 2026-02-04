@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.List;
 
 @Schema(description = "Funcionário do sistema")
 public record Funcionario(
@@ -58,7 +59,9 @@ public record Funcionario(
       @Schema(description = "Dados da pessoa") Pessoa pessoa,
       @Schema(description = "Data de admissão", example = "2026-01-19") LocalDate dataAdmissao,
       @Schema(description = "ID do cargo", example = "1") Long cargoId,
-      @Schema(description = "Dados do usuário (opcional)") UsuarioData usuario) {
+      @Schema(description = "Dados do usuário (opcional)") UsuarioData usuario,
+      @Schema(description = "Id das Telas do funcionario") List<Long> telas,
+      @Schema(description = "Id das permissoes do funcionario") List<Long> permissoes) {
 
     public record UsuarioData(
         @Schema(description = "Username", example = "joao.silva") String username,

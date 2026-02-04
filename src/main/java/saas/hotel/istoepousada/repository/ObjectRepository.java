@@ -28,6 +28,10 @@ public class ObjectRepository {
         telaId);
   }
 
+  public List<Objeto> cargos() {
+    return jdbcTemplate.query("select id, cargo.cargo as descricao from cargo", Objeto.mapObjeto);
+  }
+
   public Objeto findById(Long id) {
     return jdbcTemplate.queryForObject(
         "select id, descricao from tipo_pagamento where id = ?", Objeto.mapObjeto, id);

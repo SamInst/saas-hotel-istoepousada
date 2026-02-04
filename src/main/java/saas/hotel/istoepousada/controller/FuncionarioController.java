@@ -127,7 +127,9 @@ public class FuncionarioController {
                                               "usuario": {
                                                 "username": "joao.silva",
                                                 "senha": "senha123"
-                                              }
+                                              },
+                                              "telas": [1,2],
+                                              "permissoes": [1,2]
                                             }
                                             """)))
           @RequestBody

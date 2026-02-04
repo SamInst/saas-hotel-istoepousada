@@ -36,35 +36,70 @@ public class FuncionarioRepository {
 
   private final ResultSetExtractor<List<Funcionario>> FUNCIONARIO_EXTRACTOR =
       rs -> {
-        Map<Long, Funcionario> funcionarioMap = new LinkedHashMap<>();
-        Map<Long, Set<Tela>> telasPorFuncionario = new HashMap<>();
+        Map<Long, Funcionario> funcMap = new LinkedHashMap<>();
+        Map<Long, LinkedHashMap<Long, Tela>> telasPorFunc = new HashMap<>();
+
+        // funcId -> (telaId -> lista permissões)
+        Map<Long, Map<Long, List<saas.hotel.istoepousada.dto.Permissao>>> permsPorFuncTela =
+            new HashMap<>();
+        Map<Long, Map<Long, Set<Long>>> permIdsPorFuncTela = new HashMap<>();
 
         while (rs.next()) {
-          Long funcionarioId = rs.getLong("id");
+          Long funcId = rs.getLong("id");
 
-          if (!funcionarioMap.containsKey(funcionarioId)) {
-            Funcionario funcionario = mapFuncionario(rs);
-            funcionarioMap.put(funcionarioId, funcionario);
-            telasPorFuncionario.put(funcionarioId, new LinkedHashSet<>());
+          if (!funcMap.containsKey(funcId)) {
+            Funcionario f = mapFuncionario(rs);
+            funcMap.put(funcId, f);
+            telasPorFunc.put(funcId, new LinkedHashMap<>());
+            permsPorFuncTela.put(funcId, new HashMap<>());
+            permIdsPorFuncTela.put(funcId, new HashMap<>());
           }
 
           Long telaId = rs.getObject("tela_id", Long.class);
           if (telaId != null && telaId > 0) {
-            Tela tela = Tela.mapTela(rs, "tela_");
-            telasPorFuncionario.get(funcionarioId).add(tela);
+            LinkedHashMap<Long, Tela> telasMap = telasPorFunc.get(funcId);
+
+            Tela tela = telasMap.get(telaId);
+            if (tela == null) {
+              tela = Tela.mapTela(rs, "tela_"); // vem sem permissões
+              telasMap.put(telaId, tela);
+            }
+
+            saas.hotel.istoepousada.dto.Permissao perm =
+                saas.hotel.istoepousada.dto.Permissao.mapPermissao(rs, "permissao_");
+
+            if (perm != null) {
+              permsPorFuncTela.get(funcId).computeIfAbsent(telaId, k -> new ArrayList<>());
+              permIdsPorFuncTela.get(funcId).computeIfAbsent(telaId, k -> new HashSet<>());
+
+              if (permIdsPorFuncTela.get(funcId).get(telaId).add(perm.id())) {
+                permsPorFuncTela.get(funcId).get(telaId).add(perm);
+              }
+            }
           }
         }
 
-        return funcionarioMap.values().stream()
-            .map(
-                func -> {
-                  Set<Tela> telasSet = telasPorFuncionario.get(func.id());
-                  List<Tela> telas = new ArrayList<>(telasSet);
-                  Cargo cargoComTelas = func.cargo().withTelas(telas);
-                  return new Funcionario(
-                      func.id(), func.pessoa(), func.dataAdmissao(), cargoComTelas, func.usuario());
-                })
-            .toList();
+        List<Funcionario> out = new ArrayList<>();
+        for (var entry : funcMap.entrySet()) {
+          Long funcId = entry.getKey();
+          Funcionario f = entry.getValue();
+
+          List<Tela> telas =
+              telasPorFunc.get(funcId).values().stream()
+                  .map(
+                      t ->
+                          t.withPermissoes(
+                              permsPorFuncTela
+                                  .getOrDefault(funcId, Map.of())
+                                  .getOrDefault(t.id(), List.of())))
+                  .toList();
+
+          Cargo cargo = (f.cargo() == null) ? null : f.cargo().withTelas(telas);
+
+          out.add(new Funcionario(f.id(), f.pessoa(), f.dataAdmissao(), cargo, f.usuario()));
+        }
+
+        return out;
       };
 
   public Page<Funcionario> buscar(Long id, String termo, Long cargoId, Pageable pageable) {
@@ -112,7 +147,10 @@ public class FuncionarioRepository {
                     t.id                           AS tela_id,
                     t.nome                         AS tela_nome,
                     t.descricao                    AS tela_descricao,
-                    t.rota                         AS tela_rota,
+
+                    perm.id                        AS permissao_id,
+                    perm.permissao                 AS permissao_permissao,
+                    perm.descricao                 AS permissao_descricao,
 
                     p.fk_funcionario               AS pessoa_fk_funcionario,
                     p.fk_titular                   AS pessoa_fk_titular,
@@ -128,6 +166,10 @@ public class FuncionarioRepository {
                 LEFT JOIN tela t ON t.id = ct.tela_id
                 LEFT JOIN pessoa func ON func.id = p.fk_funcionario
                 LEFT JOIN pessoa titular ON titular.id = p.fk_titular
+                LEFT JOIN pessoa_permissao pp ON pp.fk_pessoa = p.id
+                LEFT JOIN permissao perm
+                       ON perm.id = pp.fk_permissao
+                      AND perm.fk_tela = t.id
                 """;
 
     StringBuilder where = new StringBuilder(" WHERE p.status = 'CONTRATADO'::pessoa_status ");

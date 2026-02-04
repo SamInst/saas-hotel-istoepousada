@@ -305,7 +305,7 @@ public class RelatorioRepository {
     String sql =
         """
             UPDATE relatorio SET
-                data_hora = ?,
+
                 relatorio = ?,
                 valor = ?,
                 fk_tipo_pagamento = ?,
@@ -317,7 +317,6 @@ public class RelatorioRepository {
     int rows =
         jdbcTemplate.update(
             sql,
-            Timestamp.valueOf(request.dataHora()),
             request.relatorio(),
             request.valor(),
             request.tipoPagamentoId(),
