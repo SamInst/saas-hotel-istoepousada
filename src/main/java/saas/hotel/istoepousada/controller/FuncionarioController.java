@@ -33,13 +33,15 @@ public class FuncionarioController {
       summary = "Listar funcionários (paginado) com filtros opcionais",
       description =
           """
-                    Lista funcionários paginados. Filtros são opcionais:
-                    - id: busca específica por ID
-                    - termo: filtra por nome (ILIKE) ou CPF (exato)
-                    - cargoId: filtra por cargo específico
+                              Lista funcionários paginados. Filtros são opcionais:
+                              - id: busca específica por ID do funcionário
+                              - termo: filtra por nome (ILIKE) ou CPF (exato)
+                              - cargoId: filtra por cargo específico
+                              - pessoaId: filtra por ID da pessoa vinculada
+                              - usuarioId: filtra por ID do usuário vinculado
 
-                    Se nenhum filtro for informado, retorna todos os funcionários contratados paginados.
-                    """)
+                              Se nenhum filtro for informado, retorna todos os funcionários contratados paginados.
+                              """)
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -57,6 +59,10 @@ public class FuncionarioController {
           String termo,
       @Parameter(description = "ID do cargo", example = "1") @RequestParam(required = false)
           Long cargoId,
+      @Parameter(description = "ID da pessoa", example = "57") @RequestParam(required = false)
+          Long pessoaId,
+      @Parameter(description = "ID do usuário", example = "10") @RequestParam(required = false)
+          Long usuarioId,
       @Parameter(description = "Número da página (0-based)", example = "0")
           @RequestParam(defaultValue = "0")
           int page,
@@ -64,7 +70,7 @@ public class FuncionarioController {
           @RequestParam(defaultValue = "10")
           int size) {
     Pageable pageable = PageRequest.of(page, size);
-    return funcionarioService.buscar(id, termo, cargoId, pageable);
+    return funcionarioService.buscar(id, termo, cargoId, pessoaId, usuarioId, pageable);
   }
 
   @Operation(
@@ -127,9 +133,7 @@ public class FuncionarioController {
                                               "usuario": {
                                                 "username": "joao.silva",
                                                 "senha": "senha123"
-                                              },
-                                              "telas": [1,2],
-                                              "permissoes": [1,2]
+                                              }
                                             }
                                             """)))
           @RequestBody

@@ -27,5 +27,5 @@ public record Cargo(
     return new Cargo(rs.getLong(prefix + "id"), rs.getString(prefix + "cargo"));
   }
 
-  public record Request(Long id, String descricao, List<Tela.Request> telasIds) {}
+  public record Request(Long id, String descricao, List<Long> telasIds, List<Long> permissoesIds) {}
 }

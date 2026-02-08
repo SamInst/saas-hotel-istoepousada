@@ -14,17 +14,14 @@ public class FuncionarioService {
   private final FuncionarioRepository funcionarioRepository;
   private final PessoaService pessoaService;
   private final UsuarioService usuarioService;
-  private final CargoTelaPermissaoService cargoTelaPermissaoService;
 
   public FuncionarioService(
       FuncionarioRepository funcionarioRepository,
       PessoaService pessoaService,
-      UsuarioService usuarioService,
-      CargoTelaPermissaoService cargoTelaPermissaoService) {
+      UsuarioService usuarioService) {
     this.funcionarioRepository = funcionarioRepository;
     this.pessoaService = pessoaService;
     this.usuarioService = usuarioService;
-    this.cargoTelaPermissaoService = cargoTelaPermissaoService;
   }
 
   @Transactional
@@ -41,16 +38,11 @@ public class FuncionarioService {
       usuarioId = usuario.id();
     }
 
-    cargoTelaPermissaoService.vincularCargoTelas(request.cargoId(), request.telas(), true);
-
-    cargoTelaPermissaoService.vincularPermissoesPessoa(
-        pessoaSalva.id(), request.permissoes(), true);
-
-    return funcionarioRepository.insert(
-        pessoaSalva.id(), request.cargoId(), request.dataAdmissao(), usuarioId);
+    return funcionarioRepository.insert(pessoaSalva.id(), request, usuarioId);
   }
 
-  public Page<Funcionario> buscar(Long id, String termo, Long cargoId, Pageable pageable) {
-    return funcionarioRepository.buscar(id, termo, cargoId, pageable);
+  public Page<Funcionario> buscar(
+      Long id, String termo, Long cargoId, Long pessoaId, Long usuarioId, Pageable pageable) {
+    return funcionarioRepository.buscar(id, termo, cargoId, pessoaId, usuarioId, pageable);
   }
 }

@@ -8,8 +8,8 @@ import saas.hotel.istoepousada.dto.LoginResponse;
 import saas.hotel.istoepousada.handler.exceptions.InvalidTokenException;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.handler.exceptions.UnauthorizedException;
+import saas.hotel.istoepousada.repository.CargoRepository;
 import saas.hotel.istoepousada.repository.FuncionarioRepository;
-import saas.hotel.istoepousada.repository.PermissaoRepository;
 import saas.hotel.istoepousada.repository.UsuarioRepository;
 import saas.hotel.istoepousada.security.JwtUtil;
 
@@ -18,39 +18,30 @@ public class AuthService {
   private final UsuarioRepository usuarioRepository;
   private final FuncionarioRepository funcionarioRepository;
   private final JwtUtil jwtUtil;
-  private final PermissaoRepository permissaoRepository;
+  private final CargoRepository cargoRepository;
 
   public AuthService(
       UsuarioRepository usuarioRepository,
       FuncionarioRepository funcionarioRepository,
       JwtUtil jwtUtil,
-      PermissaoRepository permissaoRepository) {
+      CargoRepository cargoRepository) {
     this.usuarioRepository = usuarioRepository;
     this.funcionarioRepository = funcionarioRepository;
     this.jwtUtil = jwtUtil;
-    this.permissaoRepository = permissaoRepository;
+    this.cargoRepository = cargoRepository;
   }
 
   public LoginResponse login(Login request) {
     boolean autenticado = usuarioRepository.autenticar(request.username(), request.senha());
     if (!autenticado) throw new UnauthorizedException("Credenciais inválidas");
+
     var usuario = usuarioRepository.findByUsername(request.username());
     Funcionario funcionario = funcionarioRepository.findByUsuarioId(usuario.id());
+
     if (funcionario == null)
       throw new NotFoundException("Usuário não possui funcionário vinculado");
 
-    var telas = permissaoRepository.buscarTelasComPermissoesPorPessoaId(funcionario.pessoa().id());
-    var cargoComTelas = funcionario.cargo() == null ? null : funcionario.cargo().withTelas(telas);
-
-    Funcionario funcionarioComTelas =
-        new Funcionario(
-            funcionario.id(),
-            funcionario.pessoa(),
-            funcionario.dataAdmissao(),
-            cargoComTelas,
-            funcionario.usuario());
-
-    FuncionarioAuth funcionarioAuth = FuncionarioAuth.from(funcionarioComTelas);
+    FuncionarioAuth funcionarioAuth = FuncionarioAuth.from(funcionario);
 
     String token = jwtUtil.generateToken(funcionarioAuth);
     return new LoginResponse(token);

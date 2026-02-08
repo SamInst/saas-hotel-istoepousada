@@ -26,8 +26,7 @@ public record Tela(
     return new Tela(
         rs.getLong(prefix + "id"),
         rs.getString(prefix + "nome"),
-        rs.getString(prefix + "descricao"),
-        List.of());
+        rs.getString(prefix + "descricao"));
   }
 
   @Override
@@ -42,5 +41,5 @@ public record Tela(
     return Objects.hash(id);
   }
 
-  public record Request(Long id, List<Long> permissoesIds) {}
+  public record Request(Long id) {}
 }

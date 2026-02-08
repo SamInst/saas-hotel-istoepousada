@@ -4,17 +4,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-@Schema(description = "Permissão granular dentro de uma tela")
+@Schema(description = "Permissão do sistema")
 public record Permissao(
     @Schema(description = "ID da permissão") Long id,
-    @Schema(description = "Código da permissão", example = "RELATORIO_EXTRATO_EXPORTAR")
-        String permissao,
-    @Schema(description = "Descrição da permissão") String descricao) {
+    @Schema(description = "Nome da permissão") String permissao,
+    @Schema(description = "Descrição da permissão") String descricao,
+    @Schema(description = "ID da tela") Long telaId) {
 
   public static Permissao mapPermissao(ResultSet rs, String prefix) throws SQLException {
-    Long id = rs.getObject(prefix + "id", Long.class);
-    if (id == null) return null;
     return new Permissao(
-        id, rs.getString(prefix + "permissao"), rs.getString(prefix + "descricao"));
+        rs.getLong(prefix + "id"),
+        rs.getString(prefix + "permissao"),
+        rs.getString(prefix + "descricao"),
+        rs.getLong(prefix + "fk_tela"));
   }
 }
