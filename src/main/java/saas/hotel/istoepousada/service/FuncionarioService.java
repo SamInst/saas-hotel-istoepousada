@@ -3,7 +3,6 @@ package saas.hotel.istoepousada.service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.dto.Usuario;
@@ -12,8 +11,8 @@ import saas.hotel.istoepousada.repository.FuncionarioRepository;
 @Service
 public class FuncionarioService {
   private final FuncionarioRepository funcionarioRepository;
-  private final PessoaService pessoaService;
   private final UsuarioService usuarioService;
+  private final PessoaService pessoaService;
 
   public FuncionarioService(
       FuncionarioRepository funcionarioRepository,
@@ -24,12 +23,10 @@ public class FuncionarioService {
     this.usuarioService = usuarioService;
   }
 
-  @Transactional
-  public Funcionario criar(Funcionario.FuncionarioRequest request) {
-    Pessoa pessoaRequest = request.pessoa().withId(null);
-    Pessoa pessoaSalva = pessoaService.salvarPessoaIndividual(pessoaRequest);
+  public Funcionario create(Funcionario.FuncionarioRequest request) {
+    Pessoa pessoa = pessoaService.findById(request.pessoaId());
 
-    pessoaService.alterarStatus(pessoaSalva.id(), Pessoa.Status.CONTRATADO);
+    pessoaService.alterarStatus(request.pessoaId(), Pessoa.Status.CONTRATADO);
 
     Long usuarioId = null;
     if (request.usuario() != null && request.usuario().username() != null) {
@@ -38,10 +35,14 @@ public class FuncionarioService {
       usuarioId = usuario.id();
     }
 
-    return funcionarioRepository.insert(pessoaSalva.id(), request, usuarioId);
+    return funcionarioRepository.insert(pessoa.id(), request, usuarioId);
   }
 
-  public Page<Funcionario> buscar(
+  public Funcionario update(Long id, Funcionario.FuncionarioRequest request) {
+    return funcionarioRepository.update(id, request);
+  }
+
+  public Page<Funcionario> search(
       Long id, String termo, Long cargoId, Long pessoaId, Long usuarioId, Pageable pageable) {
     return funcionarioRepository.buscar(id, termo, cargoId, pessoaId, usuarioId, pageable);
   }

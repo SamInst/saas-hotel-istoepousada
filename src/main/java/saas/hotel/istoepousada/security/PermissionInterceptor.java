@@ -45,7 +45,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
       return false;
     }
 
-    // ====== ADMIN BYPASS (robusto) ======
+    /* ====== ADMIN BYPASS ====== */
     String cargoNome = funcionario.cargo() != null ? funcionario.cargo().nome() : null;
     if ("ADMINISTRADOR".equalsIgnoreCase(safe(cargoNome).trim())) {
       log.info("Usuário ADMINISTRADOR liberado para acesso total");

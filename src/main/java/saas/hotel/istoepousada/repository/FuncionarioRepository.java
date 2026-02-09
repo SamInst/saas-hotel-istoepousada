@@ -18,7 +18,6 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Cargo;
 import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Tela;
@@ -94,7 +93,9 @@ public class FuncionarioRepository {
 
           Cargo cargo = (f.cargo() == null) ? null : f.cargo().withTelas(telas);
 
-          out.add(new Funcionario(f.id(), f.pessoa(), f.dataAdmissao(), cargo, f.usuario()));
+          out.add(
+              new Funcionario(
+                  f.id(), f.pessoa(), f.dataAdmissao(), f.salario(), cargo, f.usuario()));
         }
 
         return out;
@@ -116,6 +117,7 @@ public class FuncionarioRepository {
                     SELECT
                         f.id                           AS id,
                         f.data_admissao                AS data_admissao,
+                        f.salario                      AS salario,
 
                         p.id                           AS pessoa_id,
                         p.data_hora_cadastro           AS pessoa_data_hora_cadastro,
@@ -260,13 +262,12 @@ public class FuncionarioRepository {
     return page.getContent().getFirst();
   }
 
-  @Transactional
   public Funcionario insert(Long pessoaId, Funcionario.FuncionarioRequest request, Long usuarioId) {
     String sql =
         """
-                    INSERT INTO funcionario (fk_pessoa, fk_cargo, data_admissao, fk_usuario, salario)
-                    VALUES (?, ?, ?, ?, ?)
-                    """;
+        INSERT INTO funcionario (fk_pessoa, fk_cargo, data_admissao, fk_usuario, salario)
+        VALUES (?, ?, ?, ?, ?)
+        """;
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
     jdbcTemplate.update(
@@ -308,11 +309,46 @@ public class FuncionarioRepository {
     return page.getContent().getFirst();
   }
 
-  public Funcionario findByPessoaId(Long pessoaId) {
-    Page<Funcionario> page = buscar(null, null, null, pessoaId, null, Pageable.ofSize(1));
-    if (page.isEmpty()) {
-      throw new NotFoundException("Funcionário não encontrado para a pessoa id: " + pessoaId);
+  public Funcionario update(Long id, Funcionario.FuncionarioRequest request) {
+    if (!existsById(id)) throw new NotFoundException("Funcionário não encontrado para o id: " + id);
+
+    String sql =
+        """
+            UPDATE funcionario
+            SET fk_cargo = ?,
+                data_admissao = ?,
+                salario = ?
+            WHERE id = ?
+            """;
+
+    jdbcTemplate.update(
+        connection -> {
+          PreparedStatement ps = connection.prepareStatement(sql);
+          ps.setLong(1, request.cargoId());
+          ps.setDate(2, Date.valueOf(request.dataAdmissao()));
+
+          if (request.salario() != null) ps.setFloat(3, request.salario());
+          else ps.setNull(3, Types.NUMERIC);
+          ps.setLong(4, id);
+          return ps;
+        });
+
+    log.info(
+        "Funcionário atualizado: id={}, cargoId={}, salario={}",
+        id,
+        request.cargoId(),
+        request.salario());
+
+    return findById(id);
+  }
+
+  private boolean existsById(Long id) {
+    try {
+      String sql = "SELECT 1 FROM funcionario WHERE id = ? LIMIT 1";
+      Long result = jdbcTemplate.queryForObject(sql, Long.class, id);
+      return result != null;
+    } catch (EmptyResultDataAccessException ex) {
+      return false;
     }
-    return page.getContent().getFirst();
   }
 }

@@ -4,6 +4,7 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +12,7 @@ import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Empresa;
 import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.dto.Veiculo;
+import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.repository.EmpresaRepository;
 import saas.hotel.istoepousada.repository.PessoaRepository;
 import saas.hotel.istoepousada.repository.VeiculoRepository;
@@ -38,6 +40,16 @@ public class PessoaService {
       Long id, String termo, String placaVeiculo, Pessoa.Status status, Pageable pageable) {
     String termoNormalizado = StringUtils.hasText(termo) ? termo.trim() : null;
     return pessoaRepository.buscar(id, termoNormalizado, placaVeiculo, status, pageable);
+  }
+
+  public Pessoa findById(Long id) {
+    Page<Pessoa> page = pessoaRepository.buscar(id, null, null, null, PageRequest.ofSize(1));
+
+    if (page.isEmpty()) {
+      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
+    }
+
+    return page.getContent().getFirst();
   }
 
   @Transactional
