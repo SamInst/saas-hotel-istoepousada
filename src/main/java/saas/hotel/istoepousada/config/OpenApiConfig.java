@@ -48,9 +48,9 @@ public class OpenApiConfig {
 
   private Contact createContact() {
     var contato = new Contact();
-    contato.setName("");
-    contato.setEmail("");
-    contato.setUrl("");
+    contato.setName("Sam Helson");
+    contato.setEmail("sam04hel.dev@gmail.com");
+    contato.setUrl("https://mail.google.com/mail/u/0/?fs=1&to=sam04hel.dev@gmail.com&tf=cm");
     return contato;
   }
 

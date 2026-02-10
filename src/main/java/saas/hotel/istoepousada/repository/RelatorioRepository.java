@@ -10,7 +10,6 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Relatorio;
 import saas.hotel.istoepousada.dto.RelatorioDia;
 import saas.hotel.istoepousada.dto.RelatorioExtratoResponse;
@@ -52,55 +51,56 @@ public class RelatorioRepository {
 
     String baseFrom =
         """
-            FROM relatorio r
-            INNER JOIN pessoa pbase ON pbase.id = r.fk_funcionario
-            """;
+                FROM relatorio r
+                INNER JOIN pessoa pbase ON pbase.id = r.fk_funcionario
+                """;
 
     String baseSelect =
         """
-            SELECT
-                r.id                 AS relatorio_id,
-                r.data_hora          AS data_hora,
-                r.relatorio          AS relatorio,
-                r.valor              AS valor,
+                SELECT
+                    r.id                       AS relatorio_id,
+                    r.data_hora                AS data_hora,
+                    r.relatorio                AS relatorio,
+                    r.valor                    AS valor,
+                    r.valor_historico_dinheiro AS valor_historico_dinheiro,
 
-                tp.id                AS tipo_pagamento_id,
-                tp.descricao         AS tipo_pagamento_descricao,
+                    tp.id                AS tipo_pagamento_id,
+                    tp.descricao         AS tipo_pagamento_descricao,
 
-                q.id                 AS quarto_id,
-                q.descricao          AS quarto_descricao,
+                    q.id                 AS quarto_id,
+                    q.descricao          AS quarto_descricao,
 
-                p.id                 AS funcionario_id,
-                p.data_hora_cadastro AS funcionario_data_hora_cadastro,
-                p.nome               AS funcionario_nome,
-                p.data_nascimento    AS funcionario_data_nascimento,
-                p.cpf                AS funcionario_cpf,
-                p.rg                 AS funcionario_rg,
-                p.email              AS funcionario_email,
-                p.telefone           AS funcionario_telefone,
-                p.pais               AS funcionario_pais,
-                p.estado             AS funcionario_estado,
-                p.municipio          AS funcionario_municipio,
-                p.endereco           AS funcionario_endereco,
-                p.complemento        AS funcionario_complemento,
-                p.vezes_hospedado    AS funcionario_vezes_hospedado,
-                p.cep                AS funcionario_cep,
-                p.idade              AS funcionario_idade,
-                p.bairro             AS funcionario_bairro,
-                p.sexo               AS funcionario_sexo,
-                p.numero             AS funcionario_numero,
-                p.status             AS funcionario_status,
-                p.fk_funcionario     AS funcionario_fk_funcionario,
-                p.fk_titular         AS funcionario_fk_titular,
-                func.nome            AS funcionario_funcionario_nome,
-                titular.nome         AS funcionario_titular_nome
-            FROM relatorio r
-            INNER JOIN pessoa p ON p.id = r.fk_funcionario
-            LEFT JOIN pessoa func ON func.id = p.fk_funcionario
-            LEFT JOIN pessoa titular ON titular.id = p.fk_titular
-            LEFT JOIN tipo_pagamento tp ON tp.id = r.fk_tipo_pagamento
-            LEFT JOIN quarto q ON q.id = r.quarto_id
-            """;
+                    p.id                 AS funcionario_id,
+                    p.data_hora_cadastro AS funcionario_data_hora_cadastro,
+                    p.nome               AS funcionario_nome,
+                    p.data_nascimento    AS funcionario_data_nascimento,
+                    p.cpf                AS funcionario_cpf,
+                    p.rg                 AS funcionario_rg,
+                    p.email              AS funcionario_email,
+                    p.telefone           AS funcionario_telefone,
+                    p.pais               AS funcionario_pais,
+                    p.estado             AS funcionario_estado,
+                    p.municipio          AS funcionario_municipio,
+                    p.endereco           AS funcionario_endereco,
+                    p.complemento        AS funcionario_complemento,
+                    p.vezes_hospedado    AS funcionario_vezes_hospedado,
+                    p.cep                AS funcionario_cep,
+                    p.idade              AS funcionario_idade,
+                    p.bairro             AS funcionario_bairro,
+                    p.sexo               AS funcionario_sexo,
+                    p.numero             AS funcionario_numero,
+                    p.status             AS funcionario_status,
+                    p.fk_funcionario     AS funcionario_fk_funcionario,
+                    p.fk_titular         AS funcionario_fk_titular,
+                    func.nome            AS funcionario_funcionario_nome,
+                    titular.nome         AS funcionario_titular_nome
+                FROM relatorio r
+                INNER JOIN pessoa p ON p.id = r.fk_funcionario
+                LEFT JOIN pessoa func ON func.id = p.fk_funcionario
+                LEFT JOIN pessoa titular ON titular.id = p.fk_titular
+                LEFT JOIN tipo_pagamento tp ON tp.id = r.fk_tipo_pagamento
+                LEFT JOIN quarto q ON q.id = r.quarto_id
+                """;
 
     StringBuilder whereBase = new StringBuilder(" WHERE 1=1 ");
     List<Object> paramsBase = new ArrayList<>();
@@ -175,8 +175,8 @@ public class RelatorioRepository {
 
     String diasSql =
         """
-            SELECT DISTINCT DATE(r.data_hora) AS dia
-            """
+                SELECT DISTINCT DATE(r.data_hora) AS dia
+                """
             + baseFrom
             + whereList
             + """
@@ -203,10 +203,6 @@ public class RelatorioRepository {
           new PageImpl<>(List.of(), pageable, totalDias));
     }
 
-    StringBuilder dayRanges = new StringBuilder(" WHERE 1=1 ");
-
-    String whereListStr = whereList.toString();
-
     StringBuilder ranges = new StringBuilder();
     List<Object> rangeParams = new ArrayList<>();
 
@@ -219,7 +215,7 @@ public class RelatorioRepository {
 
     String pageSql =
         baseSelect
-            + whereListStr
+            + whereList
             + " AND ("
             + ranges
             + ") "
@@ -232,7 +228,7 @@ public class RelatorioRepository {
         jdbcTemplate.query(pageSql, RELATORIO_EXTRACTOR, pageParams.toArray());
 
     Map<LocalDate, Float> totalDiaMap =
-        buscarTotaisPorDiaPositivos(baseFrom, whereListStr, paramsList, dias);
+        buscarTotaisPorDiaPositivos(baseFrom, whereList.toString(), paramsList, dias);
 
     Map<LocalDate, List<Relatorio>> porDia = new LinkedHashMap<>();
     for (LocalDate d : dias) porDia.put(d, new ArrayList<>());
@@ -261,19 +257,21 @@ public class RelatorioRepository {
         pageDias);
   }
 
-  @Transactional
   public Relatorio insert(Relatorio.RelatorioRequest request, Long funcionarioPessoaId) {
+    Double valorHistoricoDinheiro = calcularNovoHistoricoDinheiro(request);
+
     String sql =
         """
-            INSERT INTO relatorio (
-                data_hora,
-                relatorio,
-                valor,
-                fk_tipo_pagamento,
-                fk_funcionario,
-                quarto_id
-            ) VALUES (now(), ?, ?, ?, ?, ?)
-            """;
+                INSERT INTO relatorio (
+                    data_hora,
+                    relatorio,
+                    valor,
+                    fk_tipo_pagamento,
+                    fk_funcionario,
+                    quarto_id,
+                    valor_historico_dinheiro
+                ) VALUES (now(), ?, ?, ?, ?, ?, ?)
+                """;
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
     jdbcTemplate.update(
@@ -286,6 +284,8 @@ public class RelatorioRepository {
 
           if (request.quartoId() != null) ps.setLong(5, request.quartoId());
           else ps.setNull(5, Types.BIGINT);
+
+          ps.setDouble(6, valorHistoricoDinheiro);
           return ps;
         },
         keyHolder);
@@ -298,21 +298,23 @@ public class RelatorioRepository {
     return getByIdOrThrow(id);
   }
 
-  @Transactional
   public Relatorio update(Long id, Relatorio.RelatorioRequest request, Long funcionarioPessoaId) {
     if (id == null) throw new IllegalArgumentException("id é obrigatório.");
 
+    Relatorio relatorioAntigo = getByIdOrThrow(id);
+    Double valorHistoricoDinheiro = recalcularHistoricoDinheiro(relatorioAntigo, request);
+
     String sql =
         """
-            UPDATE relatorio SET
-
-                relatorio = ?,
-                valor = ?,
-                fk_tipo_pagamento = ?,
-                fk_funcionario = ?,
-                quarto_id = ?
-            WHERE id = ?
-            """;
+                UPDATE relatorio SET
+                    relatorio = ?,
+                    valor = ?,
+                    fk_tipo_pagamento = ?,
+                    fk_funcionario = ?,
+                    quarto_id = ?,
+                    valor_historico_dinheiro = ?
+                WHERE id = ?
+                """;
 
     int rows =
         jdbcTemplate.update(
@@ -322,10 +324,108 @@ public class RelatorioRepository {
             request.tipoPagamentoId(),
             funcionarioPessoaId,
             request.quartoId(),
+            valorHistoricoDinheiro,
             id);
 
     if (rows == 0) throw new NotFoundException("Relatório não encontrado para o id: " + id);
+
+    recalcularHistoricoPosteriores(id, valorHistoricoDinheiro);
+
     return getByIdOrThrow(id);
+  }
+
+  private Double calcularNovoHistoricoDinheiro(Relatorio.RelatorioRequest request) {
+    Double ultimoHistorico = buscarUltimoHistoricoDinheiro();
+
+    if (request.tipoPagamentoId() == 1) {
+      return ultimoHistorico + request.valor();
+    }
+
+    return ultimoHistorico;
+  }
+
+  private Double recalcularHistoricoDinheiro(
+      Relatorio relatorioAntigo, Relatorio.RelatorioRequest request) {
+    Double historicoAnterior = buscarHistoricoAnteriorAoRegistro(relatorioAntigo.id());
+
+    Long tipoPagamentoAntigoId = relatorioAntigo.tipoPagamentoId();
+    Double valorAntigo = relatorioAntigo.valor();
+
+    if (tipoPagamentoAntigoId == 1) {
+      historicoAnterior -= valorAntigo;
+    }
+
+    if (request.tipoPagamentoId() == 1) {
+      return historicoAnterior + request.valor();
+    }
+
+    return historicoAnterior;
+  }
+
+  private Double buscarUltimoHistoricoDinheiro() {
+    String sql =
+        """
+                SELECT COALESCE(valor_historico_dinheiro, 0)
+                FROM relatorio
+                ORDER BY data_hora DESC, id DESC
+                LIMIT 1
+                """;
+
+    try {
+      Double valor = jdbcTemplate.queryForObject(sql, Double.class);
+      return valor != null ? valor : 0.0;
+    } catch (EmptyResultDataAccessException ex) {
+      return 0.0;
+    }
+  }
+
+  private Double buscarHistoricoAnteriorAoRegistro(Long relatorioId) {
+    String sql =
+        """
+                SELECT COALESCE(valor_historico_dinheiro, 0)
+                FROM relatorio r1
+                WHERE r1.data_hora < (SELECT data_hora FROM relatorio WHERE id = ?)
+                   OR (r1.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND r1.id < ?)
+                ORDER BY r1.data_hora DESC, r1.id DESC
+                LIMIT 1
+                """;
+
+    try {
+      Double valor =
+          jdbcTemplate.queryForObject(sql, Double.class, relatorioId, relatorioId, relatorioId);
+      return valor != null ? valor : 0.0;
+    } catch (EmptyResultDataAccessException ex) {
+      return 0.0;
+    }
+  }
+
+  private void recalcularHistoricoPosteriores(Long relatorioId, Double novoHistorico) {
+    String sqlBuscar =
+        """
+                SELECT id, fk_tipo_pagamento, valor
+                FROM relatorio
+                WHERE data_hora > (SELECT data_hora FROM relatorio WHERE id = ?)
+                   OR (data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND id > ?)
+                ORDER BY data_hora ASC, id ASC
+                """;
+
+    List<Map<String, Object>> posteriores =
+        jdbcTemplate.queryForList(sqlBuscar, relatorioId, relatorioId, relatorioId);
+
+    Double historicoAcumulado = novoHistorico;
+
+    for (Map<String, Object> registro : posteriores) {
+      Long id = ((Number) registro.get("id")).longValue();
+      Long tipoPagamentoId = ((Number) registro.get("fk_tipo_pagamento")).longValue();
+      Double valor = ((Number) registro.get("valor")).doubleValue();
+
+      if (tipoPagamentoId == 1) {
+        historicoAcumulado += valor;
+      }
+
+      jdbcTemplate.update(
+          "UPDATE relatorio SET valor_historico_dinheiro = ? WHERE id = ?", historicoAcumulado, id);
+    }
   }
 
   private Relatorio getByIdOrThrow(Long id) {
@@ -346,10 +446,10 @@ public class RelatorioRepository {
   private Totais buscarTotaisGerais(String baseFromCount, String where, List<Object> params) {
     String sql =
         """
-            SELECT
-              COALESCE(SUM(CASE WHEN r.valor > 0 THEN r.valor ELSE 0 END), 0) AS total_entradas,
-              COALESCE(SUM(CASE WHEN r.valor < 0 THEN r.valor ELSE 0 END), 0) AS total_saidas
-            """
+                SELECT
+                  COALESCE(SUM(CASE WHEN r.valor > 0 THEN r.valor ELSE 0 END), 0) AS total_entradas,
+                  COALESCE(SUM(CASE WHEN r.valor < 0 THEN r.valor ELSE 0 END), 0) AS total_saidas
+                """
             + baseFromCount
             + where;
 
@@ -370,10 +470,10 @@ public class RelatorioRepository {
       String baseFromCount, String where, List<Object> params) {
     String sql =
         """
-            SELECT
-              COALESCE(SUM(CASE WHEN r.valor > 0 THEN r.valor ELSE 0 END), 0) AS total_dinheiro,
-              COALESCE(SUM(CASE WHEN r.valor < 0 THEN r.valor ELSE 0 END), 0) AS total_dinheiro_saida
-            """
+                SELECT
+                  COALESCE(SUM(CASE WHEN r.valor > 0 THEN r.valor ELSE 0 END), 0) AS total_dinheiro,
+                  COALESCE(SUM(CASE WHEN r.valor < 0 THEN r.valor ELSE 0 END), 0) AS total_dinheiro_saida
+                """
             + baseFromCount
             + where;
 
@@ -398,10 +498,10 @@ public class RelatorioRepository {
 
     String sql =
         """
-            SELECT
-              DATE(r.data_hora) AS dia,
-              COALESCE(SUM(CASE WHEN r.valor > 0 THEN r.valor ELSE 0 END), 0) AS total_dia
-            """
+                SELECT
+                  DATE(r.data_hora) AS dia,
+                  COALESCE(SUM(CASE WHEN r.valor > 0 THEN r.valor ELSE 0 END), 0) AS total_dia
+                """
             + baseFrom
             + whereList
             + " AND DATE(r.data_hora) IN ("

@@ -17,7 +17,8 @@ public record Relatorio(
     @Schema(description = "ID do tipo de pagamento") Long tipoPagamentoId,
     @Schema(description = "Descrição do tipo de pagamento") String tipoPagamentoDescricao,
     @Schema(description = "ID do quarto (opcional)") Long quartoId,
-    @Schema(description = "Descrição do quarto") String quartoDescricao) {
+    @Schema(description = "Descrição do quarto") String quartoDescricao,
+    @Schema(description = "Descrição do quarto") Double valorHistoricoDinheiro) {
 
   public Relatorio withId(Long id) {
     return new Relatorio(
@@ -29,7 +30,8 @@ public record Relatorio(
         this.tipoPagamentoId,
         this.tipoPagamentoDescricao,
         this.quartoId,
-        this.quartoDescricao);
+        this.quartoDescricao,
+        this.valorHistoricoDinheiro);
   }
 
   public static Relatorio mapRelatorio(ResultSet rs) throws SQLException {
@@ -49,7 +51,8 @@ public record Relatorio(
         rs.getObject("tipo_pagamento_id", Long.class),
         rs.getString("tipo_pagamento_descricao"),
         rs.getObject("quarto_id", Long.class),
-        rs.getString("quarto_descricao"));
+        rs.getString("quarto_descricao"),
+        rs.getDouble("valor_historico_dinheiro"));
   }
 
   @Schema(description = "Request para criar/atualizar relatório")
