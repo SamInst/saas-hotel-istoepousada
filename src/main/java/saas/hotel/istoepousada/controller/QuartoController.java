@@ -64,8 +64,8 @@ public class QuartoController {
       @Parameter(description = "Número da página (0-based)", example = "0")
           @RequestParam(defaultValue = "0")
           int page,
-      @Parameter(description = "Tamanho da página", example = "10")
-          @RequestParam(defaultValue = "10")
+      @Parameter(description = "Tamanho da página", example = "900")
+          @RequestParam(defaultValue = "900")
           int size) {
 
     Pageable pageable = PageRequest.of(page, size);
