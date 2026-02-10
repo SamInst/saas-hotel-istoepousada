@@ -283,6 +283,7 @@ public class RelatorioRepository {
           ps.setLong(4, funcionarioPessoaId);
 
           if (request.quartoId() != null) ps.setLong(5, request.quartoId());
+          if (request.quartoId() != null && request.quartoId() == 0L) ps.setNull(5, Types.BIGINT);
           else ps.setNull(5, Types.BIGINT);
 
           ps.setDouble(6, valorHistoricoDinheiro);
