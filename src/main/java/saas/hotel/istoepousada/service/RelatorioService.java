@@ -34,6 +34,7 @@ public class RelatorioService {
       Long quartoId,
       Long tipoPagamentoId,
       Relatorio.Valores valores,
+      Boolean despesaPessoal,
       Pageable pageable) {
     if (dataInicio == null && dataFim == null) {
       LocalDate hoje = LocalDate.now();
@@ -41,7 +42,7 @@ public class RelatorioService {
       dataFim = hoje;
     }
     return relatorioRepository.buscar(
-        id, dataInicio, dataFim, funcionarioId, quartoId, tipoPagamentoId, valores, pageable);
+        id, dataInicio, dataFim, funcionarioId, quartoId, tipoPagamentoId, valores, despesaPessoal, pageable);
   }
 
   @Transactional
