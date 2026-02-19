@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.Objects;
 import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.BadSqlGrammarException;
@@ -19,6 +20,7 @@ import saas.hotel.istoepousada.handler.exceptions.*;
 public class ResourceExceptionHandler {
   static final String INTERNAL_SERVER_ERROR = "Erro interno no servidor";
   static final String BAD_SQL_GRAMAR = "SQL COM ERRO DE SINTAXE.";
+  static final String SQL_VIOLATION = "SQL COM ERRO DE VIOLACAO.";
   static final String UNAUTHORIZED = "Não autorizado";
   static final String CONFLICT = "Conflito";
   static final String NOT_FOUND = "Entidade não encontrada";
@@ -35,6 +37,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.NOT_FOUND.value(),
             NOT_FOUND,
+                "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -49,6 +52,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.UNAUTHORIZED.value(),
             UNAUTHORIZED,
+                "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -63,6 +67,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.CONFLICT.value(),
             CONFLICT,
+                "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -77,6 +82,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.SERVICE_UNAVAILABLE.value(),
             UNAVAIABLE,
+            "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -91,6 +97,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.REQUEST_TIMEOUT.value(),
             TIME_OUT,
+            "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -105,6 +112,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.BAD_REQUEST.value(),
             ARGUMENTO_INVALIDO,
+            "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -119,6 +127,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.INTERNAL_SERVER_ERROR.value(),
             INTERNAL_SERVER_ERROR,
+            e.getSql(),
             BAD_SQL_GRAMAR + " " + Objects.requireNonNull(e.getSQLException()).getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -133,10 +142,33 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.INTERNAL_SERVER_ERROR.value(),
             NULL_POINTER,
+            "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR.value()).body(error);
+  }
+
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<Object> errorInternalServerErrorKeyException(
+          DataIntegrityViolationException e, HttpServletRequest request) {
+    String fullMessage = e.getMessage();
+    Throwable root = e.getRootCause() != null ? e.getRootCause() : e;
+    String sqlError = root.getMessage();
+
+    var error =
+            new StandardError(
+                    Instant.now(),
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                    SQL_VIOLATION,
+                    fullMessage,
+                    sqlError,
+                    request.getRequestURI());
+
+    e.printStackTrace();
+    return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(error);
   }
 
   @ExceptionHandler(HttpMediaTypeNotSupportedException.class)

@@ -42,7 +42,15 @@ public class RelatorioService {
       dataFim = hoje;
     }
     return relatorioRepository.buscar(
-        id, dataInicio, dataFim, funcionarioId, quartoId, tipoPagamentoId, valores, despesaPessoal, pageable);
+        id,
+        dataInicio,
+        dataFim,
+        funcionarioId,
+        quartoId,
+        tipoPagamentoId,
+        valores,
+        despesaPessoal,
+        pageable);
   }
 
   @Transactional

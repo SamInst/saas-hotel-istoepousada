@@ -8,14 +8,16 @@ public record StandardError(
         Instant dataHora,
     Integer status,
     String erro,
+    String sql,
     String mensagem,
     String caminho) {
 
   public StandardError(
-      Instant dataHora, Integer status, String erro, String mensagem, String caminho) {
+      Instant dataHora, Integer status, String erro, String sql, String mensagem, String caminho) {
     this.dataHora = dataHora;
     this.status = status;
     this.erro = erro;
+    this.sql = sql;
     this.mensagem = mensagem;
     this.caminho = caminho;
   }
