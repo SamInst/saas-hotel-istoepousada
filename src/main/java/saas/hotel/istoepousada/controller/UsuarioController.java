@@ -107,37 +107,41 @@ public class UsuarioController {
     return usuarioService.criar(username, senha);
   }
 
-  @Operation(
-      summary = "Alterar senha do usuário",
-      description = "Altera a senha de um usuário existente. A nova senha será armazenada em MD5.")
-  @ApiResponses({
-    @ApiResponse(responseCode = "204", description = "Senha alterada com sucesso"),
-    @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
-  })
-  @PatchMapping("/{id}/senha")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void alterarSenha(
-      @Parameter(description = "ID do usuário", example = "1", required = true) @PathVariable
-          Long id,
-      @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Nova senha",
-              required = true,
-              content =
-                  @Content(
-                      mediaType = MediaType.APPLICATION_JSON_VALUE,
-                      examples =
-                          @ExampleObject(
-                              name = "Exemplo de requisição",
-                              value =
-                                  """
+    @Operation(
+            summary = "Alterar username e senha do usuário",
+            description = "Altera username e senha de um usuário existente. A nova senha será armazenada em MD5.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Username e senha alterados com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Requisição inválida ou username já existe"),
+            @ApiResponse(responseCode = "404", description = "Usuário não encontrado")
+    })
+
+    @PatchMapping("/{id}/credenciais")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void alterarUsernameESenha(
+            @Parameter(description = "ID do usuário", example = "1", required = true)
+            @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Novas credenciais",
+                    required = true,
+                    content =
+                    @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples =
+                            @ExampleObject(
+                                    name = "Exemplo de requisição",
+                                    value =
+                                            """
                                             {
+                                              "username": "novo.username",
                                               "senha": "novaSenha456"
                                             }
                                             """)))
-          @RequestBody
-          Map<String, String> body) {
-    usuarioService.alterarSenha(id, body.get("senha"));
-  }
+            @RequestBody
+            Map<String, String> body) {
+
+        usuarioService.alterarUsernameESenha(id, body.get("username"), body.get("senha"));
+    }
 
   @Operation(
       summary = "Alterar status de bloqueio do usuário",

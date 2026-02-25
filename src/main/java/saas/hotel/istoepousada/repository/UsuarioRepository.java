@@ -187,17 +187,17 @@ public class UsuarioRepository {
     log.info("Usuário atualizado: id={}, username={}", usuario.id(), usuario.username());
   }
 
-  @Transactional
-  public void alterarSenha(Long id, String novaSenha) {
-    var usuario = findById(id);
-    if (usuario.bloqueado()) throw new UnauthorizedException("Usuario bloqueado");
-
-    String sql = "UPDATE usuario SET senha = ? WHERE id = ?";
-    String senhaMd5 = gerarMD5(novaSenha);
-
-    jdbcTemplate.update(sql, senhaMd5, id);
-    log.info("Senha alterada para o usuário id={}", id);
-  }
+//  @Transactional
+//  public void alterarSenha(Long id, String novaSenha) {
+//    var usuario = findById(id);
+//    if (usuario.bloqueado()) throw new UnauthorizedException("Usuario bloqueado");
+//
+//    String sql = "UPDATE usuario SET senha = ? WHERE id = ?";
+//    String senhaMd5 = gerarMD5(novaSenha);
+//
+//    jdbcTemplate.update(sql, senhaMd5, id);
+//    log.info("Senha alterada para o usuário id={}", id);
+//  }
 
   @Transactional
   public void bloquear(Long id, Boolean bloqueado) {
@@ -273,5 +273,30 @@ public class UsuarioRepository {
     } catch (EmptyResultDataAccessException ex) {
       throw new NotFoundException("Usuário não encontrado com username: " + username);
     }
+  }
+
+  @Transactional
+  public void alterarUsernameESenha(Long id, String novoUsername, String novaSenha) {
+    if (id == null) throw new IllegalArgumentException("O parâmetro 'id' não pode ser nulo");
+    if (novoUsername == null || novoUsername.trim().isEmpty())
+      throw new IllegalArgumentException("O parâmetro 'novoUsername' não pode ser nulo/vazio");
+    if (novaSenha == null || novaSenha.trim().isEmpty())
+      throw new IllegalArgumentException("O parâmetro 'novaSenha' não pode ser nulo/vazio");
+
+    var usuario = findById(id);
+    if (usuario.bloqueado()) throw new UnauthorizedException("Usuario bloqueado");
+
+    String usernameTrim = novoUsername.trim();
+
+    if (!usernameTrim.equalsIgnoreCase(usuario.username()) && existsByUsername(usernameTrim)) {
+      throw new IllegalArgumentException("Username já existe: " + usernameTrim);
+    }
+
+    String senhaMd5 = gerarMD5(novaSenha);
+
+    String sql = "UPDATE usuario SET username = ?, senha = ? WHERE id = ?";
+    jdbcTemplate.update(sql, usernameTrim, senhaMd5, id);
+
+    log.info("Username e senha alterados: id={}, username={}", id, usernameTrim);
   }
 }

@@ -3,6 +3,7 @@ package saas.hotel.istoepousada.service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Usuario;
 import saas.hotel.istoepousada.repository.UsuarioRepository;
 
@@ -27,10 +28,12 @@ public class UsuarioService {
         .map(Usuario.UsuarioResponse::from);
   }
 
-  public void alterarSenha(Long id, String novaSenha) {
-    usuarioRepository.alterarSenha(id, novaSenha);
+  @Transactional
+  public void alterarUsernameESenha(Long id, String novoUsername, String novaSenha) {
+    usuarioRepository.alterarUsernameESenha(id, novoUsername, novaSenha);
   }
 
+  @Transactional
   public void alterarStatusBloqueio(Long id, Boolean bloqueado) {
     if (bloqueado == null)
       throw new IllegalArgumentException("O parâmetro 'bloqueado' não pode ser nulo");
