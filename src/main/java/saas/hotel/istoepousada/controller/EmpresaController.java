@@ -190,7 +190,7 @@ public class EmpresaController {
     @ApiResponse(responseCode = "400", description = "Requisição inválida"),
     @ApiResponse(responseCode = "404", description = "Empresa ou pessoa não encontrada")
   })
-  @PostMapping("/{empresaId}/pessoa")
+  @PutMapping("/{empresaId}/pessoa")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void vincularOuDesvincularPessoa(
       @Parameter(description = "ID da empresa", example = "1", required = true) @PathVariable

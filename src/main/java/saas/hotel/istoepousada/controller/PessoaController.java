@@ -165,8 +165,7 @@ public class PessoaController {
                                                        "placa": "ABC1D24",
                                                        "cor": "Branco"
                                                    }
-                                               ],
-                                               "titularId": 1
+                                               ]
                                            }
                                        ],
                                        "empresasIds": [

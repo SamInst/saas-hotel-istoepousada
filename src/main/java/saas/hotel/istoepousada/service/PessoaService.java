@@ -117,13 +117,6 @@ public class PessoaService {
     }
 
     List<Pessoa> titulares = pessoas.stream().filter(p -> p.titularId() == null).toList();
-    if (titulares.isEmpty()) {
-      throw new IllegalArgumentException("É obrigatório informar 1 titular com titularId = null.");
-    }
-    if (titulares.size() > 1) {
-      throw new IllegalArgumentException(
-          "Informe apenas 1 titular (somente um item com titularId = null).");
-    }
 
     Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
     Pessoa funcionario =
