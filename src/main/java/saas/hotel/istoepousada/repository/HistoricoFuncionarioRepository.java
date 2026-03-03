@@ -15,25 +15,25 @@ import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 @Repository
 public class HistoricoFuncionarioRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+  private final JdbcTemplate jdbcTemplate;
 
-    public HistoricoFuncionarioRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
+  public HistoricoFuncionarioRepository(JdbcTemplate jdbcTemplate) {
+    this.jdbcTemplate = jdbcTemplate;
+  }
 
-    public List<HistoricoFuncionario> listarPorFuncionario(Long funcionarioId) {
-        String sql =
-                """
+  public List<HistoricoFuncionario> listarPorFuncionario(Long funcionarioId) {
+    String sql =
+        """
                 SELECT
                   hf.id AS id,
                   hf.salario AS salario,
-        
+
                   c.id AS cargo_id,
                   c.cargo AS cargo_descricao,
-        
+
                   f.id AS funcionario_id,
                   p.nome AS funcionario_descricao
-        
+
                 FROM historico_funcionario hf
                 JOIN cargo c ON c.id = hf.cargo_id
                 JOIN funcionario f ON f.id = hf.funcionario_id
@@ -42,23 +42,23 @@ public class HistoricoFuncionarioRepository {
                 ORDER BY hf.id DESC
                 """;
 
-        return jdbcTemplate.query(
-                sql, (rs, rowNum) -> HistoricoFuncionario.mapHistoricoFuncionario(rs), funcionarioId);
-    }
+    return jdbcTemplate.query(
+        sql, (rs, rowNum) -> HistoricoFuncionario.mapHistoricoFuncionario(rs), funcionarioId);
+  }
 
-    public HistoricoFuncionario findById(Long id) {
-        String sql =
-                """
+  public HistoricoFuncionario findById(Long id) {
+    String sql =
+        """
                 SELECT
                   hf.id AS id,
                   hf.salario AS salario,
-        
+
                   c.id AS cargo_id,
                   c.cargo AS cargo_descricao,
-        
+
                   f.id AS funcionario_id,
                   p.nome AS funcionario_descricao
-        
+
                 FROM historico_funcionario hf
                 JOIN cargo c ON c.id = hf.cargo_id
                 JOIN funcionario f ON f.id = hf.funcionario_id
@@ -66,66 +66,65 @@ public class HistoricoFuncionarioRepository {
                 WHERE hf.id = ?
                 """;
 
-        try {
-            return jdbcTemplate.queryForObject(
-                    sql, (rs, rowNum) -> HistoricoFuncionario.mapHistoricoFuncionario(rs), id);
-        } catch (EmptyResultDataAccessException ex) {
-            throw new NotFoundException("Histórico não encontrado para o id: " + id);
-        }
+    try {
+      return jdbcTemplate.queryForObject(
+          sql, (rs, rowNum) -> HistoricoFuncionario.mapHistoricoFuncionario(rs), id);
+    } catch (EmptyResultDataAccessException ex) {
+      throw new NotFoundException("Histórico não encontrado para o id: " + id);
     }
+  }
 
-    @Transactional
-    public HistoricoFuncionario save(HistoricoFuncionario historico) {
-        if (historico.id() == null) return insert(historico);
-        update(historico);
-        return findById(historico.id());
-    }
+  @Transactional
+  public HistoricoFuncionario save(HistoricoFuncionario historico) {
+    if (historico.id() == null) return insert(historico);
+    update(historico);
+    return findById(historico.id());
+  }
 
-    private HistoricoFuncionario insert(HistoricoFuncionario historico) {
-        String sql =
-                """
+  private HistoricoFuncionario insert(HistoricoFuncionario historico) {
+    String sql =
+        """
                 INSERT INTO historico_funcionario (cargo_id, funcionario_id, salario)
                 VALUES (?, ?, ?)
                 """;
 
-        KeyHolder keyHolder = new GeneratedKeyHolder();
+    KeyHolder keyHolder = new GeneratedKeyHolder();
 
-        jdbcTemplate.update(
-                connection -> {
-                    PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-                    ps.setLong(1, historico.cargo().id());
-                    ps.setLong(2, historico.funcionario().id());
-                    ps.setFloat(3, historico.salario());
-                    return ps;
-                },
-                keyHolder);
+    jdbcTemplate.update(
+        connection -> {
+          PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+          ps.setLong(1, historico.cargo().id());
+          ps.setLong(2, historico.funcionario().id());
+          ps.setFloat(3, historico.salario());
+          return ps;
+        },
+        keyHolder);
 
-        Long generatedId =
-                keyHolder.getKeys() != null && keyHolder.getKeys().containsKey("id")
-                        ? ((Number) keyHolder.getKeys().get("id")).longValue()
-                        : null;
+    Long generatedId =
+        keyHolder.getKeys() != null && keyHolder.getKeys().containsKey("id")
+            ? ((Number) keyHolder.getKeys().get("id")).longValue()
+            : null;
 
-        return new HistoricoFuncionario(
-                generatedId, historico.cargo(), historico.funcionario(), historico.salario());
-    }
+    return new HistoricoFuncionario(
+        generatedId, historico.cargo(), historico.funcionario(), historico.salario());
+  }
 
-    @Transactional
-    public void update(HistoricoFuncionario historico) {
-        findById(historico.id());
+  @Transactional
+  public void update(HistoricoFuncionario historico) {
+    findById(historico.id());
 
-        String sql =
-                """
+    String sql =
+        """
                 UPDATE historico_funcionario
                 SET cargo_id = ?, funcionario_id = ?, salario = ?
                 WHERE id = ?
                 """;
 
-        jdbcTemplate.update(
-                sql,
-                historico.cargo().id(),
-                historico.funcionario().id(),
-                historico.salario(),
-                historico.id());
-    }
-
+    jdbcTemplate.update(
+        sql,
+        historico.cargo().id(),
+        historico.funcionario().id(),
+        historico.salario(),
+        historico.id());
+  }
 }

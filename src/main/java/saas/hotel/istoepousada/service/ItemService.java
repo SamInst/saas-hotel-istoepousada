@@ -14,12 +14,12 @@ import saas.hotel.istoepousada.repository.PessoaRepository;
 public class ItemService {
 
   private final ItemRepository itemRepository;
-    private final PessoaRepository pessoaRepository;
+  private final PessoaRepository pessoaRepository;
 
-    public ItemService(ItemRepository itemRepository, PessoaRepository pessoaRepository) {
+  public ItemService(ItemRepository itemRepository, PessoaRepository pessoaRepository) {
     this.itemRepository = itemRepository;
-        this.pessoaRepository = pessoaRepository;
-    }
+    this.pessoaRepository = pessoaRepository;
+  }
 
   public Page<ItemResponse> buscar(
       Long id,
@@ -108,5 +108,4 @@ public class ItemService {
   public List<ItemCategoria> listarCategorias() {
     return itemRepository.listarCategorias();
   }
-
 }

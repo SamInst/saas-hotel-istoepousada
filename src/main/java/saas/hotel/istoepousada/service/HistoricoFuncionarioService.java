@@ -9,22 +9,23 @@ import saas.hotel.istoepousada.repository.HistoricoFuncionarioRepository;
 @Service
 public class HistoricoFuncionarioService {
 
-    private final HistoricoFuncionarioRepository historicoFuncionarioRepository;
+  private final HistoricoFuncionarioRepository historicoFuncionarioRepository;
 
-    public HistoricoFuncionarioService(HistoricoFuncionarioRepository historicoFuncionarioRepository) {
-        this.historicoFuncionarioRepository = historicoFuncionarioRepository;
-    }
+  public HistoricoFuncionarioService(
+      HistoricoFuncionarioRepository historicoFuncionarioRepository) {
+    this.historicoFuncionarioRepository = historicoFuncionarioRepository;
+  }
 
-    public List<HistoricoFuncionario> listarPorFuncionario(Long funcionarioId) {
-        return historicoFuncionarioRepository.listarPorFuncionario(funcionarioId);
-    }
+  public List<HistoricoFuncionario> listarPorFuncionario(Long funcionarioId) {
+    return historicoFuncionarioRepository.listarPorFuncionario(funcionarioId);
+  }
 
-    public HistoricoFuncionario buscarPorId(Long id) {
-        return historicoFuncionarioRepository.findById(id);
-    }
+  public HistoricoFuncionario buscarPorId(Long id) {
+    return historicoFuncionarioRepository.findById(id);
+  }
 
-    @Transactional
-    public HistoricoFuncionario salvar(HistoricoFuncionario historico) {
-        return historicoFuncionarioRepository.save(historico);
-    }
+  @Transactional
+  public HistoricoFuncionario salvar(HistoricoFuncionario historico) {
+    return historicoFuncionarioRepository.save(historico);
+  }
 }

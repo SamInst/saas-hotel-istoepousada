@@ -1,0 +1,23 @@
+$kind: http-request
+url: "{{hotel}}/cargo?size=2"
+method: GET
+queryParams:
+  - key: id
+    value: "9"
+    disabled: true
+  - key: termo
+    value: ""
+    disabled: true
+  - key: pessoaId
+    value: "200"
+    disabled: true
+  - key: page
+    value: ""
+    disabled: true
+  - key: size
+    value: "2"
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 1000

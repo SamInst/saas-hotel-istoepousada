@@ -16,8 +16,4 @@ public record TipoPagamento(Long id, String descricao) {
     return new TipoPagamento(id, descricao);
   }
 
-  public enum StatusPagamento {
-    PENDENTE,
-    CONCLUIDO
-  }
 }

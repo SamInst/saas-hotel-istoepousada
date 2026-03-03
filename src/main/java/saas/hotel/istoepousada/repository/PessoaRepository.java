@@ -456,21 +456,21 @@ public class PessoaRepository {
     return funcionario.pessoaId();
   }
 
-    public Long getFuncionarioIdFromRequest() {
-        ServletRequestAttributes attributes =
-                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attributes == null) {
-            log.warn("RequestAttributes não disponível, funcionário não será registrado");
-            return null;
-        }
-        HttpServletRequest request = attributes.getRequest();
-        FuncionarioAuth funcionario = (FuncionarioAuth) request.getAttribute("funcionario");
-        if (funcionario == null) {
-            log.warn("Funcionário não encontrado no request, operação sem registro de responsável");
-            return null;
-        }
-        return funcionario.id();
+  public Long getFuncionarioIdFromRequest() {
+    ServletRequestAttributes attributes =
+        (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+    if (attributes == null) {
+      log.warn("RequestAttributes não disponível, funcionário não será registrado");
+      return null;
     }
+    HttpServletRequest request = attributes.getRequest();
+    FuncionarioAuth funcionario = (FuncionarioAuth) request.getAttribute("funcionario");
+    if (funcionario == null) {
+      log.warn("Funcionário não encontrado no request, operação sem registro de responsável");
+      return null;
+    }
+    return funcionario.id();
+  }
 
   private Map<Long, List<Pessoa>> buscarAcompanhantesPorTitularIds(List<Long> titularIds) {
     if (titularIds == null || titularIds.isEmpty()) return Map.of();

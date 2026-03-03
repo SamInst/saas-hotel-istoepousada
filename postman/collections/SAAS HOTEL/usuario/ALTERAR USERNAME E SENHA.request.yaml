@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{hotel}}/usuario/30/credenciais"
+method: PATCH
+queryParams:
+  - key: ""
+    value: null
+    disabled: true
+body:
+  type: json
+  content: "{\r
+
+    \  \"username\": \"novo.username\",\r
+
+    \  \"senha\": \"senha123\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 1000

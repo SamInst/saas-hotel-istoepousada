@@ -1,0 +1,9 @@
+name: prod
+values:
+  - key: hotel
+    value: ""
+    enabled: true
+  - key: token
+    value: ""
+    enabled: true
+color: null

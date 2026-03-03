@@ -201,7 +201,8 @@ public class ItemRepository {
     double valorCompra = request.valorCompraUnidade() != null ? request.valorCompraUnidade() : 0d;
     double valorVenda = request.valorVendaUnidade();
 
-    jdbcTemplate.update(sqlEstoque, qtdInicial, itemId, valorCompra, valorVenda, request.fornecedor());
+    jdbcTemplate.update(
+        sqlEstoque, qtdInicial, itemId, valorCompra, valorVenda, request.fornecedor());
 
     Long estoqueId =
         jdbcTemplate.queryForObject("SELECT id FROM estoque WHERE fk_item = ?", Long.class, itemId);
@@ -686,7 +687,7 @@ public class ItemRepository {
 
   public List<ItemCategoria> listarCategorias() {
     String sql =
-            """
+        """
             SELECT
               c.id                       AS categoria_id,
               c.categoria                AS categoria_categoria,
@@ -697,8 +698,6 @@ public class ItemRepository {
             """;
 
     return jdbcTemplate.query(
-            sql,
-            (rs, rowNum) -> ItemCategoria.mapItemCategoria(rs, "categoria_"));
+        sql, (rs, rowNum) -> ItemCategoria.mapItemCategoria(rs, "categoria_"));
   }
-
 }

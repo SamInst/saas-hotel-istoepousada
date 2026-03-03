@@ -54,8 +54,7 @@ public class ItemController {
   @ApiResponse(responseCode = "201", description = "Item criado")
   @PostMapping("/item")
   @ResponseStatus(HttpStatus.CREATED)
-  public ItemResponse criarItem(
-      @RequestBody ItemResponse.ItemRequest request) {
+  public ItemResponse criarItem(@RequestBody ItemResponse.ItemRequest request) {
     return itemService.criarItem(request);
   }
 
@@ -66,8 +65,7 @@ public class ItemController {
   })
   @PutMapping("/item/{id}")
   public ItemResponse atualizarItem(
-      @PathVariable Long id,
-      @RequestBody ItemResponse.ItemRequest request) {
+      @PathVariable Long id, @RequestBody ItemResponse.ItemRequest request) {
     return itemService.atualizarItem(id, request);
   }
 
@@ -114,8 +112,7 @@ public class ItemController {
       @RequestParam(required = false) Double valorVendaUnidade,
       @RequestParam(required = false) String fornecedor) {
 
-    itemService.reporEstoque(
-        id, quantidade, valorCompraUnidade, valorVendaUnidade, fornecedor);
+    itemService.reporEstoque(id, quantidade, valorCompraUnidade, valorVendaUnidade, fornecedor);
   }
 
   @Operation(
@@ -123,9 +120,7 @@ public class ItemController {
       description = "Remove unidades do estoque do item, registrando histórico de saída.")
   @PostMapping("/item/{id}/consumir")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void consumirEstoque(
-      @PathVariable Long id,
-      @RequestParam int quantidade) {
+  public void consumirEstoque(@PathVariable Long id, @RequestParam int quantidade) {
 
     itemService.consumirEstoque(id, quantidade);
   }
@@ -169,14 +164,15 @@ public class ItemController {
   }
 
   @Operation(
-          summary = "Listar categorias de itens",
-          description = "Retorna todas as categorias cadastradas, em ordem alfabética.")
+      summary = "Listar categorias de itens",
+      description = "Retorna todas as categorias cadastradas, em ordem alfabética.")
   @ApiResponse(
-          responseCode = "200",
-          description = "Lista de categorias retornada com sucesso",
-          content = @Content(
-                  mediaType = MediaType.APPLICATION_JSON_VALUE,
-                  schema = @Schema(implementation = ItemCategoria.class)))
+      responseCode = "200",
+      description = "Lista de categorias retornada com sucesso",
+      content =
+          @Content(
+              mediaType = MediaType.APPLICATION_JSON_VALUE,
+              schema = @Schema(implementation = ItemCategoria.class)))
   @GetMapping("/categorias")
   public List<ItemCategoria> listarCategorias() {
     return itemService.listarCategorias();

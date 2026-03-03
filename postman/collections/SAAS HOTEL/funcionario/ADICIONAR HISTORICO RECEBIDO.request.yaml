@@ -1,0 +1,28 @@
+$kind: http-request
+url: "{{hotel}}/historico-recebidos-funcionario"
+method: POST
+body:
+  type: formdata
+  content:
+    - type: text
+      key: recebido
+      value: |-
+        {
+        "descricao": "string string string ",
+          "historicoFuncionarioId": 1,
+          "valorRecebido": 2600,
+          "dataHoraInicio": "2026-03-25T14:06:07.556Z",
+          "dataHoraFim": "2026-04-25T14:06:07.556Z",
+          "dataHoraPagamento": "2026-04-25T14:06:07.556Z",
+          "tipoPagamentoId": 2
+        }
+      contentType: application/json
+    - type: file
+      key: arquivo
+      src: /C:/Users/sanhe/Downloads/Carta de Apresentação.pdf
+      contentType: multipart/form-data
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 5000

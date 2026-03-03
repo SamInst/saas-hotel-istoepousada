@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{hotel}}/item/125/consumir?quantidade=4"
+method: POST
+queryParams:
+  quantidade: "4"
+body:
+  type: text
+  content: ""
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 5000

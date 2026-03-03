@@ -1,0 +1,45 @@
+$kind: http-request
+url: "{{hotel}}/empresas"
+method: POST
+queryParams:
+  - key: id
+    value: "true"
+    disabled: true
+body:
+  type: json
+  content: "{\r
+
+    \  \"cnpj\": \"12.345.678/0001-90\",\r
+
+    \  \"telefone\": \"(98) 99999-9999\",\r
+
+    \  \"email\": \"contato@empresa.com\",\r
+
+    \  \"endereco\": \"Rua das Flores\",\r
+
+    \  \"cep\": \"65000-000\",\r
+
+    \  \"numero\": \"123\",\r
+
+    \  \"complemento\": \"Sala 101\",\r
+
+    \  \"pais\": \"Brasil\",\r
+
+    \  \"estado\": \"MA\",\r
+
+    \  \"municipio\": \"São Luís\",\r
+
+    \  \"bairro\": \"Centro\",\r
+
+    \  \"razao_social\": \"Empresa Exemplo LTDA\",\r
+
+    \  \"nome_fantasia\": \"Empresa Exemplo\",\r
+
+    \  \"tipo_empresa\": \"CLIENTE\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 2000

@@ -1,0 +1,14 @@
+$kind: http-request
+url: "{{hotel}}/categoria/2?categoria=?&descricao=?"
+method: PUT
+queryParams:
+  categoria: "?"
+  descricao: "?"
+body:
+  type: text
+  content: ""
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 9000

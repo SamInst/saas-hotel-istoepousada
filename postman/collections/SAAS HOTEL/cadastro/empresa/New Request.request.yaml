@@ -1,0 +1,30 @@
+$kind: http-request
+url: "{{hotel}}/empresas/19/pessoa?pessoaId=90&vinculo=false"
+method: PUT
+queryParams:
+  pessoaId: "90"
+  vinculo: "false"
+body:
+  type: text
+  content: "{\r
+
+    \  \"descricao\": \"CARGO PARA FUNCIONARIO COM PESSOA SEPARADO\",\r
+
+    \  \"telasIds\": [\r
+
+    \    6\r
+
+    \  ],\r
+
+    \  \"permissoesIds\": [\r
+
+    \    14,17,18,19\r
+
+    \  ]\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 3000

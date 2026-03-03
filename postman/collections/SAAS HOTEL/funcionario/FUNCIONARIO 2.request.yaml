@@ -1,0 +1,81 @@
+$kind: http-request
+name: FUNCIONARIO
+url: "{{hotel}}/funcionario?termo=sam"
+method: GET
+queryParams:
+  - key: id
+    value: "2"
+    disabled: true
+  - key: termo
+    value: sam
+  - key: cargoId
+    value: "2"
+    disabled: true
+  - key: pessoaId
+    value: "200"
+    disabled: true
+  - key: usuarioId
+    value: ""
+    disabled: true
+  - key: page
+    value: ""
+    disabled: true
+  - key: size
+    value: ""
+    disabled: true
+body:
+  type: json
+  content: "{\r
+
+    \  \"pessoa\": {\r
+
+    \    \"nome\": \"MARIA Silva Santos\",\r
+
+    \    \"dataNascimento\": \"1990-05-15\",\r
+
+    \    \"cpf\": \"12345678900\",\r
+
+    \    \"rg\": \"MG1234567\",\r
+
+    \    \"email\": \"joao.silva@hotel.com\",\r
+
+    \    \"telefone\": \"(31) 98765-4321\",\r
+
+    \    \"pais\": \"Brasil\",\r
+
+    \    \"estado\": \"MG\",\r
+
+    \    \"municipio\": \"Belo Horizonte\",\r
+
+    \    \"endereco\": \"Rua das Flores\",\r
+
+    \    \"numero\": \"123\",\r
+
+    \    \"complemento\": \"Apto 201\",\r
+
+    \    \"bairro\": \"Centro\",\r
+
+    \    \"cep\": \"30000-000\",\r
+
+    \    \"sexo\": 1\r
+
+    \  },\r
+
+    \  \"dataAdmissao\": \"2026-01-19\",\r
+
+    \  \"cargoId\": 3,\r
+
+    \  \"usuario\": {\r
+
+    \    \"username\": \"maria.silva\",\r
+
+    \    \"senha\": \"senha123\"\r
+
+    \  }\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 3000

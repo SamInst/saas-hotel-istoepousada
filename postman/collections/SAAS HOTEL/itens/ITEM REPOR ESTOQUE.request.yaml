@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{hotel}}/item/125/repor?quantidade=10&valorCompraUnidade=2.5&valorVendaU\
+  nidade=5&fornecedor=COCA"
+method: POST
+queryParams:
+  quantidade: "10"
+  valorCompraUnidade: "2.5"
+  valorVendaUnidade: "5"
+  fornecedor: COCA
+body:
+  type: text
+  content: ""
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 6000

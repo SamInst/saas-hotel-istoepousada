@@ -1,0 +1,135 @@
+$kind: http-request
+url: "{{hotel}}/pessoa"
+method: POST
+queryParams:
+  - key: id
+    value: "true"
+    disabled: true
+body:
+  type: json
+  content: "{\r
+
+    \    \"pessoas\": [\r
+
+    \       {\r
+
+    \      \"nome\": \"Fernando Castro Sousa\",\r
+
+    \      \"dataNascimento\": \"1998-04-25\",\r
+
+    \      \"cpf\": \"61131203330\",\r
+
+    \      \"rg\": \"4120128\",\r
+
+    \      \"email\": \"emersonees808@gmail.com\",\r
+
+    \      \"telefone\": \"98988239695\",\r
+
+    \      \"pais\": \"Brasil\",\r
+
+    \      \"estado\": \"Maranhao\",\r
+
+    \      \"municipio\": \"Sao Luis\",\r
+
+    \      \"endereco\": \"Rua Jhon Speers\",\r
+
+    \      \"complemento\": \"Casa\",\r
+
+    \      \"cep\": \"08265040\",\r
+
+    \      \"bairro\": \"Jadim Helian\",\r
+
+    \      \"sexo\": 1,\r
+
+    \      \"numero\": \"1045\",\r
+
+    \      \"veiculos\": [\r
+
+    \        {\r
+
+    \          \"modelo\": \"Tiggo 7 Hybrid Plugin-in1\",\r
+
+    \          \"marca\": \"Caoa Chery\",\r
+
+    \          \"ano\": 2026,\r
+
+    \          \"placa\": \"ABC1D23\",\r
+
+    \          \"cor\": \"Preto\"\r
+
+    \        }\r
+
+    \      ],\r
+
+    \      \"titularId\": null\r
+
+    \    },\r
+
+    \        {\r
+
+    \            \"nome\": \"Acompanhante da Silva\",\r
+
+    \            \"dataNascimento\": \"1999-01-01\",\r
+
+    \            \"cpf\": \"00000000000\",\r
+
+    \            \"rg\": \"000000\",\r
+
+    \            \"email\": \"acompanhante@email.com\",\r
+
+    \            \"telefone\": \"999999999\",\r
+
+    \            \"pais\": \"BR\",\r
+
+    \            \"estado\": \"MA\",\r
+
+    \            \"municipio\": \"São Luís\",\r
+
+    \            \"endereco\": \"Rua X\",\r
+
+    \            \"complemento\": \"Apto 1\",\r
+
+    \            \"cep\": \"65000-000\",\r
+
+    \            \"bairro\": \"Centro\",\r
+
+    \            \"sexo\": 1,\r
+
+    \            \"numero\": \"10\",\r
+
+    \            \"veiculos\": [\r
+
+    \                {\r
+
+    \                    \"modelo\": \"Gol 2\",\r
+
+    \                    \"marca\": \"VW\",\r
+
+    \                    \"ano\": 2015,\r
+
+    \                    \"placa\": \"ABC1D24\",\r
+
+    \                    \"cor\": \"Branco\"\r
+
+    \                }\r
+
+    \            ],\r
+
+    \            \"titularId\": 1\r
+
+    \        }\r
+
+    \    ],\r
+
+    \    \"empresasIds\": [\r
+
+    \        // 15\r
+
+    \    ]\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 3000

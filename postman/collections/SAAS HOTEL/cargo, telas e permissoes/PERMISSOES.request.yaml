@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{hotel}}/permissoes?telaId=6"
+method: GET
+queryParams:
+  telaId: "6"
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+order: 5000
