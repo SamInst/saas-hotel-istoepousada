@@ -1,21 +1,21 @@
 package saas.hotel.istoepousada.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.jdbc.core.RowMapper;
 
-@Schema(description = "Permissão do sistema")
 public record Permissao(
-    @Schema(description = "ID da permissão") Long id,
-    @Schema(description = "Nome da permissão") String permissao,
-    @Schema(description = "Descrição da permissão") String descricao,
-    @Schema(description = "ID da tela") Long telaId) {
-
-  public static Permissao mapPermissao(ResultSet rs, String prefix) throws SQLException {
-    return new Permissao(
-        rs.getLong(prefix + "id"),
-        rs.getString(prefix + "permissao"),
-        rs.getString(prefix + "descricao"),
-        rs.getLong(prefix + "fk_tela"));
-  }
+    @NotNull Long id,
+    @NotNull String permissao,
+    @NotNull String descricao) {
+  public record Id(@NotNull Long id) {}
+  public record Request(@NotNull String permissao, @NotNull String descricao) {}
+  public static final RowMapper<Permissao> ROW_MAPPER =
+          (rs, rowNum) -> {
+            Long permissaoId = rs.getObject("permissao_id", Long.class);
+            if (permissaoId == null) return null;
+            return new Permissao(
+                    permissaoId,
+                    rs.getString("permissao_permissao"),
+                    rs.getString("permissao_descricao"));
+          };
 }

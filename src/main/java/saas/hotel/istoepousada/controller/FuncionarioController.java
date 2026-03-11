@@ -36,7 +36,7 @@ public class FuncionarioController {
                     Lista funcionários paginados. Filtros são opcionais:
                     - id: busca específica por ID do funcionário
                     - termo: filtra por nome (ILIKE) ou CPF (exato)
-                    - cargoId: filtra por cargo específico
+                    - cargoId: filtra por descricao específico
                     - pessoaId: filtra por ID da pessoa vinculada
                     - usuarioId: filtra por ID do usuário vinculado
 
@@ -57,7 +57,7 @@ public class FuncionarioController {
       @Parameter(description = "Termo para busca por nome (ILIKE) ou CPF exato sem ponto e traço")
           @RequestParam(required = false)
           String termo,
-      @Parameter(description = "ID do cargo", example = "1") @RequestParam(required = false)
+      @Parameter(description = "ID do descricao", example = "1") @RequestParam(required = false)
           Long cargoId,
       @Parameter(description = "ID da pessoa", example = "57") @RequestParam(required = false)
           Long pessoaId,
@@ -83,7 +83,7 @@ public class FuncionarioController {
                     1. Valida se a pessoa existe
                     2. Altera o status da pessoa para CONTRATADO
                     3. Cria usuário se os dados forem fornecidos (opcional)
-                    4. Vincula pessoa, cargo e usuário ao funcionário
+                    4. Vincula pessoa, descricao e usuário ao funcionário
                     """)
   @ApiResponses({
     @ApiResponse(
@@ -105,7 +105,7 @@ public class FuncionarioController {
               content =
                   @Content(
                       mediaType = MediaType.APPLICATION_JSON_VALUE,
-                      schema = @Schema(implementation = Funcionario.FuncionarioRequest.class),
+                      schema = @Schema(implementation = Funcionario.Request.class),
                       examples =
                           @ExampleObject(
                               name = "Exemplo completo",
@@ -123,7 +123,7 @@ public class FuncionarioController {
                                             }
                                             """)))
           @RequestBody
-          Funcionario.FuncionarioRequest request) {
+      Funcionario.Request request) {
     return funcionarioService.create(request);
   }
 
@@ -134,7 +134,7 @@ public class FuncionarioController {
                     Atualiza os dados de um funcionário existente.
 
                     Campos atualizáveis:
-                    - cargoId: Altera o cargo do funcionário (caso null, sera removido o cargo do funcionario)
+                    - cargoId: Altera o descricao do funcionário (caso null, sera removido o descricao do funcionario)
                     - dataAdmissao: Corrige a data de admissão
                     - salario: Atualiza o salário
 
@@ -161,7 +161,7 @@ public class FuncionarioController {
               content =
                   @Content(
                       mediaType = MediaType.APPLICATION_JSON_VALUE,
-                      schema = @Schema(implementation = Funcionario.FuncionarioRequest.class),
+                      schema = @Schema(implementation = Funcionario.Request.class),
                       examples =
                           @ExampleObject(
                               name = "Exemplo de atualização",
@@ -174,7 +174,7 @@ public class FuncionarioController {
                                             }
                                             """)))
           @RequestBody
-          Funcionario.FuncionarioRequest request) {
+      Funcionario.Request request) {
     return funcionarioService.update(id, request);
   }
 }

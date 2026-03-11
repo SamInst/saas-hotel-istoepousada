@@ -60,7 +60,7 @@ public class QuartoController {
               description =
                   "Status do quarto (OCUPADO, DISPONIVEL, RESERVADO, LIMPEZA, DIARIA_ENCERRADA, MANUTENCAO)")
           @RequestParam(required = false)
-          Quarto.StatusQuarto status,
+          Quarto.Status status,
       @Parameter(description = "Número da página (0-based)", example = "0")
           @RequestParam(defaultValue = "0")
           int page,
@@ -108,7 +108,7 @@ public class QuartoController {
                                             }
                                             """)))
           @RequestBody
-          Quarto quarto) {
+          Quarto.Request quarto) {
     return quartoService.criar(quarto);
   }
 
@@ -152,20 +152,7 @@ public class QuartoController {
                                             }
                                             """)))
           @RequestBody
-          Quarto quarto) {
-    return quartoService.atualizar(id, quarto);
-  }
-
-  @Operation(summary = "Remover quarto", description = "Remove um quarto pelo ID.")
-  @ApiResponses({
-    @ApiResponse(responseCode = "204", description = "Quarto removido com sucesso"),
-    @ApiResponse(responseCode = "404", description = "Quarto não encontrado")
-  })
-  @DeleteMapping("/{id}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void remover(
-      @Parameter(description = "ID do quarto", required = true, example = "1") @PathVariable
-          Long id) {
-    quartoService.remover(id);
+          Quarto.Update quarto) {
+    return quartoService.atualizar(quarto);
   }
 }

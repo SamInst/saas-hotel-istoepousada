@@ -13,13 +13,14 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import saas.hotel.istoepousada.dto.HistoricoFuncionario;
+import saas.hotel.istoepousada.dto.Cargo;
+import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.HistoricoFuncionarioService;
 
 @Tag(
     name = "Histórico do Funcionário",
-    description = "Endpoints de histórico de cargo e salário do funcionário.")
+    description = "Endpoints de histórico de descricao e salário do funcionário.")
 @RestController
 @RequestMapping("/historico-funcionario")
 @RequireTela("ADMIN")
@@ -33,7 +34,7 @@ public class HistoricoFuncionarioController {
 
   @Operation(
       summary = "Listar histórico por funcionário",
-      description = "Lista o histórico (cargo e salário) de um funcionário.")
+      description = "Lista o histórico (descricao e salário) de um funcionário.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -41,10 +42,10 @@ public class HistoricoFuncionarioController {
         content =
             @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = HistoricoFuncionario.class)))
+                schema = @Schema(implementation = Funcionario.Historico.class)))
   })
   @GetMapping
-  public List<HistoricoFuncionario> listarPorFuncionario(
+  public List<Funcionario.Historico> listarPorFuncionario(
       @Parameter(description = "ID do funcionário", example = "12", required = true) @RequestParam
           Long funcionarioId) {
     return historicoFuncionarioService.listarPorFuncionario(funcionarioId);
@@ -60,11 +61,11 @@ public class HistoricoFuncionarioController {
         content =
             @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = HistoricoFuncionario.class))),
+                schema = @Schema(implementation = Funcionario.Historico.class))),
     @ApiResponse(responseCode = "404", description = "Histórico não encontrado")
   })
   @GetMapping("/{id}")
-  public HistoricoFuncionario buscarPorId(
+  public Funcionario.Historico buscarPorId(
       @Parameter(description = "ID do histórico", example = "1", required = true) @PathVariable
           Long id) {
     return historicoFuncionarioService.buscarPorId(id);
@@ -72,7 +73,7 @@ public class HistoricoFuncionarioController {
 
   @Operation(
       summary = "Criar histórico do funcionário",
-      description = "Cria um registro de histórico (cargo e salário) para um funcionário.")
+      description = "Cria um registro de histórico (descricao e salário) para um funcionário.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "201",
@@ -80,12 +81,12 @@ public class HistoricoFuncionarioController {
         content =
             @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = HistoricoFuncionario.class))),
+                schema = @Schema(implementation = Funcionario.Historico.class))),
     @ApiResponse(responseCode = "400", description = "Requisição inválida")
   })
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public HistoricoFuncionario criar(
+  public Funcionario.Historico criar(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Dados do histórico",
               required = true,
@@ -112,19 +113,16 @@ public class HistoricoFuncionarioController {
     Float salario =
         body.get("salario") == null ? null : ((Number) body.get("salario")).floatValue();
 
-    HistoricoFuncionario historico =
-        new HistoricoFuncionario(
-            null,
-            new HistoricoFuncionario.Cargo(cargoId, null),
-            new HistoricoFuncionario.Funcionario(funcionarioId, null),
-            salario);
-
-    return historicoFuncionarioService.salvar(historico);
+    return historicoFuncionarioService.insert(
+            new Funcionario.Historico.Request(
+                    new Cargo.Id(cargoId),
+                    new Funcionario.Id(funcionarioId),
+                    salario));
   }
 
   @Operation(
       summary = "Atualizar histórico do funcionário",
-      description = "Atualiza cargo, funcionário e salário de um registro de histórico existente.")
+      description = "Atualiza descricao, funcionário e salário de um registro de histórico existente.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -132,12 +130,12 @@ public class HistoricoFuncionarioController {
         content =
             @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = HistoricoFuncionario.class))),
+                schema = @Schema(implementation = Funcionario.Historico.class))),
     @ApiResponse(responseCode = "400", description = "Requisição inválida"),
     @ApiResponse(responseCode = "404", description = "Histórico não encontrado")
   })
   @PutMapping("/{id}")
-  public HistoricoFuncionario atualizar(
+  public Funcionario.Historico atualizar(
       @Parameter(description = "ID do histórico", example = "1", required = true) @PathVariable
           Long id,
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -166,13 +164,11 @@ public class HistoricoFuncionarioController {
     Float salario =
         body.get("salario") == null ? null : ((Number) body.get("salario")).floatValue();
 
-    HistoricoFuncionario historico =
-        new HistoricoFuncionario(
-            id,
-            new HistoricoFuncionario.Cargo(cargoId, null),
-            new HistoricoFuncionario.Funcionario(funcionarioId, null),
+    Funcionario.Historico.Update historico =
+        new Funcionario.Historico.Update(
+           id,
+            new Cargo.Id(cargoId),
             salario);
-
-    return historicoFuncionarioService.salvar(historico);
+    return historicoFuncionarioService.update(historico);
   }
 }

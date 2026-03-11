@@ -23,43 +23,33 @@ public class CargoService {
   }
 
   public Cargo buscarPorId(Long id) {
-    if (id == null) throw new IllegalArgumentException("ID do cargo é obrigatório.");
+    if (id == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
     return cargoRepository.findByIdOrThrow(id);
   }
 
   public Cargo criar(Cargo.Request request) {
     if (request.descricao() == null || request.descricao().trim().isEmpty()) {
-      throw new IllegalArgumentException("Nome do cargo é obrigatório.");
+      throw new IllegalArgumentException("Nome do descricao é obrigatório.");
     }
 
-    // Garante que o ID é null para inserção
-    if (request.id() != null) {
-      throw new IllegalArgumentException("ID deve ser null ao criar um novo cargo.");
-    }
 
     return cargoRepository.insert(request);
   }
 
-  public Cargo atualizar(Long id, Cargo.Request request) {
-    if (id == null) throw new IllegalArgumentException("ID do cargo é obrigatório.");
+  public Cargo atualizar(Cargo.Update cargo) {
+    if (cargo.id() == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
-    if (!cargoRepository.existsById(id)) {
-      throw new NotFoundException("Cargo não cadastrado para o id: " + id);
-    }
+    if (!cargoRepository.existsById(cargo.id()))
+      throw new NotFoundException("Cargo não cadastrado para o id: " + cargo.id());
 
-    if (request.descricao() == null || request.descricao().trim().isEmpty()) {
-      throw new IllegalArgumentException("Nome do cargo é obrigatório.");
-    }
+    if (cargo.descricao() == null || cargo.descricao().trim().isEmpty())
+      throw new IllegalArgumentException("Nome do descricao é obrigatório.");
 
-    // Cria um novo request com o ID correto
-    Cargo.Request requestComId =
-        new Cargo.Request(id, request.descricao(), request.telasIds(), request.permissoesIds());
-
-    return cargoRepository.update(requestComId);
+    return cargoRepository.update(cargo);
   }
 
   public void deletar(Long id) {
-    if (id == null) throw new IllegalArgumentException("ID do cargo é obrigatório.");
+    if (id == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
     if (!cargoRepository.existsById(id)) {
       throw new NotFoundException("Cargo não cadastrado para o id: " + id);
@@ -69,7 +59,7 @@ public class CargoService {
   }
 
   public void vincularTelas(Long cargoId, List<Long> telaIds, Boolean vinculo) {
-    if (cargoId == null) throw new IllegalArgumentException("ID do cargo é obrigatório.");
+    if (cargoId == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
     if (!cargoRepository.existsById(cargoId)) {
       throw new NotFoundException("Cargo não cadastrado para o id: " + cargoId);
@@ -86,7 +76,7 @@ public class CargoService {
   }
 
   public void vincularPermissoes(Long cargoId, List<Long> permissaoIds, Boolean vinculo) {
-    if (cargoId == null) throw new IllegalArgumentException("ID do cargo é obrigatório.");
+    if (cargoId == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
     if (!cargoRepository.existsById(cargoId)) {
       throw new NotFoundException("Cargo não cadastrado para o id: " + cargoId);

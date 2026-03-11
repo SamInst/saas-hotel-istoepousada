@@ -6,53 +6,64 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import saas.hotel.istoepousada.dto.*;
+import saas.hotel.istoepousada.dto.CategoriaItem;
+import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.repository.ItemRepository;
-import saas.hotel.istoepousada.repository.PessoaRepository;
 
 @Service
 public class ItemService {
 
   private final ItemRepository itemRepository;
-  private final PessoaRepository pessoaRepository;
 
-  public ItemService(ItemRepository itemRepository, PessoaRepository pessoaRepository) {
+  public ItemService(ItemRepository itemRepository) {
     this.itemRepository = itemRepository;
-    this.pessoaRepository = pessoaRepository;
   }
 
-  public Page<ItemResponse> buscar(
-      Long id,
-      String termo,
-      Long categoriaId,
-      LocalDate dataInicioCadastro,
-      LocalDate dataFimCadastro,
-      Pageable pageable) {
+  public Page<Item> buscar(
+          Long id,
+          String termo,
+          Long categoriaId,
+          LocalDate dataInicioCadastro,
+          LocalDate dataFimCadastro,
+          Pageable pageable) {
     return itemRepository.buscar(
-        id, termo, categoriaId, dataInicioCadastro, dataFimCadastro, pageable);
+            id, termo, categoriaId, dataInicioCadastro, dataFimCadastro, pageable);
   }
 
-  public ItemResponse buscarPorId(Long id) {
+  public Item buscarPorId(Long id) {
+    if (id == null) {
+      throw new IllegalArgumentException("ID do item é obrigatório.");
+    }
     return itemRepository.findById(id);
   }
 
   @Transactional
-  public ItemResponse criarItem(ItemResponse.ItemRequest request) {
-    Long funcionarioIdLogado = pessoaRepository.getFuncionarioIdFromRequest();
-    return itemRepository.insert(request, funcionarioIdLogado);
+  public Item criarItem(Item.Request request) {
+    validarRequestItem(request);
+    return itemRepository.insert(request);
   }
 
   @Transactional
-  public ItemResponse atualizarItem(Long id, ItemResponse.ItemRequest request) {
-    Long funcionarioIdLogado = pessoaRepository.getFuncionarioIdFromRequest();
-    return itemRepository.update(id, request, funcionarioIdLogado);
+  public Item atualizarItem(Item.Update request) {
+    if (request == null) {
+      throw new IllegalArgumentException("Dados do item são obrigatórios.");
+    }
+    if (request.id() == null) {
+      throw new IllegalArgumentException("ID do item é obrigatório.");
+    }
+    validarDescricao(request.descricao());
+    validarCategoria(request.categoria_item());
+    return itemRepository.update(request);
   }
 
-  public ItemBuscaCompleta buscarCompleto(LocalDate dataInicioCadastro, LocalDate dataFimCadastro) {
-    return itemRepository.buscarCompleto(dataInicioCadastro, dataFimCadastro);
+  public List<Item.HistoricoPreco> listarHistoricoPrecoPorItemId(Long itemId) {
+    if (itemId == null) {
+      throw new IllegalArgumentException("ID do item é obrigatório.");
+    }
+    return itemRepository.listarHistoricoPrecoPorItemId(itemId);
   }
 
-  public HistoricoReposicaoItem listarHistoricoReposicaoPorItemId(Long itemId) {
+  public List<Item.HistoricoReposicao> listarHistoricoReposicaoPorItemId(Long itemId) {
     if (itemId == null) {
       throw new IllegalArgumentException("ID do item é obrigatório.");
     }
@@ -60,52 +71,117 @@ public class ItemService {
   }
 
   @Transactional
-  public void reporEstoque(
-      Long itemId,
-      int quantidade,
-      Double valorCompraUnidade,
-      Double valorVendaUnidade,
-      String fornecedor) {
-    if (itemId == null) throw new IllegalArgumentException("ID do item é obrigatório.");
-    if (quantidade <= 0) throw new IllegalArgumentException("Quantidade deve ser maior que zero.");
-    Long funcionarioIdLogado = pessoaRepository.getFuncionarioIdFromRequest();
-    itemRepository.reporEstoque(
-        itemId, quantidade, valorCompraUnidade, valorVendaUnidade, fornecedor, funcionarioIdLogado);
-  }
-
-  @Transactional
-  public void consumirEstoque(Long itemId, int quantidade) {
-    Long funcionarioIdLogado = pessoaRepository.getFuncionarioIdFromRequest();
-    if (itemId == null) throw new IllegalArgumentException("ID do item é obrigatório.");
-    if (quantidade <= 0) throw new IllegalArgumentException("Quantidade deve ser maior que zero.");
-    itemRepository.consumirEstoque(itemId, quantidade, funcionarioIdLogado);
-  }
-
-  public List<HistoricoPrecoItem> listarHistoricoPrecoPorItemId(Long itemId) {
-    if (itemId == null) {
+  public void registrarHistoricoPreco(Item.HistoricoPreco.Request request) {
+    if (request == null) {
+      throw new IllegalArgumentException("Dados do histórico de preço são obrigatórios.");
+    }
+    if (request.item() == null || request.item().id() == null) {
       throw new IllegalArgumentException("ID do item é obrigatório.");
     }
-    return itemRepository.listarHistoricoPrecoPorItemId(itemId);
+    if (request.funcionario() == null || request.funcionario().id() == null) {
+      throw new IllegalArgumentException("ID do funcionário é obrigatório.");
+    }
+    if (request.valor_compra_unidade() == null) {
+      throw new IllegalArgumentException("Valor de compra é obrigatório.");
+    }
+    if (request.valor_venda_unidade() == null) {
+      throw new IllegalArgumentException("Valor de venda é obrigatório.");
+    }
+
+    itemRepository.registrarHistoricoPreco(request);
   }
 
   @Transactional
-  public Long criarCategoria(String categoria, String descricao) {
-    if (categoria == null || categoria.isBlank()) {
-      throw new IllegalArgumentException("Nome da categoria é obrigatório.");
+  public void registrarHistoricoReposicao(Item.HistoricoReposicao.Request request) {
+    if (request == null) {
+      throw new IllegalArgumentException("Dados do histórico de reposição são obrigatórios.");
     }
-    return itemRepository.criarCategoria(categoria, descricao);
+    if (request.item() == null || request.item().id() == null) {
+      throw new IllegalArgumentException("ID do item é obrigatório.");
+    }
+    if (request.funcionario() == null || request.funcionario().id() == null) {
+      throw new IllegalArgumentException("ID do funcionário é obrigatório.");
+    }
+    if (request.quantidade_unidades() == null || request.quantidade_unidades() == 0) {
+      throw new IllegalArgumentException("Quantidade de unidades deve ser diferente de zero.");
+    }
+
+    itemRepository.registrarHistoricoReposicao(request);
   }
 
   @Transactional
-  public void atualizarCategoria(Long id, String categoria, String descricao) {
-    if (id == null) throw new IllegalArgumentException("ID da categoria é obrigatório.");
-    if (categoria == null || categoria.isBlank()) {
-      throw new IllegalArgumentException("Nome da categoria é obrigatório.");
+  public void atualizarHistoricoReposicao(Item.HistoricoReposicao.Update request) {
+    if (request == null) {
+      throw new IllegalArgumentException("Dados da atualização da reposição são obrigatórios.");
     }
-    itemRepository.atualizarCategoria(id, categoria, descricao);
+    if (request.id() == null) {
+      throw new IllegalArgumentException("ID do histórico é obrigatório.");
+    }
+    if (request.funcionario() == null || request.funcionario().id() == null) {
+      throw new IllegalArgumentException("ID do funcionário é obrigatório.");
+    }
+    if (request.quantidade_unidades() == null || request.quantidade_unidades() == 0) {
+      throw new IllegalArgumentException("Quantidade de unidades deve ser diferente de zero.");
+    }
+
+    itemRepository.atualizarHistoricoReposicao(request);
   }
 
-  public List<ItemCategoria> listarCategorias() {
+  @Transactional
+  public Long criarCategoria(CategoriaItem.Request request) {
+    if (request == null) {
+      throw new IllegalArgumentException("Dados da categoria são obrigatórios.");
+    }
+    if (request.nome() == null || request.nome().isBlank()) {
+      throw new IllegalArgumentException("Nome da categoria é obrigatório.");
+    }
+
+    return itemRepository.criarCategoria(request);
+  }
+
+  @Transactional
+  public void atualizarCategoria(Long id, CategoriaItem.Request request) {
+    if (id == null) {
+      throw new IllegalArgumentException("ID da categoria é obrigatório.");
+    }
+    if (request == null) {
+      throw new IllegalArgumentException("Dados da categoria são obrigatórios.");
+    }
+    if (request.nome() == null || request.nome().isBlank()) {
+      throw new IllegalArgumentException("Nome da categoria é obrigatório.");
+    }
+
+    itemRepository.atualizarCategoria(id, request);
+  }
+
+  public List<CategoriaItem> listarCategorias() {
     return itemRepository.listarCategorias();
+  }
+
+  public CategoriaItem buscarCategoriaPorId(Long id) {
+    if (id == null) {
+      throw new IllegalArgumentException("ID da categoria é obrigatório.");
+    }
+    return itemRepository.findCategoriaById(id);
+  }
+
+  private void validarRequestItem(Item.Request request) {
+    if (request == null) {
+      throw new IllegalArgumentException("Dados do item são obrigatórios.");
+    }
+    validarDescricao(request.descricao());
+    validarCategoria(request.categoria_item());
+  }
+
+  private void validarDescricao(String descricao) {
+    if (descricao == null || descricao.isBlank()) {
+      throw new IllegalArgumentException("Descrição do item é obrigatória.");
+    }
+  }
+
+  private void validarCategoria(CategoriaItem.Id categoria) {
+    if (categoria == null || categoria.id() == null) {
+      throw new IllegalArgumentException("Categoria do item é obrigatória.");
+    }
   }
 }

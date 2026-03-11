@@ -1,9 +1,8 @@
-package saas.hotel.istoepousada.dto.pagamento;
+package saas.hotel.istoepousada.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotNull;
-import saas.hotel.istoepousada.dto.Funcionario;
-import saas.hotel.istoepousada.dto.TipoPagamento;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -15,28 +14,54 @@ public record Pagamento(
     @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime data_hora_registro,
     String nome_pagador,
     String descricao,
-    @NotNull Float valor,
-    Desconto desconto) {
+    @NotNull Double valor,
+    Boolean cancelado,
+    Desconto desconto,
+    String path_arquivo) {
+  public record Id(@NotNull UUID id){}
   public record Request(
-      TipoPagamento.Request.Id tipo_pagamento_id,
-      Funcionario funcionario_id,
-      String nome_pagador,
+      @NotNull TipoPagamento.Id tipo_pagamento,
+      @NotNull Funcionario.Id funcionario,
+      @NotNull String nome_pagador,
       String descricao,
-      Float valor) {
-    public record Id(UUID id){}
+      @NotNull Double valor,
+      Desconto.Request desconto,
+      MultipartFile arquivo) {
   }
+  public record Update(
+          @NotNull UUID id,
+          @NotNull TipoPagamento.Id tipo_pagamento,
+          @NotNull Funcionario.Id funcionario,
+          @NotNull String nome_pagador,
+          String descricao,
+          @NotNull Double valor,
+          Desconto.Update desconto,
+          MultipartFile arquivo
+  ){}
 
   public record Desconto(
       @NotNull UUID id,
       @NotNull Funcionario.Nome funcionario,
       Integer porcentagem,
-      Float valor,
+      Double valor,
       @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime data_hora_registro) {
     public record Request(
-            @NotNull Pagamento.Request.Id pagamento_id,
-            @NotNull Funcionario.Request.Id funcionario_id,
+            @NotNull Pagamento.Id pagamento,
+            @NotNull Funcionario.Id funcionario,
             Integer porcentagem,
-            Float valor
+            Double valor
     ){}
+    public record Update(
+            @NotNull UUID id,
+            @NotNull Funcionario.Id funcionario,
+            Integer porcentagem,
+            Double valor
+    ){}
+  }
+
+  public record TipoPagamento(Long id, String descricao) {
+    public record Id(@NotNull Long id) {}
+    public record Request(@NotNull String descricao) {}
+    public record Update(@NotNull Long id, @NotNull String descricao) {}
   }
 }

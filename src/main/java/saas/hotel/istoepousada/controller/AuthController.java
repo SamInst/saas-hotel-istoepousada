@@ -9,9 +9,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import saas.hotel.istoepousada.dto.FuncionarioAuth;
+import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Login;
-import saas.hotel.istoepousada.dto.LoginResponse;
+import saas.hotel.istoepousada.dto.Usuario;
 import saas.hotel.istoepousada.service.AuthService;
 
 @Tag(name = "Autenticação", description = "Endpoints de autenticação JWT")
@@ -34,14 +34,14 @@ public class AuthController {
         content =
             @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = LoginResponse.class))),
+                schema = @Schema(implementation = Login.class))),
     @ApiResponse(
         responseCode = "401",
         description = "Credenciais inválidas",
         content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
   })
   @PostMapping("/login")
-  public LoginResponse login(
+  public Login login(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Credenciais de login",
               required = true,
@@ -60,7 +60,7 @@ public class AuthController {
                                 }
                                 """)))
           @RequestBody
-          Login request) {
+      Usuario.Request request) {
     return authService.login(request);
   }
 
@@ -74,12 +74,11 @@ public class AuthController {
         content =
             @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = FuncionarioAuth.class))),
+                schema = @Schema(implementation = Funcionario.Authorization.class))),
     @ApiResponse(responseCode = "401", description = "Token inválido")
   })
   @GetMapping("/validate")
-  public FuncionarioAuth validarToken(@RequestHeader("Authorization") String authHeader) {
-    String token = authHeader.replace("Bearer ", "");
-    return authService.validarToken(token);
+  public Funcionario.Authorization validarToken(@RequestHeader("Authorization") String authHeader) {
+    return authService.validarToken(authHeader);
   }
 }

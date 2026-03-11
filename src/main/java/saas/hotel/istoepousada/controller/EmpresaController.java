@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Empresa;
+import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.EmpresaService;
 
@@ -116,7 +117,7 @@ public class EmpresaController {
                                             }
                                             """)))
           @RequestBody
-          Empresa empresa) {
+          Empresa.Update empresa) {
 
     return empresaService.salvar(empresa);
   }
@@ -135,10 +136,8 @@ public class EmpresaController {
     @ApiResponse(responseCode = "400", description = "Requisição inválida"),
     @ApiResponse(responseCode = "404", description = "Empresa não encontrada")
   })
-  @PutMapping("/{id}")
+  @PutMapping()
   public Empresa atualizar(
-      @Parameter(description = "ID da empresa", example = "1", required = true) @PathVariable
-          Long id,
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Dados para atualização da empresa (ID informado apenas no path)",
               required = true,
@@ -171,9 +170,9 @@ public class EmpresaController {
                                             }
                                             """)))
           @RequestBody
-          Empresa empresa) {
+          Empresa.Update empresa) {
 
-    return empresaService.salvar(empresa.withId(id));
+    return empresaService.salvar(empresa);
   }
 
   @Operation(
@@ -205,6 +204,11 @@ public class EmpresaController {
           @RequestParam(name = "vinculo", defaultValue = "true")
           Boolean vinculo) {
 
-    empresaService.vincularPessoa(empresaId, pessoaId, vinculo);
+    empresaService.vincularPessoa(
+            new Empresa.Vincular(
+                    new Empresa.Id(empresaId),
+                    new Pessoa.Id(pessoaId),
+                    vinculo)
+    );
   }
 }

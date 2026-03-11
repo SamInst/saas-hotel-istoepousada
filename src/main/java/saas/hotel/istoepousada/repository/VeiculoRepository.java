@@ -1,135 +1,134 @@
 package saas.hotel.istoepousada.repository;
 
-import static saas.hotel.istoepousada.dto.Veiculo.mapVeiculo;
-
-import java.util.List;
-import java.util.Optional;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Veiculo;
+import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
+import java.util.List;
 
 @Repository
 public class VeiculoRepository {
+
   private final JdbcTemplate jdbcTemplate;
 
   public VeiculoRepository(JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  public Optional<Veiculo> findById(Long id) {
+  public Veiculo findById(Long id) {
+    String sql =
+            """
+            SELECT id, modelo, marca, ano, placa, cor
+            FROM veiculo
+            WHERE id = ?
+            """;
+
     try {
-      String sql =
-          """
-                    SELECT id, modelo, marca, ano, placa, cor
-                    FROM veiculo
-                    WHERE id = ?
-                    """;
-      return Optional.ofNullable(
-          jdbcTemplate.queryForObject(sql, (rs, rowNum) -> mapVeiculo(rs), id));
+      return jdbcTemplate.queryForObject(sql, Veiculo.ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
-      return Optional.empty();
+      throw new NotFoundException("Veiculo nao encontrado para o id: " + id);
     }
   }
 
   public List<Veiculo> findAll() {
     String sql =
-        """
-                SELECT id, modelo, marca, ano, placa, cor
-                FROM veiculo
-                ORDER BY marca, modelo, placa
-                """;
-    return jdbcTemplate.query(sql, (rs, rowNum) -> mapVeiculo(rs));
+            """
+            SELECT id, modelo, marca, ano, placa, cor
+            FROM veiculo
+            ORDER BY marca, modelo, placa
+            """;
+
+    return jdbcTemplate.query(sql, Veiculo.ROW_MAPPER);
   }
 
-  public List<Veiculo> findAllByPessoaId(Long pessoaId) {
+  public List<Veiculo> findAllByPessoaId(Long pessoa_id) {
     String sql =
-        """
-                SELECT v.id, v.modelo, v.marca, v.ano, v.placa, v.cor
-                FROM pessoa_veiculo pv
-                JOIN veiculo v ON v.id = pv.veiculo_id
-                WHERE pv.pessoa_id = ?
-                ORDER BY pv.vinculo_ativo DESC NULLS LAST, v.marca, v.modelo, v.placa
-                """;
-    return jdbcTemplate.query(sql, (rs, rowNum) -> mapVeiculo(rs), pessoaId);
+            """
+            SELECT
+                v.id,
+                v.modelo,
+                v.marca,
+                v.ano,
+                v.placa,
+                v.cor
+            FROM pessoa_veiculo pv
+            JOIN veiculo v ON v.id = pv.veiculo_id
+            WHERE pv.pessoa_id = ?
+            ORDER BY pv.vinculo_ativo DESC NULLS LAST, v.marca, v.modelo, v.placa
+            """;
+
+    return jdbcTemplate.query(sql, Veiculo.ROW_MAPPER, pessoa_id);
   }
 
-  @Transactional
-  public Veiculo save(Long pessoa_id, Veiculo veiculo) {
-    if (veiculo.id() == null) {
-      Long id =
-          jdbcTemplate.queryForObject(
-              """
-                            INSERT INTO veiculo (modelo, marca, ano, placa, cor)
-                            VALUES (?, ?, ?, ?, ?)
-                            RETURNING id
-                            """,
-              Long.class,
-              veiculo.modelo(),
-              veiculo.marca(),
-              veiculo.ano(),
-              veiculo.placa(),
-              veiculo.cor());
-
-      return veiculo.withId(id);
-    } else {
-      System.out.println(veiculo.id());
-      jdbcTemplate.update(
-          """
-                      UPDATE veiculo SET
-                        modelo = ?,
-                        marca = ?,
-                        ano = ?,
-                        placa = ?,
-                        cor = ?
-                      WHERE id = ?
-                      """,
-          veiculo.modelo(),
-          veiculo.marca(),
-          veiculo.ano(),
-          veiculo.placa(),
-          veiculo.cor(),
-          veiculo.id());
-    }
-    vincularPessoa(pessoa_id, veiculo.id());
-
-    return veiculo;
+  public Veiculo create(Veiculo.Request veiculo) {
+    Long id =
+            jdbcTemplate.queryForObject(
+                    """
+                    INSERT INTO veiculo (modelo, marca, ano, placa, cor)
+                    VALUES (?, ?, ?, ?, ?)
+                    RETURNING id
+                    """,
+                    Long.class,
+                    veiculo.modelo(),
+                    veiculo.marca(),
+                    veiculo.ano(),
+                    veiculo.placa(),
+                    veiculo.cor());
+      return findById(id);
   }
 
-  /**
-   * Vincula um veículo a uma pessoa.
-   *
-   * <p>Regras: - UNIQUE(veiculo_id) => um veículo só pode estar ligado a uma pessoa por vez - Ao
-   * vincular, setamos vinculo_ativo=true - Se o veículo já estiver vinculado a outra pessoa, o
-   * vínculo será "movido" para a nova pessoa
-   */
-  @Transactional
-  public void vincularPessoa(Long pessoaId, Long veiculoId) {
+  public Veiculo update(Veiculo.Update veiculo) {
+    jdbcTemplate.update(
+            """
+            UPDATE veiculo
+            SET
+              modelo = ?,
+              marca = ?,
+              ano = ?,
+              placa = ?,
+              cor = ?
+            WHERE id = ?
+            """,
+            veiculo.modelo(),
+            veiculo.marca(),
+            veiculo.ano(),
+            veiculo.placa(),
+            veiculo.cor(),
+            veiculo.id());
+
+    return findById(veiculo.id());
+  }
+
+  public void vincularPessoa(Veiculo.Vincular vinculo) {
     String sql =
-        """
-                INSERT INTO pessoa_veiculo (pessoa_id, veiculo_id, vinculo_ativo)
-                VALUES (?, ?, true)
-                ON CONFLICT (veiculo_id)
-                DO UPDATE SET
-                  pessoa_id = EXCLUDED.pessoa_id,
-                  vinculo_ativo = true
-                """;
-    jdbcTemplate.update(sql, pessoaId, veiculoId);
+            """
+            INSERT INTO pessoa_veiculo (pessoa_id, veiculo_id, vinculo_ativo)
+            VALUES (?, ?, true)
+            ON CONFLICT (veiculo_id)
+            DO UPDATE SET
+              pessoa_id = EXCLUDED.pessoa_id,
+              vinculo_ativo = true
+            """;
+
+    jdbcTemplate.update(sql, vinculo.pessoa().id(), vinculo.veiculo().id());
   }
 
-  @Transactional
-  public void setVinculoAtivo(Long pessoaId, Long veiculoId, boolean ativo) {
+  public void setVinculoAtivo(Veiculo.Vincular vinculo) {
     String sql =
-        """
-                INSERT INTO pessoa_veiculo (pessoa_id, veiculo_id, vinculo_ativo)
-                VALUES (?, ?, ?)
-                ON CONFLICT (veiculo_id)
-                DO UPDATE SET
-                  pessoa_id = EXCLUDED.pessoa_id,
-                  vinculo_ativo = EXCLUDED.vinculo_ativo
-                """;
+            """
+            INSERT INTO pessoa_veiculo (pessoa_id, veiculo_id, vinculo_ativo)
+            VALUES (?, ?, ?)
+            ON CONFLICT (veiculo_id)
+            DO UPDATE SET
+              pessoa_id = EXCLUDED.pessoa_id,
+              vinculo_ativo = EXCLUDED.vinculo_ativo
+            """;
 
-    jdbcTemplate.update(sql, pessoaId, veiculoId, ativo);
+    jdbcTemplate.update(sql, vinculo.pessoa().id(), vinculo.veiculo().id(), vinculo.ativo());
+  }
+
+  public void deleteById(Long id) {
+    jdbcTemplate.update("DELETE FROM veiculo WHERE id = ?", id);
   }
 }

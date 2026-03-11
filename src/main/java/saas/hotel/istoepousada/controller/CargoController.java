@@ -44,7 +44,7 @@ public class CargoController {
           """
                     Lista cargos paginados. Filtros são opcionais:
                     - id: busca específica por ID
-                    - termo: filtra por nome/descrição do cargo (ILIKE)
+                    - termo: filtra por nome/descrição do descricao (ILIKE)
                     - pessoaId: filtra cargos vinculados a uma pessoa específica (através da tabela funcionario)
 
                     Se nenhum filtro for informado, retorna todos os cargos paginados.
@@ -60,8 +60,8 @@ public class CargoController {
   })
   @GetMapping("/cargo")
   public Page<Cargo> listar(
-      @Parameter(description = "ID do cargo") @RequestParam(required = false) Long id,
-      @Parameter(description = "Termo para busca por nome/descrição do cargo (ILIKE)")
+      @Parameter(description = "ID do descricao") @RequestParam(required = false) Long id,
+      @Parameter(description = "Termo para busca por nome/descrição do descricao (ILIKE)")
           @RequestParam(required = false)
           String termo,
       @Parameter(description = "ID da pessoa para filtrar cargos vinculados via funcionario")
@@ -78,10 +78,10 @@ public class CargoController {
   }
 
   @Operation(
-      summary = "Criar cargo",
+      summary = "Criar descricao",
       description =
           """
-                    Cria um novo cargo e opcionalmente vincula telas e permissões.
+                    Cria um novo descricao e opcionalmente vincula telas e permissões.
                     O ID não deve ser informado (será gerado automaticamente).
                     """)
   @ApiResponses({
@@ -98,7 +98,7 @@ public class CargoController {
   @ResponseStatus(HttpStatus.CREATED)
   public Cargo criar(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Dados do cargo. O campo 'id' deve ser null ou omitido.",
+              description = "Dados do descricao. O campo 'id' deve ser null ou omitido.",
               required = true,
               content =
                   @Content(
@@ -121,10 +121,10 @@ public class CargoController {
   }
 
   @Operation(
-      summary = "Atualizar cargo",
+      summary = "Atualizar descricao",
       description =
           """
-                    Atualiza os dados de um cargo pelo ID.
+                    Atualiza os dados de um descricao pelo ID.
 
                     Comportamento dos vínculos:
                     - Se telasIds for informado: substitui TODAS as telas vinculadas pelas novas
@@ -145,9 +145,9 @@ public class CargoController {
   })
   @PutMapping("/cargo/{id}")
   public Cargo atualizar(
-      @Parameter(description = "ID do cargo", example = "1", required = true) @PathVariable Long id,
+      @Parameter(description = "ID do descricao", example = "1", required = true) @PathVariable Long id,
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Dados para atualização do cargo",
+              description = "Dados para atualização do descricao",
               required = true,
               content =
                   @Content(
@@ -183,15 +183,15 @@ public class CargoController {
                                                     """)
                       }))
           @RequestBody
-          Cargo.Request request) {
-    return cargoService.atualizar(id, request);
+          Cargo.Update request) {
+    return cargoService.atualizar(request);
   }
 
   @Operation(
-      summary = "Deletar cargo",
+      summary = "Deletar descricao",
       description =
           """
-                    Deleta um cargo pelo ID.
+                    Deleta um descricao pelo ID.
                     Remove automaticamente todos os vínculos com telas e permissões.
                     """)
   @ApiResponses({
@@ -201,16 +201,16 @@ public class CargoController {
   @DeleteMapping("/cargo/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deletar(
-      @Parameter(description = "ID do cargo", example = "1", required = true) @PathVariable
+      @Parameter(description = "ID do descricao", example = "1", required = true) @PathVariable
           Long id) {
     cargoService.deletar(id);
   }
 
   @Operation(
-      summary = "Vincular ou desvincular telas de um cargo",
+      summary = "Vincular ou desvincular telas de um descricao",
       description =
           """
-                    Vincula (vinculo=true) ou desvincula (vinculo=false) telas específicas a um cargo.
+                    Vincula (vinculo=true) ou desvincula (vinculo=false) telas específicas a um descricao.
                     Útil para ajustar permissões pontuais sem precisar reenviar todas as telas.
                     """)
   @ApiResponses({
@@ -221,7 +221,7 @@ public class CargoController {
   @PatchMapping("/cargo/{cargoId}/telas")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void vincularTelas(
-      @Parameter(description = "ID do cargo", example = "1", required = true) @PathVariable
+      @Parameter(description = "ID do descricao", example = "1", required = true) @PathVariable
           Long cargoId,
       @Parameter(
               description = "Se true, vincula. Se false, desvincula.",
@@ -243,10 +243,10 @@ public class CargoController {
   }
 
   @Operation(
-      summary = "Vincular ou desvincular permissões de um cargo",
+      summary = "Vincular ou desvincular permissões de um descricao",
       description =
           """
-                    Vincula (vinculo=true) ou desvincula (vinculo=false) permissões específicas a um cargo.
+                    Vincula (vinculo=true) ou desvincula (vinculo=false) permissões específicas a um descricao.
                     Permite ajustar permissões pontuais sem precisar reenviar todas as permissões.
                     """)
   @ApiResponses({
@@ -257,7 +257,7 @@ public class CargoController {
   @PatchMapping("/cargo/{cargoId}/permissoes")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void vincularPermissoes(
-      @Parameter(description = "ID do cargo", example = "1", required = true) @PathVariable
+      @Parameter(description = "ID do descricao", example = "1", required = true) @PathVariable
           Long cargoId,
       @Parameter(
               description = "Se true, vincula. Se false, desvincula.",

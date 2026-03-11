@@ -9,7 +9,9 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
-import saas.hotel.istoepousada.dto.FuncionarioAuth;
+import saas.hotel.istoepousada.dto.Funcionario;
+import saas.hotel.istoepousada.dto.Permissao;
+import saas.hotel.istoepousada.dto.Tela;
 
 @Component
 public class PermissionInterceptor implements HandlerInterceptor {
@@ -36,7 +38,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
     if (requireTela == null && requirePermissao == null) return true;
 
-    FuncionarioAuth funcionario = (FuncionarioAuth) request.getAttribute("funcionario");
+    Funcionario.Authorization funcionario = (Funcionario.Authorization) request.getAttribute("funcionario");
     log.info("FuncionarioAuth no request: {}", funcionario);
 
     if (funcionario == null) {
@@ -46,18 +48,18 @@ public class PermissionInterceptor implements HandlerInterceptor {
     }
 
     /* ====== ADMIN BYPASS ====== */
-    String cargoNome = funcionario.cargo() != null ? funcionario.cargo().nome() : null;
+    String cargoNome = funcionario.cargo() != null ? funcionario.cargo().descricao() : null;
     if ("ADMINISTRADOR".equalsIgnoreCase(safe(cargoNome).trim())) {
       log.info("Usuário ADMINISTRADOR liberado para acesso total");
       return true;
     }
 
-    List<FuncionarioAuth.CargoAuth.TelaAuth> telas =
+    List<Tela> telas =
         (funcionario.cargo() == null || funcionario.cargo().telas() == null)
             ? List.of()
             : funcionario.cargo().telas();
 
-    FuncionarioAuth.CargoAuth.TelaAuth telaContexto = null;
+    Tela telaContexto = null;
 
     if (requireTela != null) {
       String telaRequerida = safe(requireTela.value()).trim();
@@ -114,11 +116,11 @@ public class PermissionInterceptor implements HandlerInterceptor {
     return out;
   }
 
-  private Set<String> extractPermCodes(FuncionarioAuth.CargoAuth.TelaAuth tela) {
+  private Set<String> extractPermCodes(Tela tela) {
     if (tela == null || tela.permissoes() == null) return Set.of();
 
     Set<String> perms = new HashSet<>();
-    for (FuncionarioAuth.CargoAuth.PermissaoAuth p : tela.permissoes()) {
+    for (Permissao p : tela.permissoes()) {
       if (p == null || p.permissao() == null) continue;
       String code = p.permissao().trim().toUpperCase();
       if (!code.isBlank()) perms.add(code);

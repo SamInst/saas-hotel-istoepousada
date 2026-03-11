@@ -1,11 +1,20 @@
 package saas.hotel.istoepousada.repository;
 
-import java.sql.*;
-import java.util.*;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
@@ -22,31 +31,34 @@ public class QuartoRepository {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  private final ResultSetExtractor<List<Quarto>> QUARTO_EXTRACTOR =
-      rs -> {
-        List<Quarto> list = new ArrayList<>();
-        while (rs.next()) list.add(Quarto.mapQuarto(rs, "quarto_"));
-        return list;
-      };
+  private static final ResultSetExtractor<List<Quarto>> QUARTO_EXTRACTOR =
+          rs -> {
+            List<Quarto> list = new ArrayList<>();
+            int rowNum = 0;
+            while (rs.next()) {
+              list.add(Quarto.ROW_MAPPER.mapRow(rs, rowNum++));
+            }
+            return list;
+          };
 
-  public Page<Quarto> buscar(Long id, String termo, Quarto.StatusQuarto status, Pageable pageable) {
-    String baseFrom = "FROM public.quarto quarto ";
+  public Page<Quarto> buscar(Long id, String termo, Quarto.Status status, Pageable pageable) {
+    String baseFrom = " FROM public.quarto quarto ";
 
     String baseSelect =
-        """
-                SELECT
-                  quarto.id              AS quarto_id,
-                  quarto.descricao       AS quarto_descricao,
-                  quarto.qtd_pessoas     AS quarto_qtd_pessoas,
-                  quarto.status          AS quarto_status,
-                  quarto.qtd_cama_casal  AS quarto_qtd_cama_casal,
-                  quarto.qtd_cama_solteiro AS quarto_qtd_cama_solteiro,
-                  quarto.qtd_rede        AS quarto_qtd_rede,
-                  quarto.qtd_beliche     AS quarto_qtd_beliche
-                FROM public.quarto quarto
-                """;
+            """
+            SELECT
+              quarto.id                         AS quarto_id,
+              quarto.descricao                  AS quarto_descricao,
+              quarto.quantidade_pessoa          AS quarto_quantidade_pessoas,
+              quarto.status                     AS quarto_status,
+              quarto.quantidade_cama_casal      AS quarto_quantidade_cama_casal,
+              quarto.quantidade_cama_solteiro   AS quarto_quantidade_cama_solteiro,
+              quarto.quantidade_rede            AS quarto_quantidade_rede,
+              quarto.quantidade_beliche         AS quarto_quantidade_beliche
+            FROM public.quarto quarto
+            """;
 
-    StringBuilder where = new StringBuilder(" WHERE 1=1 ");
+    StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
     List<Object> params = new ArrayList<>();
 
     if (id != null) {
@@ -65,184 +77,211 @@ public class QuartoRepository {
         where.append(" OR quarto.id = ? ");
         params.add(Long.parseLong(t));
       }
+
       where.append(") ");
     }
 
     if (status != null) {
-      where.append(" AND quarto.status = CAST(? AS public.quarto_status) ");
+      where.append(" AND quarto.status = CAST(? AS public.status_quarto_enum) ");
       params.add(status.name());
     }
 
     Long total;
     try {
       total =
-          jdbcTemplate.queryForObject(
-              "SELECT COUNT(*) " + baseFrom + where, Long.class, params.toArray());
+              jdbcTemplate.queryForObject(
+                      "SELECT COUNT(*)" + baseFrom + where,
+                      Long.class,
+                      params.toArray());
     } catch (EmptyResultDataAccessException ex) {
       total = 0L;
     }
 
-    if (total == null || total == 0) return new PageImpl<>(List.of(), pageable, 0);
+    if (total == null || total == 0) {
+      return new PageImpl<>(List.of(), pageable, 0);
+    }
 
     String idsSql =
-        "SELECT quarto.id AS id "
-            + baseFrom
-            + where
-            + """
+            "SELECT quarto.id AS id"
+                    + baseFrom
+                    + where
+                    + """
             ORDER BY quarto.descricao ASC NULLS LAST, quarto.id ASC
             LIMIT ? OFFSET ?
             """;
 
     List<Object> idsParams = new ArrayList<>(params);
     idsParams.add(pageable.getPageSize());
-    idsParams.add((int) pageable.getOffset());
+    idsParams.add(pageable.getOffset());
 
     List<Long> ids =
-        jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
+            jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
 
-    if (ids.isEmpty()) return new PageImpl<>(List.of(), pageable, total);
+    if (ids.isEmpty()) {
+      return new PageImpl<>(List.of(), pageable, total);
+    }
 
     String in = String.join(",", Collections.nCopies(ids.size(), "?"));
 
     String pageSql =
-        baseSelect
-            + " WHERE quarto.id IN ("
-            + in
-            + ") ORDER BY quarto.descricao ASC NULLS LAST, quarto.id ASC";
+            baseSelect
+                    + " WHERE quarto.id IN ("
+                    + in
+                    + ") ORDER BY quarto.descricao ASC NULLS LAST, quarto.id ASC";
 
     List<Quarto> content = jdbcTemplate.query(pageSql, QUARTO_EXTRACTOR, ids.toArray());
+
     return new PageImpl<>(Objects.requireNonNull(content), pageable, total);
   }
 
   public Quarto findByIdOrThrow(Long id) {
-    if (id == null) throw new IllegalArgumentException("id é obrigatório.");
+    if (id == null) {
+      throw new IllegalArgumentException("Id é obrigatório.");
+    }
+
     try {
       String sql =
-          """
-                    SELECT
-                      quarto.id              AS quarto_id,
-                      quarto.descricao       AS quarto_descricao,
-                      quarto.qtd_pessoas     AS quarto_qtd_pessoas,
-                      quarto.status          AS quarto_status,
-                      quarto.qtd_cama_casal  AS quarto_qtd_cama_casal,
-                      quarto.qtd_cama_solteiro AS quarto_qtd_cama_solteiro,
-                      quarto.qtd_rede        AS quarto_qtd_rede,
-                      quarto.qtd_beliche     AS quarto_qtd_beliche
-                    FROM public.quarto quarto
-                    WHERE quarto.id = ?
-                    """;
+              """
+              SELECT
+                quarto.id                         AS quarto_id,
+                quarto.descricao                  AS quarto_descricao,
+                quarto.quantidade_pessoa          AS quarto_quantidade_pessoas,
+                quarto.status                     AS quarto_status,
+                quarto.quantidade_cama_casal      AS quarto_quantidade_cama_casal,
+                quarto.quantidade_cama_solteiro   AS quarto_quantidade_cama_solteiro,
+                quarto.quantidade_rede            AS quarto_quantidade_rede,
+                quarto.quantidade_beliche         AS quarto_quantidade_beliche
+              FROM public.quarto quarto
+              WHERE quarto.id = ?
+              """;
 
-      return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> Quarto.mapQuarto(rs, "quarto_"), id);
+      return jdbcTemplate.queryForObject(sql, Quarto.ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
       throw new NotFoundException("Quarto não encontrado para o id: " + id);
-    } catch (Exception ex) {
-      throw new RuntimeException("Erro ao buscar quarto por id: " + id, ex);
     }
   }
 
   @Transactional
-  public Quarto insert(Quarto quarto) {
-    if (quarto == null) throw new IllegalArgumentException("Quarto é obrigatório.");
-    validar(quarto);
-
-    String sql =
-        """
-                INSERT INTO public.quarto (
-                  descricao,
-                  qtd_pessoas,
-                  status,
-                  qtd_cama_casal,
-                  qtd_cama_solteiro,
-                  qtd_rede,
-                  qtd_beliche,
-                  fk_categoria
-                ) VALUES (?, ?, CAST(? AS public.quarto_status), ?, ?, ?, ?, ?)
-                """;
-
-    KeyHolder keyHolder = new GeneratedKeyHolder();
-
-    jdbcTemplate.update(
-        con -> {
-          PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-          ps.setString(1, quarto.descricao());
-          setIntOrNull(ps, 2, quarto.quantidade_pessoas());
-          setStringOrNull(
-              ps, 3, quarto.status_quarto() == null ? null : quarto.status_quarto().name());
-          setIntOrNull(ps, 4, quarto.qtd_cama_casal());
-          setIntOrNull(ps, 5, quarto.qtd_cama_solteiro());
-          setIntOrNull(ps, 6, quarto.qtd_rede());
-          setIntOrNull(ps, 7, quarto.qtd_beliche());
-          ps.setNull(8, Types.INTEGER);
-
-          return ps;
-        },
-        keyHolder);
-
-    Long id =
-        keyHolder.getKeys() != null && keyHolder.getKeys().containsKey("id")
-            ? ((Number) keyHolder.getKeys().get("id")).longValue()
-            : null;
-
-    if (id == null) throw new IllegalStateException("Registro salvo sem ID (verifique RETURNING).");
-    return findByIdOrThrow(id);
-  }
-
-  @Transactional
-  public Quarto update(Long id, Quarto quarto) {
-    if (id == null) throw new IllegalArgumentException("id é obrigatório.");
-    if (quarto == null) throw new IllegalArgumentException("Quarto é obrigatório.");
-    validar(quarto);
-
-    String sql =
-        """
-                UPDATE public.quarto SET
-                  descricao = ?,
-                  qtd_pessoas = ?,
-                  status = CAST(? AS public.quarto_status),
-                  qtd_cama_casal = ?,
-                  qtd_cama_solteiro = ?,
-                  qtd_rede = ?,
-                  qtd_beliche = ?
-                WHERE id = ?
-                """;
-
-    int rows =
-        jdbcTemplate.update(
-            sql,
+  public Quarto insert(Quarto.Request quarto) {
+    var quarto_id = jdbcTemplate.queryForObject("""
+            INSERT INTO public.quarto (
+              descricao,
+              quantidade_pessoa,
+              status,
+              quantidade_cama_casal,
+              quantidade_cama_solteiro,
+              quantidade_rede,
+              quantidade_beliche
+            ) VALUES (?, ?, 'DISPONIVEL'::status_quarto_enum, ?, ?, ?, ?)
+            returning id
+            """,
+            Long.class,
             quarto.descricao(),
             quarto.quantidade_pessoas(),
-            quarto.status_quarto() == null ? null : quarto.status_quarto().name(),
-            quarto.qtd_cama_casal(),
-            quarto.qtd_cama_solteiro(),
-            quarto.qtd_rede(),
-            quarto.qtd_beliche(),
-            id);
+            quarto.quantidade_cama_casal(),
+            quarto.quantidade_cama_solteiro(),
+            quarto.quantidade_rede(),
+            quarto.quantidade_beliche()
+    );
 
-    if (rows == 0) throw new NotFoundException("Quarto não encontrado para o id: " + id);
-    return findByIdOrThrow(id);
+    vincularCategoriaAtiva(quarto_id, quarto.categoria().id());
+    return findByIdOrThrow(quarto_id);
   }
 
   @Transactional
-  public void delete(Long id) {
-    if (id == null) throw new IllegalArgumentException("id é obrigatório.");
-    int rows = jdbcTemplate.update("DELETE FROM public.quarto WHERE id = ?", id);
-    if (rows == 0) throw new NotFoundException("Quarto não encontrado para o id: " + id);
+  public Quarto update(Quarto.Update request) {
+    findByIdOrThrow(request.id());
+
+    String sql =
+            """
+            UPDATE public.quarto SET
+              descricao = ?,
+              quantidade_pessoa = ?,
+              status = CAST(? AS public.status_quarto_enum),
+              quantidade_cama_casal = ?,
+              quantidade_cama_solteiro = ?,
+              quantidade_rede = ?,
+              quantidade_beliche = ?
+            WHERE id = ?
+            """;
+
+    int rows =
+            jdbcTemplate.update(
+                    sql,
+                    request.descricao().trim(),
+                    request.quantidade_pessoas(),
+                    request.status().name(),
+                    request.quantidade_cama_casal(),
+                    request.quantidade_cama_solteiro(),
+                    request.quantidade_rede(),
+                    request.quantidade_beliche(),
+                    request.id());
+
+    if (rows == 0) {
+      throw new NotFoundException("Quarto não encontrado para o id: " + request.id());
+    }
+
+    atualizarCategoriaAtiva(request.id(), request.categoria().id());
+
+    return findByIdOrThrow(request.id());
   }
 
-  private void validar(Quarto q) {
-    if (q.descricao() == null || q.descricao().isBlank())
-      throw new IllegalArgumentException("descricao é obrigatória.");
-    if (q.quantidade_pessoas() != null && q.quantidade_pessoas() <= 0)
-      throw new IllegalArgumentException("qtd_pessoas deve ser maior que 0.");
+  private void vincularCategoriaAtiva(Long quartoId, Long categoriaId) {
+    jdbcTemplate.update(
+            """
+            INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, ativo)
+            VALUES (?, ?, true)
+            """,
+            quartoId,
+            categoriaId);
   }
 
-  private void setIntOrNull(PreparedStatement ps, int idx, Integer v) throws SQLException {
-    if (v == null) ps.setNull(idx, Types.INTEGER);
-    else ps.setInt(idx, v);
+  private void atualizarCategoriaAtiva(Long quartoId, Long categoriaId) {
+    jdbcTemplate.update(
+            """
+            UPDATE public.quarto_categoria
+            SET ativo = false
+            WHERE fk_quarto = ?
+            """,
+            quartoId);
+
+    Integer existenteAtivo =
+            jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                    FROM public.quarto_categoria
+                    WHERE fk_quarto = ? AND fk_categoria = ?
+                    """,
+                    Integer.class,
+                    quartoId,
+                    categoriaId);
+
+    if (existenteAtivo > 0) {
+      jdbcTemplate.update(
+              """
+              UPDATE public.quarto_categoria
+              SET ativo = true
+              WHERE fk_quarto = ? AND fk_categoria = ?
+              """,
+              quartoId,
+              categoriaId);
+      return;
+    }
+
+    jdbcTemplate.update(
+            """
+            INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, ativo)
+            VALUES (?, ?, true)
+            """,
+            quartoId,
+            categoriaId);
   }
 
-  private void setStringOrNull(PreparedStatement ps, int idx, String v) throws SQLException {
-    if (v == null || v.isBlank()) ps.setNull(idx, Types.VARCHAR);
-    else ps.setString(idx, v);
+  private void setIntOrNull(PreparedStatement ps, int idx, Integer value) throws SQLException {
+    if (value == null) {
+      ps.setNull(idx, Types.INTEGER);
+    } else {
+      ps.setInt(idx, value);
+    }
   }
 }

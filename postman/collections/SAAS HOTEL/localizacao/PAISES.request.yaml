@@ -1,8 +1,0 @@
-$kind: http-request
-url: "{{hotel}}/paises"
-method: GET
-auth:
-  type: bearer
-  credentials:
-    token: "{{token}}"
-order: 3000

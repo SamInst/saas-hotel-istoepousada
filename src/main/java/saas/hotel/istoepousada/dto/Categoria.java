@@ -1,17 +1,27 @@
 package saas.hotel.istoepousada.dto;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.validation.constraints.NotNull;
+import saas.hotel.istoepousada.dto.enums.ModeloCobranca;
+import saas.hotel.istoepousada.dto.enums.ModeloOperacao;
 
-public record Categoria(Long id, String categoria) {
-
-  public static Categoria mapCategoria(ResultSet rs) throws SQLException {
-    return mapCategoria(rs, "categoria_");
+public record Categoria(
+        @NotNull Long id,
+        @NotNull String nome,
+        @NotNull String descricao,
+        @NotNull ModeloCobranca modelo_cobranca,
+        @NotNull ModeloOperacao modelo_operacao) {
+  public record Id(@NotNull Long id){}
+  public record Request(
+          @NotNull String categoria,
+          @NotNull String descricao,
+          @NotNull ModeloCobranca modelo_cobranca,
+          @NotNull ModeloOperacao modelo_operacao) {
   }
-
-  public static Categoria mapCategoria(ResultSet rs, String prefix) throws SQLException {
-    Long id = rs.getObject(prefix + "id", Long.class);
-    String categoria = rs.getString(prefix + "categoria");
-    return new Categoria(id, categoria);
-  }
+  public record Update(
+          @NotNull Long id,
+          @NotNull String categoria,
+          String descricao,
+          @NotNull ModeloCobranca modelo_cobranca,
+          @NotNull ModeloOperacao modelo_operacao
+  ){}
 }
