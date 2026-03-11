@@ -5,22 +5,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Relatorio;
-import saas.hotel.istoepousada.repository.PessoaRepository;
 import saas.hotel.istoepousada.repository.RelatorioRepository;
 
 import java.time.LocalDate;
 
 @Service
 public class RelatorioService {
-
     private final RelatorioRepository relatorioRepository;
-    private final PessoaRepository pessoaRepository;
 
     public RelatorioService(
-            RelatorioRepository relatorioRepository,
-            PessoaRepository pessoaRepository) {
+            RelatorioRepository relatorioRepository) {
         this.relatorioRepository = relatorioRepository;
-        this.pessoaRepository = pessoaRepository;
     }
 
     public Relatorio.Extrato buscar(
@@ -67,7 +62,5 @@ public class RelatorioService {
         if (!StringUtils.hasText(request.relatorio()))
             throw new IllegalArgumentException("Descrição do relatório é obrigatória.");
         if (request.valor() == null) throw new IllegalArgumentException("valor é obrigatório.");
-        if (request.t() == null)
-            throw new IllegalArgumentException("tipoPagamentoId é obrigatório.");
     }
 }

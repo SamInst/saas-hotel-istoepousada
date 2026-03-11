@@ -49,8 +49,8 @@ public class JwtInterceptor implements HandlerInterceptor {
     var funcionario = jwtUtil.getFuncionarioFromToken(token);
     request.setAttribute("funcionario", funcionario);
     request.setAttribute("funcionarioId", funcionario.id());
-    request.setAttribute("usuarioId", funcionario.usuarioId());
-    request.setAttribute("pessoaId", funcionario.pessoaId());
+    request.setAttribute("usuarioId", funcionario.usuario().id());
+    request.setAttribute("pessoaId", funcionario.pessoa().id());
     return true;
   }
 }

@@ -331,7 +331,7 @@ public class RelatorioRepository {
                     fk_pagamento
                 ) VALUES (now(), ?, ?, ?, ?, ?, ?) returning id
                 """,
-                Relatorio.R,
+                Relatorio.class,
                 request.relatorio(),
                 getFuncionarioId(),
                 request.quarto() != null ? request.quarto().id() : null,
