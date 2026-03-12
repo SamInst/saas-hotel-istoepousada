@@ -45,7 +45,7 @@ public class PessoaRepository {
           (rs, rowNum) ->
                   new Pessoa(
                           rs.getLong("pessoa_id"),
-                          rs.getObject("pessoa_data_hora_cadastro", LocalDateTime.class),
+                          rs.getObject("pessoa_data_hora_registro", LocalDateTime.class),
                           rs.getObject("pessoa_data_nascimento", LocalDate.class),
                           rs.getString("pessoa_nome"),
                           rs.getString("pessoa_cpf"),
@@ -201,7 +201,7 @@ public class PessoaRepository {
             """
             SELECT
                 p.id                   AS pessoa_id,
-                p.data_hora_cadastro   AS pessoa_data_hora_cadastro,
+                p.data_hora_registro   AS pessoa_data_hora_registro,
                 p.nome                 AS pessoa_nome,
                 p.data_nascimento      AS pessoa_data_nascimento,
                 p.cpf                  AS pessoa_cpf,
@@ -408,7 +408,7 @@ public class PessoaRepository {
     String sql =
             """
             INSERT INTO pessoa (
-                data_hora_cadastro,
+                data_hora_registro,
                 nome,
                 data_nascimento,
                 cpf,
@@ -600,7 +600,7 @@ public class PessoaRepository {
             """
             SELECT
                 p.id                   AS pessoa_id,
-                p.data_hora_cadastro   AS pessoa_data_hora_cadastro,
+                p.data_hora_registro   AS pessoa_data_hora_registro,
                 p.nome                 AS pessoa_nome,
                 p.data_nascimento      AS pessoa_data_nascimento,
                 p.cpf                  AS pessoa_cpf,

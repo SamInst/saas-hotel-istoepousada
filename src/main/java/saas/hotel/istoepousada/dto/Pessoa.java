@@ -11,7 +11,7 @@ import java.util.List;
 public record Pessoa(
         @NotNull Long id,
         @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
-        @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDate data_nascimento,
+        @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_nascimento,
         @NotNull String nome,
         @NotNull String cpf,
         String rg,
@@ -37,7 +37,7 @@ public record Pessoa(
     public record Id(Long id) {}
     public record Request(
             @NotNull String nome,
-            @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDate data_nascimento,
+            @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_nascimento,
             @NotNull String cpf,
             @NotNull String email,
             @NotNull String telefone,
@@ -52,11 +52,10 @@ public record Pessoa(
             Integer sexo,
             String numero,
             @NotNull Status status,
-            List<Empresa.Id> empresas,
             List<Veiculo> veiculos,
-            @NotNull Funcionario.Id funcionario_id,
-            Pessoa.Id titular_id,
-            List<Pessoa.Id> acompanhantes_ids
+            @NotNull Funcionario.Id funcionario,
+            Pessoa.Id titular,
+            List<Pessoa.Id> acompanhantes
     ){}
     public record Nome(
             @NotNull Long id,
@@ -131,5 +130,9 @@ public record Pessoa(
                                     rs.getObject("titular_id", Long.class),
                                     rs.getString("titular_nome")),
                             List.of());
+
+    public record BatchRequest(
+            List<Pessoa.Request> pessoas,
+            List<Empresa.Id> empresas) {}
 
 }

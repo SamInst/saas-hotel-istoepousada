@@ -82,13 +82,13 @@ public class PessoaService {
     }
 
     @Transactional
-    public List<Pessoa> salvarListaPessoas(List<Pessoa> pessoas, List<Long> empresasIds) {
-        if (pessoas == null || pessoas.isEmpty()) {
+    public List<Pessoa> salvarListaPessoas(Pessoa.BatchRequest request) {
+        if (request.pessoas() == null || request.pessoas().isEmpty()) {
             throw new IllegalArgumentException("Lista de pessoas é obrigatória.");
         }
 
-        List<Pessoa> titulares =
-                pessoas.stream()
+        List<Pessoa.Request> titulares =
+                request.pessoas().stream()
                         .filter(p -> p.titular() == null || p.titular().id() == null)
                         .toList();
 
@@ -106,12 +106,12 @@ public class PessoaService {
                         ? pessoaRepository.findById(funcionarioPessoaIdLogado)
                         : null;
 
-        Pessoa titularReq = titulares.getFirst();
-        Pessoa titularSalvo = salvarInternoSemVinculoEmpresa(titularReq, funcionarioPessoaIdLogado);
+        Pessoa.Request titularReq = titulares.getFirst();
+        Pessoa.Request titularSalvo = salvarInternoSemVinculoEmpresa(titularReq, funcionarioPessoaIdLogado);
 
         List<Pessoa> acompanhantesSalvos = new ArrayList<>();
 
-        for (Pessoa pessoa : pessoas) {
+        for (Pessoa.Request pessoa : request.pessoas()) {
             if (pessoa == titularReq) {
                 continue;
             }
@@ -150,16 +150,16 @@ public class PessoaService {
             acompanhantesSalvos.add(acompanhanteSalvo);
         }
 
-        if (empresasIds != null && !empresasIds.isEmpty()) {
+        if (request.empresas() != null && !request.empresas().isEmpty()) {
             List<Pessoa> todos = new ArrayList<>();
             todos.add(titularSalvo);
             todos.addAll(acompanhantesSalvos);
 
-            for (Long empresaId : empresasIds.stream().filter(Objects::nonNull).distinct().toList()) {
+            for (Empresa.Id empresa : request.empresas().stream().filter(Objects::nonNull).distinct().toList()) {
                 for (Pessoa pessoa : todos) {
                     empresaService.vincularPessoa(
                             new Empresa.Vincular(
-                                    new Empresa.Id(empresaId),
+                                    new Empresa.Id(empresa.id()),
                                     new Pessoa.Id(pessoa.id()),
                                     true)
                     );

@@ -240,7 +240,7 @@ public class EmpresaRepository {
                 """
                 SELECT
                     p.id,
-                    p.data_hora_cadastro AS data_hora_registro,
+                    p.data_hora_registro AS data_hora_registro,
                     p.data_nascimento,
                     p.nome,
                     p.cpf,

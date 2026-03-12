@@ -37,9 +37,7 @@ public class PessoaController {
         this.pessoaService = pessoaService;
     }
 
-    public record PessoaBatchRequest(
-            List<Pessoa> pessoas,
-            List<Long> empresasIds) {}
+
 
     @Operation(
             summary = "Listar pessoas com filtros opcionais",
@@ -88,27 +86,6 @@ public class PessoaController {
     }
 
     @Operation(
-            summary = "Buscar pessoa por id",
-            description = "Retorna uma pessoa específica pelo id.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Pessoa encontrada",
-                    content =
-                    @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = Pessoa.class))),
-            @ApiResponse(responseCode = "404", description = "Pessoa não encontrada")
-    })
-    @GetMapping("/{id}")
-    public Pessoa buscarPorId(
-            @Parameter(description = "ID da pessoa", example = "10", required = true)
-            @PathVariable
-            Long id) {
-        return pessoaService.findById(id);
-    }
-
-    @Operation(
             summary = "Criar pessoas",
             description = "Cria um titular e seus acompanhantes, com vínculos opcionais a empresas.")
     @ApiResponses({
@@ -124,82 +101,82 @@ public class PessoaController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public List<Pessoa> criar(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description =
-                            "Objeto contendo a lista de pessoas (1 titular + N acompanhantes) e os ids das empresas a vincular.",
-                    required = true,
-                    content =
-                    @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = PessoaBatchRequest.class),
-                            examples =
-                            @ExampleObject(
-                                    name = "Exemplo titular e acompanhantes",
-                                    value =
-                                            """
-                                            {
-                                              "pessoas": [
-                                                {
-                                                  "nome": "Titular da Silva",
-                                                  "data_nascimento": "1999-01-01",
-                                                  "cpf": "00000000000",
-                                                  "rg": "000000",
-                                                  "email": "titular@email.com",
-                                                  "telefone": "999999999",
-                                                  "pais": "BR",
-                                                  "estado": "MA",
-                                                  "municipio": "São Luís",
-                                                  "endereco": "Rua X",
-                                                  "complemento": "Apto 1",
-                                                  "cep": "65000-000",
-                                                  "bairro": "Centro",
-                                                  "sexo": 1,
-                                                  "numero": "10",
-                                                  "status": "ATIVO",
-                                                  "veiculos_vinculados": [
-                                                    {
-                                                      "modelo": "Gol",
-                                                      "marca": "VW",
-                                                      "ano": 2015,
-                                                      "placa": "ABC1D23",
-                                                      "cor": "Branco"
-                                                    }
-                                                  ]
-                                                },
-                                                {
-                                                  "nome": "Acompanhante da Silva",
-                                                  "data_nascimento": "1999-01-01",
-                                                  "cpf": "11111111111",
-                                                  "rg": "111111",
-                                                  "email": "acompanhante@email.com",
-                                                  "telefone": "999999998",
-                                                  "pais": "BR",
-                                                  "estado": "MA",
-                                                  "municipio": "São Luís",
-                                                  "endereco": "Rua X",
-                                                  "complemento": "Apto 1",
-                                                  "cep": "65000-000",
-                                                  "bairro": "Centro",
-                                                  "sexo": 1,
-                                                  "numero": "10",
-                                                  "status": "ATIVO",
-                                                  "veiculos_vinculados": [
-                                                    {
-                                                      "modelo": "Gol 2",
-                                                      "marca": "VW",
-                                                      "ano": 2015,
-                                                      "placa": "ABC1D24",
-                                                      "cor": "Prata"
-                                                    }
-                                                  ]
-                                                }
-                                              ],
-                                              "empresasIds": [15]
-                                            }
-                                            """)))
+//            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+//                    description =
+//                            "Objeto contendo a lista de pessoas (1 titular + N acompanhantes) e os ids das empresas a vincular.",
+//                    required = true,
+//                    content =
+//                    @Content(
+//                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+//                            schema = @Schema(implementation = PessoaBatchRequest.class),
+//                            examples =
+//                            @ExampleObject(
+//                                    name = "Exemplo titular e acompanhantes",
+//                                    value =
+//                                            """
+//                                            {
+//                                              "pessoas": [
+//                                                {
+//                                                  "nome": "Titular da Silva",
+//                                                  "data_nascimento": "1999-01-01",
+//                                                  "cpf": "00000000000",
+//                                                  "rg": "000000",
+//                                                  "email": "titular@email.com",
+//                                                  "telefone": "999999999",
+//                                                  "pais": "BR",
+//                                                  "estado": "MA",
+//                                                  "municipio": "São Luís",
+//                                                  "endereco": "Rua X",
+//                                                  "complemento": "Apto 1",
+//                                                  "cep": "65000-000",
+//                                                  "bairro": "Centro",
+//                                                  "sexo": 1,
+//                                                  "numero": "10",
+//                                                  "status": "ATIVO",
+//                                                  "veiculos_vinculados": [
+//                                                    {
+//                                                      "modelo": "Gol",
+//                                                      "marca": "VW",
+//                                                      "ano": 2015,
+//                                                      "placa": "ABC1D23",
+//                                                      "cor": "Branco"
+//                                                    }
+//                                                  ]
+//                                                },
+//                                                {
+//                                                  "nome": "Acompanhante da Silva",
+//                                                  "data_nascimento": "1999-01-01",
+//                                                  "cpf": "11111111111",
+//                                                  "rg": "111111",
+//                                                  "email": "acompanhante@email.com",
+//                                                  "telefone": "999999998",
+//                                                  "pais": "BR",
+//                                                  "estado": "MA",
+//                                                  "municipio": "São Luís",
+//                                                  "endereco": "Rua X",
+//                                                  "complemento": "Apto 1",
+//                                                  "cep": "65000-000",
+//                                                  "bairro": "Centro",
+//                                                  "sexo": 1,
+//                                                  "numero": "10",
+//                                                  "status": "ATIVO",
+//                                                  "veiculos_vinculados": [
+//                                                    {
+//                                                      "modelo": "Gol 2",
+//                                                      "marca": "VW",
+//                                                      "ano": 2015,
+//                                                      "placa": "ABC1D24",
+//                                                      "cor": "Prata"
+//                                                    }
+//                                                  ]
+//                                                }
+//                                              ],
+//                                              "empresasIds": [15]
+//                                            }
+//                                            """)))
             @RequestBody
-            PessoaBatchRequest request) {
-        return pessoaService.salvarListaPessoas(request.pessoas(), request.empresasIds());
+            Pessoa.BatchRequest request) {
+        return pessoaService.salvarListaPessoas(request);
     }
 
     @Operation(
