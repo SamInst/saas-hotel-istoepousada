@@ -33,7 +33,7 @@ public class JwtUtil {
     return Keys.hmacShaKeyFor(keyBytes);
   }
 
-  public String generateToken(Funcionario funcionario) {
+  public String generateToken(Funcionario.Authorization funcionario) {
     try {
       String funcionarioJson = objectMapper.writeValueAsString(funcionario);
       @SuppressWarnings("unchecked")
@@ -55,10 +55,18 @@ public class JwtUtil {
 
   public Funcionario.Authorization getFuncionarioFromToken(String token) {
     try {
+      String resolvedToken = resolveToken(token);
+
       Claims claims =
-          Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+              Jwts.parser()
+                      .verifyWith(getSigningKey())
+                      .build()
+                      .parseSignedClaims(resolvedToken)
+                      .getPayload();
+
       @SuppressWarnings("unchecked")
       Map<String, Object> funcionarioMap = (Map<String, Object>) claims.get("funcionario");
+
       String funcionarioJson = objectMapper.writeValueAsString(funcionarioMap);
       return objectMapper.readValue(funcionarioJson, Funcionario.Authorization.class);
     } catch (Exception e) {
@@ -68,10 +76,25 @@ public class JwtUtil {
 
   public boolean validateToken(String token) {
     try {
-      Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token);
+      String resolvedToken = resolveToken(token);
+      if (resolvedToken == null || resolvedToken.isBlank()) return false;
+
+      Jwts.parser()
+              .verifyWith(getSigningKey())
+              .build()
+              .parseSignedClaims(resolvedToken);
+
       return true;
     } catch (JwtException | IllegalArgumentException e) {
       return false;
     }
+  }
+  private String resolveToken(String token) {
+    if (token == null || token.isBlank()) return null;
+    token = token.trim();
+    if (token.startsWith("Bearer ")) {
+      token = token.substring(7).trim();
+    }
+    return token;
   }
 }

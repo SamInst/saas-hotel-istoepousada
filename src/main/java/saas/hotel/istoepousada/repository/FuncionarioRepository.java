@@ -317,4 +317,136 @@ public class FuncionarioRepository {
         );
         return findById(id);
     }
+
+    public Funcionario.Authorization funcionarioLogin(Usuario.Id usuario) {
+        String sql =
+                """
+                SELECT
+                    f.id                              AS funcionario_id,
+                    f.data_admissao                   AS funcionario_data_admissao,
+    
+                    u.id                              AS usuario_id,
+                    u.username                        AS usuario_username,
+                    u.bloqueado                       AS usuario_bloqueado,
+    
+                    p.id                              AS pessoa_id,
+                    p.nome                            AS pessoa_nome,
+                    p.data_nascimento                 AS pessoa_data_nascimento,
+                    p.cpf                             AS pessoa_cpf,
+                    p.email                           AS pessoa_email,
+                    p.telefone                        AS pessoa_telefone,
+                    p.status                          AS pessoa_status,
+                    (p.fk_titular IS NULL)            AS pessoa_titular,
+    
+                    c.id                              AS cargo_id,
+                    c.cargo                           AS cargo_cargo,
+    
+                    t.id                              AS tela_id,
+                    t.nome                            AS tela_nome,
+                    t.descricao                       AS tela_descricao,
+    
+                    pm.id                             AS permissao_id,
+                    pm.permissao                      AS permissao_permissao,
+                    pm.descricao                      AS permissao_descricao
+                FROM funcionario f
+                JOIN usuario u
+                    ON u.id = f.fk_usuario
+                JOIN pessoa p
+                    ON p.id = f.fk_pessoa
+                JOIN cargo c
+                    ON c.id = f.fk_cargo
+                LEFT JOIN cargo_tela ct
+                    ON ct.cargo_id = c.id
+                LEFT JOIN tela t
+                    ON t.id = ct.tela_id
+                LEFT JOIN cargo_permissao cp
+                    ON cp.fk_cargo = c.id
+                LEFT JOIN permissao pm
+                    ON pm.id = cp.fk_permissao
+                WHERE u.id = ?
+                ORDER BY c.id, t.id, pm.id
+                """;
+
+        try {
+            return jdbcTemplate.query(
+                    sql,
+                    rs -> {
+                        Funcionario.Authorization authorization = null;
+
+                        Long cargoId = null;
+                        String cargoDescricao = null;
+
+                        Map<Long, Tela> telasMap = new LinkedHashMap<>();
+                        Map<Long, Permissao> permissoesMap = new LinkedHashMap<>();
+
+                        while (rs.next()) {
+                            if (authorization == null) {
+                                cargoId = rs.getObject("cargo_id", Long.class);
+                                cargoDescricao = rs.getString("cargo_cargo");
+
+                                authorization =
+                                        new Funcionario.Authorization(
+                                                rs.getLong("funcionario_id"),
+                                                Usuario.ROW_MAPPER.mapRow(rs, rs.getRow()),
+                                                Pessoa.DadosPrincipais.ROW_MAPPER.mapRow(rs, rs.getRow()),
+                                                rs.getObject("funcionario_data_admissao", LocalDate.class),
+                                                new Cargo(
+                                                        cargoId,
+                                                        cargoDescricao,
+                                                        List.of()));
+                            }
+
+                            Tela tela = Tela.ROW_MAPPER.mapRow(rs, rs.getRow());
+                            if (tela != null) {
+                                telasMap.putIfAbsent(
+                                        tela.id(),
+                                        new Tela(
+                                                tela.id(),
+                                                tela.nome(),
+                                                tela.descricao(),
+                                                new ArrayList<>()));
+                            }
+
+                            Permissao permissao = Permissao.ROW_MAPPER.mapRow(rs, rs.getRow());
+                            if (permissao != null) {
+                                permissoesMap.putIfAbsent(permissao.id(), permissao);
+                            }
+                        }
+
+                        if (authorization == null) {
+                            return null;
+                        }
+
+                        List<Permissao> permissoes = new ArrayList<>(permissoesMap.values());
+
+                        List<Tela> telas =
+                                telasMap.values().stream()
+                                        .map(tela ->
+                                                new Tela(
+                                                        tela.id(),
+                                                        tela.nome(),
+                                                        tela.descricao(),
+                                                        permissoes))
+                                        .toList();
+
+                        Cargo cargo =
+                                new Cargo(
+                                        authorization.cargo().id(),
+                                        authorization.cargo().descricao(),
+                                        telas);
+
+                        return new Funcionario.Authorization(
+                                authorization.id(),
+                                authorization.usuario(),
+                                authorization.pessoa(),
+                                authorization.data_admissao(),
+                                cargo);
+                    },
+                    usuario.id());
+        } catch (EmptyResultDataAccessException ex) {
+            return null;
+        }
+    }
+
+
 }

@@ -8,18 +8,28 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import saas.hotel.istoepousada.dto.Funcionario;
+import saas.hotel.istoepousada.dto.Login;
 import saas.hotel.istoepousada.dto.Usuario;
+import saas.hotel.istoepousada.handler.exceptions.InvalidTokenException;
+import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.handler.exceptions.UnauthorizedException;
+import saas.hotel.istoepousada.repository.FuncionarioRepository;
 import saas.hotel.istoepousada.repository.UsuarioRepository;
+import saas.hotel.istoepousada.security.JwtUtil;
 
 @Service
 public class UsuarioService {
 
   private final Logger log = LoggerFactory.getLogger(UsuarioService.class);
   private final UsuarioRepository repository;
+  private final FuncionarioRepository funcionarioRepository;
+  private final JwtUtil jwtUtil;
 
-  public UsuarioService(UsuarioRepository repository) {
+  public UsuarioService(UsuarioRepository repository, FuncionarioRepository funcionarioRepository, JwtUtil jwtUtil) {
     this.repository = repository;
+      this.funcionarioRepository = funcionarioRepository;
+      this.jwtUtil = jwtUtil;
   }
 
   @Transactional(readOnly = true)
@@ -85,12 +95,8 @@ public class UsuarioService {
   public boolean autenticar(String username, String senha) {
     boolean autenticado = repository.autenticar(username, gerarMD5(senha));
 
-    if (autenticado) {
-      log.info("Autenticação bem-sucedida para username={}", username);
-    } else {
-      log.warn("Tentativa de autenticação falhou para username={}", username);
-    }
-
+    if (autenticado) log.info("Autenticação bem-sucedida para username={}", username);
+    else log.warn("Tentativa de autenticação falhou para username={}", username);
     return autenticado;
   }
 
@@ -134,5 +140,25 @@ public class UsuarioService {
     } catch (NoSuchAlgorithmException e) {
       throw new RuntimeException("Erro ao gerar MD5", e);
     }
+  }
+
+  @Transactional(readOnly = true)
+  public Login login(Usuario.Request request) {
+    boolean autenticado = autenticar(request.username(), request.senha());
+    if (!autenticado) throw new UnauthorizedException("Credenciais inválidas");
+
+    var usuario = findByUsername(request.username());
+    Funcionario.Authorization funcionario = funcionarioRepository.funcionarioLogin(new Usuario.Id(usuario.id()));
+
+    if (funcionario == null)
+      throw new NotFoundException("Usuário não possui funcionário vinculado");
+
+    String token = jwtUtil.generateToken(funcionario);
+    return new Login(token);
+  }
+
+  public Funcionario.Authorization validarToken(String token) {
+    if (!jwtUtil.validateToken(token)) throw new InvalidTokenException("Token inválido");
+    return jwtUtil.getFuncionarioFromToken(token);
   }
 }

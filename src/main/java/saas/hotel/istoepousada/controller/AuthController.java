@@ -13,18 +13,19 @@ import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Login;
 import saas.hotel.istoepousada.dto.Usuario;
 import saas.hotel.istoepousada.service.AuthService;
+import saas.hotel.istoepousada.service.UsuarioService;
 
 @Tag(name = "Autenticação", description = "Endpoints de autenticação JWT")
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
-  private final AuthService authService;
+    private final UsuarioService usuarioService;
 
-  public AuthController(AuthService authService) {
-    this.authService = authService;
-  }
+    public AuthController(UsuarioService usuarioService) {
+        this.usuarioService = usuarioService;
+    }
 
-  @Operation(
+    @Operation(
       summary = "Login",
       description = "Autentica um funcionário e retorna um token JWT com seus dados e permissões")
   @ApiResponses({
@@ -61,7 +62,7 @@ public class AuthController {
                                 """)))
           @RequestBody
       Usuario.Request request) {
-    return authService.login(request);
+    return usuarioService.login(request);
   }
 
   @Operation(
@@ -79,6 +80,6 @@ public class AuthController {
   })
   @GetMapping("/validate")
   public Funcionario.Authorization validarToken(@RequestHeader("Authorization") String authHeader) {
-    return authService.validarToken(authHeader);
+    return usuarioService.validarToken(authHeader);
   }
 }

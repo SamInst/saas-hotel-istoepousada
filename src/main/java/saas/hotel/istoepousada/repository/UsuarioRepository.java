@@ -13,8 +13,12 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import saas.hotel.istoepousada.dto.Funcionario;
+import saas.hotel.istoepousada.dto.Login;
 import saas.hotel.istoepousada.dto.Usuario;
+import saas.hotel.istoepousada.handler.exceptions.InvalidTokenException;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
+import saas.hotel.istoepousada.handler.exceptions.UnauthorizedException;
 
 @Repository
 public class UsuarioRepository {
@@ -188,9 +192,10 @@ public class UsuarioRepository {
             """
             SELECT COUNT(*)
             FROM usuario
-            WHERE username = ? AND senha = ? AND bloqueado = false
+            WHERE username = ?
+            AND senha = ?
+            AND bloqueado = false
             """;
-
     Long count = jdbcTemplate.queryForObject(sql, Long.class, username, senhaMd5);
     return count > 0;
   }
