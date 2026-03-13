@@ -1,11 +1,11 @@
 package saas.hotel.istoepousada.repository;
 
+import java.util.List;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import saas.hotel.istoepousada.dto.Veiculo;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
-import java.util.List;
 
 @Repository
 public class VeiculoRepository {
@@ -18,7 +18,7 @@ public class VeiculoRepository {
 
   public Veiculo findById(Long id) {
     String sql =
-            """
+        """
             SELECT id, modelo, marca, ano, placa, cor
             FROM veiculo
             WHERE id = ?
@@ -33,7 +33,7 @@ public class VeiculoRepository {
 
   public List<Veiculo> findAll() {
     String sql =
-            """
+        """
             SELECT id, modelo, marca, ano, placa, cor
             FROM veiculo
             ORDER BY marca, modelo, placa
@@ -44,7 +44,7 @@ public class VeiculoRepository {
 
   public List<Veiculo> findAllByPessoaId(Long pessoa_id) {
     String sql =
-            """
+        """
             SELECT
                 v.id,
                 v.modelo,
@@ -63,24 +63,24 @@ public class VeiculoRepository {
 
   public Veiculo create(Veiculo.Request veiculo) {
     Long id =
-            jdbcTemplate.queryForObject(
-                    """
+        jdbcTemplate.queryForObject(
+            """
                     INSERT INTO veiculo (modelo, marca, ano, placa, cor)
                     VALUES (?, ?, ?, ?, ?)
                     RETURNING id
                     """,
-                    Long.class,
-                    veiculo.modelo(),
-                    veiculo.marca(),
-                    veiculo.ano(),
-                    veiculo.placa(),
-                    veiculo.cor());
-      return findById(id);
+            Long.class,
+            veiculo.modelo(),
+            veiculo.marca(),
+            veiculo.ano(),
+            veiculo.placa(),
+            veiculo.cor());
+    return findById(id);
   }
 
   public Veiculo update(Veiculo.Update veiculo) {
     jdbcTemplate.update(
-            """
+        """
             UPDATE veiculo
             SET
               modelo = ?,
@@ -90,19 +90,19 @@ public class VeiculoRepository {
               cor = ?
             WHERE id = ?
             """,
-            veiculo.modelo(),
-            veiculo.marca(),
-            veiculo.ano(),
-            veiculo.placa(),
-            veiculo.cor(),
-            veiculo.id());
+        veiculo.modelo(),
+        veiculo.marca(),
+        veiculo.ano(),
+        veiculo.placa(),
+        veiculo.cor(),
+        veiculo.id());
 
     return findById(veiculo.id());
   }
 
   public void vincularPessoa(Veiculo.Vincular vinculo) {
     String sql =
-            """
+        """
             INSERT INTO pessoa_veiculo (pessoa_id, veiculo_id, vinculo_ativo)
             VALUES (?, ?, true)
             ON CONFLICT (veiculo_id)
@@ -116,7 +116,7 @@ public class VeiculoRepository {
 
   public void setVinculoAtivo(Veiculo.Vincular vinculo) {
     String sql =
-            """
+        """
             INSERT INTO pessoa_veiculo (pessoa_id, veiculo_id, vinculo_ativo)
             VALUES (?, ?, ?)
             ON CONFLICT (veiculo_id)

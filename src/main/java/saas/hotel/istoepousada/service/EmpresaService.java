@@ -5,7 +5,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Empresa;
-import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.repository.EmpresaRepository;
 import saas.hotel.istoepousada.repository.PessoaRepository;
 
@@ -14,9 +13,7 @@ public class EmpresaService {
   private final EmpresaRepository empresaRepository;
   private final PessoaRepository pessoaRepository;
 
-  public EmpresaService(
-      EmpresaRepository empresaRepository,
-      PessoaRepository pessoaRepository) {
+  public EmpresaService(EmpresaRepository empresaRepository, PessoaRepository pessoaRepository) {
     this.empresaRepository = empresaRepository;
     this.pessoaRepository = pessoaRepository;
   }
@@ -28,7 +25,7 @@ public class EmpresaService {
 
   public Empresa salvar(Empresa.Update empresa) {
     validarEmpresa(empresa);
-      return empresaRepository.create(empresa);
+    return empresaRepository.create(empresa);
   }
 
   public void vincularPessoa(Empresa.Vincular vinculo) {

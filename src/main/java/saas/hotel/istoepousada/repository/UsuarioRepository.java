@@ -13,12 +13,8 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import saas.hotel.istoepousada.dto.Funcionario;
-import saas.hotel.istoepousada.dto.Login;
 import saas.hotel.istoepousada.dto.Usuario;
-import saas.hotel.istoepousada.handler.exceptions.InvalidTokenException;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
-import saas.hotel.istoepousada.handler.exceptions.UnauthorizedException;
 
 @Repository
 public class UsuarioRepository {
@@ -30,14 +26,11 @@ public class UsuarioRepository {
   }
 
   private static final RowMapper<Usuario> USUARIO_ROW_MAPPER =
-          (rs, rowNum) ->
-                  new Usuario(
-                          rs.getLong("id"),
-                          rs.getString("username"),
-                          rs.getBoolean("bloqueado"));
+      (rs, rowNum) ->
+          new Usuario(rs.getLong("id"), rs.getString("username"), rs.getBoolean("bloqueado"));
 
   private static final String SELECT_BASE =
-          """
+      """
           SELECT
               u.id,
               u.username,
@@ -71,10 +64,8 @@ public class UsuarioRepository {
     }
 
     long total =
-            jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM usuario u" + where,
-                    Long.class,
-                    params.toArray());
+        jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM usuario u" + where, Long.class, params.toArray());
 
     if (total == 0) {
       return new PageImpl<>(List.of(), pageable, 0);
@@ -85,9 +76,9 @@ public class UsuarioRepository {
     queryParams.add(pageable.getOffset());
 
     String sql =
-            SELECT_BASE
-                    + where
-                    + """
+        SELECT_BASE
+            + where
+            + """
             ORDER BY u.username ASC
             LIMIT ? OFFSET ?
             """;
@@ -99,10 +90,7 @@ public class UsuarioRepository {
 
   public Usuario findById(Long id) {
     try {
-      return jdbcTemplate.queryForObject(
-              SELECT_BASE + " WHERE u.id = ? ",
-              USUARIO_ROW_MAPPER,
-              id);
+      return jdbcTemplate.queryForObject(SELECT_BASE + " WHERE u.id = ? ", USUARIO_ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
       throw new NotFoundException("Usuário não encontrado para o id: " + id);
     }
@@ -110,7 +98,7 @@ public class UsuarioRepository {
 
   public Usuario findByUsername(String username) {
     String sql =
-            """
+        """
             SELECT
                 u.id,
                 u.username,
@@ -134,7 +122,7 @@ public class UsuarioRepository {
 
   public Usuario create(String username, String senhaMd5) {
     String sql =
-            """
+        """
             INSERT INTO usuario (username, senha, bloqueado)
             VALUES (?, ?, false)
             """;
@@ -142,19 +130,15 @@ public class UsuarioRepository {
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
     jdbcTemplate.update(
-            connection -> {
-              PreparedStatement ps =
-                      connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-              ps.setString(1, username);
-              ps.setString(2, senhaMd5);
-              return ps;
-            },
-            keyHolder);
+        connection -> {
+          PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+          ps.setString(1, username);
+          ps.setString(2, senhaMd5);
+          return ps;
+        },
+        keyHolder);
 
-    Long generatedId =
-            keyHolder.getKey() != null
-                    ? keyHolder.getKey().longValue()
-                    : null;
+    Long generatedId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : null;
 
     if (generatedId == null) {
       throw new IllegalStateException("Não foi possível obter o id do usuário criado");
@@ -165,7 +149,7 @@ public class UsuarioRepository {
 
   public Usuario updateUsername(Long id, String username) {
     String sql =
-            """
+        """
             UPDATE usuario
             SET username = ?
             WHERE id = ?
@@ -189,7 +173,7 @@ public class UsuarioRepository {
 
   public boolean autenticar(String username, String senhaMd5) {
     String sql =
-            """
+        """
             SELECT COUNT(*)
             FROM usuario
             WHERE username = ?

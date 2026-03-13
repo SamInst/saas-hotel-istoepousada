@@ -1,18 +1,18 @@
-//package saas.hotel.istoepousada.repository;
+// package saas.hotel.istoepousada.repository;
 //
-//import java.sql.SQLException;
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//import java.util.*;
-//import org.springframework.dao.EmptyResultDataAccessException;
-//import org.springframework.jdbc.core.JdbcTemplate;
-//import org.springframework.jdbc.core.ResultSetExtractor;
-//import org.springframework.stereotype.Repository;
-//import org.springframework.transaction.annotation.Transactional;
-//import saas.hotel.istoepousada.dto.*;
+// import java.sql.SQLException;
+// import java.time.LocalDate;
+// import java.time.LocalDateTime;
+// import java.util.*;
+// import org.springframework.dao.EmptyResultDataAccessException;
+// import org.springframework.jdbc.core.JdbcTemplate;
+// import org.springframework.jdbc.core.ResultSetExtractor;
+// import org.springframework.stereotype.Repository;
+// import org.springframework.transaction.annotation.Transactional;
+// import saas.hotel.istoepousada.dto.*;
 //
-//@Repository
-//public class HistoricoHospedagemRepository {
+// @Repository
+// public class HistoricoHospedagemRepository {
 //
 //  private final JdbcTemplate jdbcTemplate;
 //
@@ -34,7 +34,8 @@
 //              + """
 //              WHERE dpf.pessoa_id = ?
 //                AND pe.id = ?
-//              ORDER BY pe.data_entrada DESC, d.numero_diaria ASC, d.data_inicio ASC, dp.representante DESC, p.nome ASC
+//              ORDER BY pe.data_entrada DESC, d.numero_diaria ASC, d.data_inicio ASC,
+// dp.representante DESC, p.nome ASC
 //              """;
 //
 //      HistoricoHospedagem historico =
@@ -64,7 +65,8 @@
 //        buildBaseSql()
 //            + where
 //            + """
-//              ORDER BY pe.data_entrada DESC, d.numero_diaria ASC, d.data_inicio ASC, dp.representante DESC, p.nome ASC
+//              ORDER BY pe.data_entrada DESC, d.numero_diaria ASC, d.data_inicio ASC,
+// dp.representante DESC, p.nome ASC
 //              """;
 //
 //    HistoricoHospedagem historico =
@@ -310,7 +312,8 @@
 //        valorTotalGeral += valorTotalHospedagem;
 //
 //        pernoitesOut.add(
-//            new HistoricoHospedagem.DadosPernoite(pAgg.pernoite, diariasOut, valorTotalHospedagem));
+//            new HistoricoHospedagem.DadosPernoite(pAgg.pernoite, diariasOut,
+// valorTotalHospedagem));
 //      }
 //
 //      String tipoHospedagem =
@@ -335,7 +338,8 @@
 //                  JOIN diaria d ON d.pernoite_id = pe.id
 //                  JOIN diaria_pessoa dp ON dp.diaria_id = d.id
 //                 WHERE dp.pessoa_id = ?
-//                 ORDER BY pe.data_saida DESC NULLS LAST, pe.data_entrada DESC NULLS LAST, pe.id DESC
+//                 ORDER BY pe.data_saida DESC NULLS LAST, pe.data_entrada DESC NULLS LAST, pe.id
+// DESC
 //                 LIMIT 1
 //                """;
 //    try {
@@ -381,4 +385,4 @@
 //      this.diaria = diaria;
 //    }
 //  }
-//}
+// }

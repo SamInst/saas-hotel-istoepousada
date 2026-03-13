@@ -2,7 +2,6 @@ package saas.hotel.istoepousada.repository;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,9 +13,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Quarto;
@@ -32,20 +28,20 @@ public class QuartoRepository {
   }
 
   private static final ResultSetExtractor<List<Quarto>> QUARTO_EXTRACTOR =
-          rs -> {
-            List<Quarto> list = new ArrayList<>();
-            int rowNum = 0;
-            while (rs.next()) {
-              list.add(Quarto.ROW_MAPPER.mapRow(rs, rowNum++));
-            }
-            return list;
-          };
+      rs -> {
+        List<Quarto> list = new ArrayList<>();
+        int rowNum = 0;
+        while (rs.next()) {
+          list.add(Quarto.ROW_MAPPER.mapRow(rs, rowNum++));
+        }
+        return list;
+      };
 
   public Page<Quarto> buscar(Long id, String termo, Quarto.Status status, Pageable pageable) {
     String baseFrom = " FROM public.quarto quarto ";
 
     String baseSelect =
-            """
+        """
             SELECT
               quarto.id                         AS quarto_id,
               quarto.descricao                  AS quarto_descricao,
@@ -89,10 +85,8 @@ public class QuartoRepository {
     Long total;
     try {
       total =
-              jdbcTemplate.queryForObject(
-                      "SELECT COUNT(*)" + baseFrom + where,
-                      Long.class,
-                      params.toArray());
+          jdbcTemplate.queryForObject(
+              "SELECT COUNT(*)" + baseFrom + where, Long.class, params.toArray());
     } catch (EmptyResultDataAccessException ex) {
       total = 0L;
     }
@@ -102,10 +96,10 @@ public class QuartoRepository {
     }
 
     String idsSql =
-            "SELECT quarto.id AS id"
-                    + baseFrom
-                    + where
-                    + """
+        "SELECT quarto.id AS id"
+            + baseFrom
+            + where
+            + """
             ORDER BY quarto.descricao ASC NULLS LAST, quarto.id ASC
             LIMIT ? OFFSET ?
             """;
@@ -115,7 +109,7 @@ public class QuartoRepository {
     idsParams.add(pageable.getOffset());
 
     List<Long> ids =
-            jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
+        jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
 
     if (ids.isEmpty()) {
       return new PageImpl<>(List.of(), pageable, total);
@@ -124,10 +118,10 @@ public class QuartoRepository {
     String in = String.join(",", Collections.nCopies(ids.size(), "?"));
 
     String pageSql =
-            baseSelect
-                    + " WHERE quarto.id IN ("
-                    + in
-                    + ") ORDER BY quarto.descricao ASC NULLS LAST, quarto.id ASC";
+        baseSelect
+            + " WHERE quarto.id IN ("
+            + in
+            + ") ORDER BY quarto.descricao ASC NULLS LAST, quarto.id ASC";
 
     List<Quarto> content = jdbcTemplate.query(pageSql, QUARTO_EXTRACTOR, ids.toArray());
 
@@ -141,7 +135,7 @@ public class QuartoRepository {
 
     try {
       String sql =
-              """
+          """
               SELECT
                 quarto.id                         AS quarto_id,
                 quarto.descricao                  AS quarto_descricao,
@@ -163,7 +157,9 @@ public class QuartoRepository {
 
   @Transactional
   public Quarto insert(Quarto.Request quarto) {
-    var quarto_id = jdbcTemplate.queryForObject("""
+    var quarto_id =
+        jdbcTemplate.queryForObject(
+            """
             INSERT INTO public.quarto (
               descricao,
               quantidade_pessoa,
@@ -181,8 +177,7 @@ public class QuartoRepository {
             quarto.quantidade_cama_casal(),
             quarto.quantidade_cama_solteiro(),
             quarto.quantidade_rede(),
-            quarto.quantidade_beliche()
-    );
+            quarto.quantidade_beliche());
 
     vincularCategoriaAtiva(quarto_id, quarto.categoria().id());
     return findByIdOrThrow(quarto_id);
@@ -193,7 +188,7 @@ public class QuartoRepository {
     findByIdOrThrow(request.id());
 
     String sql =
-            """
+        """
             UPDATE public.quarto SET
               descricao = ?,
               quantidade_pessoa = ?,
@@ -206,16 +201,16 @@ public class QuartoRepository {
             """;
 
     int rows =
-            jdbcTemplate.update(
-                    sql,
-                    request.descricao().trim(),
-                    request.quantidade_pessoas(),
-                    request.status().name(),
-                    request.quantidade_cama_casal(),
-                    request.quantidade_cama_solteiro(),
-                    request.quantidade_rede(),
-                    request.quantidade_beliche(),
-                    request.id());
+        jdbcTemplate.update(
+            sql,
+            request.descricao().trim(),
+            request.quantidade_pessoas(),
+            request.status().name(),
+            request.quantidade_cama_casal(),
+            request.quantidade_cama_solteiro(),
+            request.quantidade_rede(),
+            request.quantidade_beliche(),
+            request.id());
 
     if (rows == 0) {
       throw new NotFoundException("Quarto não encontrado para o id: " + request.id());
@@ -228,53 +223,53 @@ public class QuartoRepository {
 
   private void vincularCategoriaAtiva(Long quartoId, Long categoriaId) {
     jdbcTemplate.update(
-            """
+        """
             INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, ativo)
             VALUES (?, ?, true)
             """,
-            quartoId,
-            categoriaId);
+        quartoId,
+        categoriaId);
   }
 
   private void atualizarCategoriaAtiva(Long quartoId, Long categoriaId) {
     jdbcTemplate.update(
-            """
+        """
             UPDATE public.quarto_categoria
             SET ativo = false
             WHERE fk_quarto = ?
             """,
-            quartoId);
+        quartoId);
 
     Integer existenteAtivo =
-            jdbcTemplate.queryForObject(
-                    """
+        jdbcTemplate.queryForObject(
+            """
                     SELECT COUNT(*)
                     FROM public.quarto_categoria
                     WHERE fk_quarto = ? AND fk_categoria = ?
                     """,
-                    Integer.class,
-                    quartoId,
-                    categoriaId);
+            Integer.class,
+            quartoId,
+            categoriaId);
 
     if (existenteAtivo > 0) {
       jdbcTemplate.update(
-              """
+          """
               UPDATE public.quarto_categoria
               SET ativo = true
               WHERE fk_quarto = ? AND fk_categoria = ?
               """,
-              quartoId,
-              categoriaId);
+          quartoId,
+          categoriaId);
       return;
     }
 
     jdbcTemplate.update(
-            """
+        """
             INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, ativo)
             VALUES (?, ?, true)
             """,
-            quartoId,
-            categoriaId);
+        quartoId,
+        categoriaId);
   }
 
   private void setIntOrNull(PreparedStatement ps, int idx, Integer value) throws SQLException {

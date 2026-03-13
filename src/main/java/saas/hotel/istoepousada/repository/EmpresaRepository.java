@@ -1,5 +1,10 @@
 package saas.hotel.istoepousada.repository;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -12,59 +17,51 @@ import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
 @Repository
 public class EmpresaRepository {
-    private final JdbcTemplate jdbc_template;
-    private final PessoaRepository pessoa_repository;
+  private final JdbcTemplate jdbc_template;
+  private final PessoaRepository pessoa_repository;
 
-    public EmpresaRepository(JdbcTemplate jdbcTemplate, PessoaRepository pessoaRepository) {
-        this.jdbc_template = jdbcTemplate;
-        pessoa_repository = pessoaRepository;
+  public EmpresaRepository(JdbcTemplate jdbcTemplate, PessoaRepository pessoaRepository) {
+    this.jdbc_template = jdbcTemplate;
+    pessoa_repository = pessoaRepository;
+  }
+
+  public Page<Empresa> findByIdNomeOuCnpj(Long id, String termo, Pageable pageable) {
+    boolean has_id = id != null;
+    boolean has_termo = termo != null && !termo.trim().isEmpty();
+    String termo_trim = has_termo ? termo.trim() : null;
+    String search = has_termo ? "%" + termo_trim + "%" : null;
+
+    StringBuilder where = new StringBuilder(" WHERE 1=1 ");
+    List<Object> params = new ArrayList<>();
+
+    if (has_id) {
+      where.append(" AND e.id = ? ");
+      params.add(id);
     }
 
-    public Page<Empresa> findByIdNomeOuCnpj(Long id, String termo, Pageable pageable) {
-        boolean has_id = id != null;
-        boolean has_termo = termo != null && !termo.trim().isEmpty();
-        String termo_trim = has_termo ? termo.trim() : null;
-        String search = has_termo ? "%" + termo_trim + "%" : null;
+    if (has_termo) {
+      where.append(" AND (e.razao_social ILIKE ? OR e.nome_fantasia ILIKE ? OR e.cnpj = ?) ");
+      params.add(search);
+      params.add(search);
+      params.add(termo_trim);
+    }
 
-        StringBuilder where = new StringBuilder(" WHERE 1=1 ");
-        List<Object> params = new ArrayList<>();
+    long total =
+        jdbc_template.queryForObject(
+            "SELECT COUNT(*) FROM empresa e" + where, Long.class, params.toArray());
 
-        if (has_id) {
-            where.append(" AND e.id = ? ");
-            params.add(id);
-        }
+    if (total == 0) {
+      return new PageImpl<>(List.of(), pageable, 0);
+    }
 
-        if (has_termo) {
-            where.append(" AND (e.razao_social ILIKE ? OR e.nome_fantasia ILIKE ? OR e.cnpj = ?) ");
-            params.add(search);
-            params.add(search);
-            params.add(termo_trim);
-        }
+    List<Object> query_params = new ArrayList<>(params);
+    query_params.add(pageable.getPageSize());
+    query_params.add(pageable.getOffset());
 
-        long total =
-                jdbc_template.queryForObject(
-                        "SELECT COUNT(*) FROM empresa e" + where,
-                        Long.class,
-                        params.toArray());
-
-        if (total == 0) {
-            return new PageImpl<>(List.of(), pageable, 0);
-        }
-
-        List<Object> query_params = new ArrayList<>(params);
-        query_params.add(pageable.getPageSize());
-        query_params.add(pageable.getOffset());
-
-        String sql =
-                """
+    String sql =
+        """
                         SELECT
                             e.id,
                             e.data_hora_registro,
@@ -85,60 +82,56 @@ public class EmpresaRepository {
                             e.status
                         FROM empresa e
                         """
-                        + where
-                        + """
+            + where
+            + """
                         ORDER BY e.razao_social
                         LIMIT ? OFFSET ?
                         """;
 
-        List<Empresa> empresas =
-                jdbc_template.query(sql, Empresa.ROW_MAPPER, query_params.toArray());
+    List<Empresa> empresas = jdbc_template.query(sql, Empresa.ROW_MAPPER, query_params.toArray());
 
-        List<Empresa> content =
-                empresas.stream()
-                        .map(
-                                empresa -> {
-                                    List<Pessoa> pessoas_vinculadas = findPessoasByEmpresaId(empresa.id());
-                                    return new Empresa(
-                                            empresa.id(),
-                                            empresa.data_hora_registro(),
-                                            empresa.razao_social(),
-                                            empresa.nome_fantasia(),
-                                            empresa.cnpj(),
-                                            empresa.telefone(),
-                                            empresa.email(),
-                                            empresa.endereco(),
-                                            empresa.cep(),
-                                            empresa.numero(),
-                                            empresa.complemento(),
-                                            empresa.pais(),
-                                            empresa.estado(),
-                                            empresa.municipio(),
-                                            empresa.bairro(),
-                                            empresa.tipo_empresa(),
-                                            empresa.status(),
-                                            new Funcionario.Nome(
-                                                    empresa.funcionario().id(),
-                                                    empresa.funcionario().nome()
-                                            ),
-                                            pessoas_vinculadas);
-                                })
-                        .toList();
+    List<Empresa> content =
+        empresas.stream()
+            .map(
+                empresa -> {
+                  List<Pessoa> pessoas_vinculadas = findPessoasByEmpresaId(empresa.id());
+                  return new Empresa(
+                      empresa.id(),
+                      empresa.data_hora_registro(),
+                      empresa.razao_social(),
+                      empresa.nome_fantasia(),
+                      empresa.cnpj(),
+                      empresa.telefone(),
+                      empresa.email(),
+                      empresa.endereco(),
+                      empresa.cep(),
+                      empresa.numero(),
+                      empresa.complemento(),
+                      empresa.pais(),
+                      empresa.estado(),
+                      empresa.municipio(),
+                      empresa.bairro(),
+                      empresa.tipo_empresa(),
+                      empresa.status(),
+                      new Funcionario.Nome(
+                          empresa.funcionario().id(), empresa.funcionario().nome()),
+                      pessoas_vinculadas);
+                })
+            .toList();
 
-        return new PageImpl<>(content, pageable, total);
-    }
+    return new PageImpl<>(content, pageable, total);
+  }
 
-    public Optional<Empresa> findById(Long id) {
-        Page<Empresa> page = findByIdNomeOuCnpj(id, null, Pageable.ofSize(1));
-        if (page.isEmpty()) throw new NotFoundException("Empresa não cadastrada para o id: " + id);
+  public Optional<Empresa> findById(Long id) {
+    Page<Empresa> page = findByIdNomeOuCnpj(id, null, Pageable.ofSize(1));
+    if (page.isEmpty()) throw new NotFoundException("Empresa não cadastrada para o id: " + id);
 
-        return Optional.of(page.getContent().getFirst());
-    }
+    return Optional.of(page.getContent().getFirst());
+  }
 
-
-    public Empresa create(Empresa.Update empresa) {
-        String sql =
-                """
+  public Empresa create(Empresa.Update empresa) {
+    String sql =
+        """
                         INSERT INTO empresa (
                             razao_social,
                             nome_fantasia,
@@ -154,42 +147,40 @@ public class EmpresaRepository {
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::empresa_status, ?)
                         """;
 
-        KeyHolder key_holder = new GeneratedKeyHolder();
+    KeyHolder key_holder = new GeneratedKeyHolder();
 
-        jdbc_template.update(
-                connection -> {
-                    PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-                    int idx = 1;
-                    ps.setString(idx++, empresa.razao_social());
-                    ps.setString(idx++, empresa.nome_fantasia());
-                    ps.setString(idx++, empresa.cnpj());
-                    ps.setString(idx++, empresa.telefone());
-                    ps.setString(idx++, empresa.email());
-                    ps.setString(idx++, empresa.endereco());
-                    ps.setString(idx++, empresa.cep());
-                    ps.setString(idx++, empresa.numero());
-                    ps.setString(idx++, empresa.complemento());
-                    ps.setString(
-                            idx,
-                            empresa.status() == null ? Empresa.Status.ATIVO.name() : empresa.status().name());
-                    ps.setLong(idx++, getFuncionarioIdLogado());
-                    return ps;
-                },
-                key_holder);
+    jdbc_template.update(
+        connection -> {
+          PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+          int idx = 1;
+          ps.setString(idx++, empresa.razao_social());
+          ps.setString(idx++, empresa.nome_fantasia());
+          ps.setString(idx++, empresa.cnpj());
+          ps.setString(idx++, empresa.telefone());
+          ps.setString(idx++, empresa.email());
+          ps.setString(idx++, empresa.endereco());
+          ps.setString(idx++, empresa.cep());
+          ps.setString(idx++, empresa.numero());
+          ps.setString(idx++, empresa.complemento());
+          ps.setString(
+              idx,
+              empresa.status() == null ? Empresa.Status.ATIVO.name() : empresa.status().name());
+          ps.setLong(idx++, getFuncionarioIdLogado());
+          return ps;
+        },
+        key_holder);
 
-        Long generated_id = key_holder.getKey() != null ? key_holder.getKey().longValue() : null;
+    Long generated_id = key_holder.getKey() != null ? key_holder.getKey().longValue() : null;
 
-        if (generated_id == null)
-            throw new IllegalStateException("Não foi possível obter o id da empresa criada");
+    if (generated_id == null)
+      throw new IllegalStateException("Não foi possível obter o id da empresa criada");
 
-        return findByIdNomeOuCnpj(generated_id, null, Pageable.ofSize(1))
-                .getContent()
-                .getFirst();
-    }
+    return findByIdNomeOuCnpj(generated_id, null, Pageable.ofSize(1)).getContent().getFirst();
+  }
 
-    public Empresa update(Empresa empresa) {
-        String sql =
-                """
+  public Empresa update(Empresa empresa) {
+    String sql =
+        """
                         UPDATE empresa SET
                             razao_social = ?,
                             nome_fantasia = ?,
@@ -209,35 +200,34 @@ public class EmpresaRepository {
                         WHERE id = ?
                         """;
 
-        String status = empresa.status() == null ? Empresa.Status.ATIVO.name() : empresa.status().name();
+    String status =
+        empresa.status() == null ? Empresa.Status.ATIVO.name() : empresa.status().name();
 
-        jdbc_template.update(
-                sql,
-                empresa.razao_social(),
-                empresa.nome_fantasia(),
-                empresa.cnpj(),
-                empresa.telefone(),
-                empresa.email(),
-                empresa.endereco(),
-                empresa.cep(),
-                empresa.numero(),
-                empresa.complemento(),
-                empresa.pais(),
-                empresa.estado(),
-                empresa.municipio(),
-                empresa.bairro(),
-                empresa.tipo_empresa(),
-                status,
-                empresa.id());
+    jdbc_template.update(
+        sql,
+        empresa.razao_social(),
+        empresa.nome_fantasia(),
+        empresa.cnpj(),
+        empresa.telefone(),
+        empresa.email(),
+        empresa.endereco(),
+        empresa.cep(),
+        empresa.numero(),
+        empresa.complemento(),
+        empresa.pais(),
+        empresa.estado(),
+        empresa.municipio(),
+        empresa.bairro(),
+        empresa.tipo_empresa(),
+        status,
+        empresa.id());
 
-        return findByIdNomeOuCnpj(empresa.id(), null, Pageable.ofSize(1))
-                .getContent()
-                .getFirst();
-    }
+    return findByIdNomeOuCnpj(empresa.id(), null, Pageable.ofSize(1)).getContent().getFirst();
+  }
 
-    public List<Pessoa> findPessoasByEmpresaId(Long empresa_id) {
-        String sql =
-                """
+  public List<Pessoa> findPessoasByEmpresaId(Long empresa_id) {
+    String sql =
+        """
                 SELECT
                     p.id,
                     p.data_hora_registro AS data_hora_registro,
@@ -272,22 +262,19 @@ public class EmpresaRepository {
                 ORDER BY p.nome
                 """;
 
-        return jdbc_template.query(sql, Pessoa.ROW_MAPPER, empresa_id);
-    }
+    return jdbc_template.query(sql, Pessoa.ROW_MAPPER, empresa_id);
+  }
 
+  public void vincularPessoa(Empresa.Vincular vinculo) {
+    String sql =
+        Boolean.TRUE.equals(vinculo.ativo())
+            ? "INSERT INTO empresa_pessoa (fk_empresa, fk_pessoa) VALUES (?, ?) ON CONFLICT DO NOTHING"
+            : "DELETE FROM empresa_pessoa WHERE fk_empresa = ? AND fk_pessoa = ?";
 
-    public void vincularPessoa(Empresa.Vincular vinculo) {
-        String sql =
-                Boolean.TRUE.equals(vinculo.ativo())
-                        ? "INSERT INTO empresa_pessoa (fk_empresa, fk_pessoa) VALUES (?, ?) ON CONFLICT DO NOTHING"
-                        : "DELETE FROM empresa_pessoa WHERE fk_empresa = ? AND fk_pessoa = ?";
+    jdbc_template.update(sql, vinculo.empresa().id(), vinculo.pessoa().id());
+  }
 
-        jdbc_template.update(sql, vinculo.empresa().id(), vinculo.pessoa().id());
-    }
-
-    public Long getFuncionarioIdLogado(){
-        return pessoa_repository.getFuncionarioPessoaIdFromRequest();
-    }
-
-
+  public Long getFuncionarioIdLogado() {
+    return pessoa_repository.getFuncionarioPessoaIdFromRequest();
+  }
 }

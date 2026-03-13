@@ -4,20 +4,17 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.CategoriaItem;
-import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
@@ -31,12 +28,12 @@ public class ItemRepository {
   }
 
   public Page<Item> buscar(
-          Long id,
-          String termo,
-          Long categoriaId,
-          LocalDate dataInicioCadastro,
-          LocalDate dataFimCadastro,
-          Pageable pageable) {
+      Long id,
+      String termo,
+      Long categoriaId,
+      LocalDate dataInicioCadastro,
+      LocalDate dataFimCadastro,
+      Pageable pageable) {
 
     boolean hasId = id != null;
     boolean hasTermo = termo != null && !termo.trim().isEmpty();
@@ -46,18 +43,18 @@ public class ItemRepository {
     String search = hasTermo ? "%" + termoTrim + "%" : null;
 
     String baseFrom =
-            """
+        """
             FROM item i
             INNER JOIN categoria_item c ON c.id = i.fk_categoria
             """;
 
     String baseSelect =
-            """
+        """
             SELECT
                 i.id          AS item_id,
                 i.descricao   AS item_descricao
             """
-                    + baseFrom;
+            + baseFrom;
 
     StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
     List<Object> params = new java.util.ArrayList<>();
@@ -102,12 +99,12 @@ public class ItemRepository {
     }
 
     String idsSql =
-            """
+        """
             SELECT i.id
             """
-                    + baseFrom
-                    + where
-                    + """
+            + baseFrom
+            + where
+            + """
         ORDER BY i.descricao ASC
         LIMIT ? OFFSET ?
         """;
@@ -117,7 +114,7 @@ public class ItemRepository {
     idsParams.add(pageable.getOffset());
 
     List<Long> ids =
-            jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
+        jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
 
     if (ids.isEmpty()) {
       return new PageImpl<>(List.of(), pageable, total);
@@ -126,7 +123,7 @@ public class ItemRepository {
     String inPlaceholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
 
     String pageSql =
-            baseSelect + " WHERE i.id IN (" + inPlaceholders + ") ORDER BY i.descricao ASC";
+        baseSelect + " WHERE i.id IN (" + inPlaceholders + ") ORDER BY i.descricao ASC";
 
     List<Item> content = jdbcTemplate.query(pageSql, Item.ROW_MAPPER, ids.toArray());
 
@@ -144,7 +141,7 @@ public class ItemRepository {
   @Transactional
   public Item insert(Item.Request request) {
     String sql =
-            """
+        """
             INSERT INTO item (descricao, fk_categoria, data_hora_registro)
             VALUES (?, ?, now())
             """;
@@ -152,14 +149,13 @@ public class ItemRepository {
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
     jdbcTemplate.update(
-            connection -> {
-              PreparedStatement ps =
-                      connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-              ps.setString(1, request.descricao().trim());
-              ps.setLong(2, request.categoria_item().id());
-              return ps;
-            },
-            keyHolder);
+        connection -> {
+          PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+          ps.setString(1, request.descricao().trim());
+          ps.setLong(2, request.categoria_item().id());
+          return ps;
+        },
+        keyHolder);
 
     Number generated = keyHolder.getKey();
     if (generated == null) {
@@ -172,15 +168,15 @@ public class ItemRepository {
   @Transactional
   public Item update(Item.Update request) {
     int rows =
-            jdbcTemplate.update(
-                    """
+        jdbcTemplate.update(
+            """
                     UPDATE item
                     SET descricao = ?, fk_categoria = ?
                     WHERE id = ?
                     """,
-                    request.descricao().trim(),
-                    request.categoria_item().id(),
-                    request.id());
+            request.descricao().trim(),
+            request.categoria_item().id(),
+            request.id());
 
     if (rows == 0) {
       throw new NotFoundException("Item não encontrado para o id: " + request.id());
@@ -191,7 +187,7 @@ public class ItemRepository {
 
   public List<Item.HistoricoPreco> listarHistoricoPrecoPorItemId(Long itemId) {
     String sql =
-            """
+        """
             SELECT
               hpi.id                   AS historico_preco_id,
               hpi.data_hora_registro   AS historico_preco_data_hora_registro,
@@ -209,7 +205,7 @@ public class ItemRepository {
 
   public List<Item.HistoricoReposicao> listarHistoricoReposicaoPorItemId(Long itemId) {
     String sql =
-            """
+        """
             SELECT
               he.id                   AS historico_reposicao_id,
               he.data_hora_reposicao  AS historico_reposicao_data_hora_registro,
@@ -231,7 +227,7 @@ public class ItemRepository {
   @Transactional
   public void registrarHistoricoPreco(Item.HistoricoPreco.Request request) {
     jdbcTemplate.update(
-            """
+        """
             INSERT INTO historico_preco_item (
                 data_hora_registro,
                 fk_item,
@@ -240,26 +236,24 @@ public class ItemRepository {
                 fk_funcionario
             ) VALUES (now(), ?, ?, ?, ?)
             """,
-            request.item().id(),
-            request.valor_compra_unidade(),
-            request.valor_venda_unidade(),
-            request.funcionario().id());
+        request.item().id(),
+        request.valor_compra_unidade(),
+        request.valor_venda_unidade(),
+        request.funcionario().id());
   }
 
   @Transactional
   public void registrarHistoricoReposicao(Item.HistoricoReposicao.Request request) {
     Long estoqueId =
-            jdbcTemplate.queryForObject(
-                    "SELECT id FROM estoque WHERE fk_item = ?",
-                    Long.class,
-                    request.item().id());
+        jdbcTemplate.queryForObject(
+            "SELECT id FROM estoque WHERE fk_item = ?", Long.class, request.item().id());
 
     if (estoqueId == null) {
       throw new NotFoundException("Estoque não encontrado para o item: " + request.item().id());
     }
 
     jdbcTemplate.update(
-            """
+        """
             INSERT INTO historico_estoque (
               fk_estoque,
               data_hora_reposicao,
@@ -267,12 +261,12 @@ public class ItemRepository {
               fk_funcionario
             ) VALUES (?, now(), ?, ?)
             """,
-            estoqueId,
-            request.quantidade_unidades(),
-            request.funcionario().id());
+        estoqueId,
+        request.quantidade_unidades(),
+        request.funcionario().id());
 
     jdbcTemplate.update(
-            """
+        """
             UPDATE estoque
             SET
               qtd_total_unidades = COALESCE(qtd_total_unidades, 0) + ?,
@@ -280,15 +274,15 @@ public class ItemRepository {
               data_hora_ultima_reposicao = now()
             WHERE id = ?
             """,
-            request.quantidade_unidades(),
-            request.fornecedor(),
-            estoqueId);
+        request.quantidade_unidades(),
+        request.fornecedor(),
+        estoqueId);
   }
 
   @Transactional
   public void atualizarHistoricoReposicao(Item.HistoricoReposicao.Update request) {
     String buscarSql =
-            """
+        """
             SELECT
               he.id AS historico_id,
               he.fk_estoque AS estoque_id,
@@ -297,31 +291,30 @@ public class ItemRepository {
             WHERE he.id = ?
             """;
 
-    var row =
-            jdbcTemplate.queryForMap(buscarSql, request.id());
+    var row = jdbcTemplate.queryForMap(buscarSql, request.id());
 
     Long estoqueId = ((Number) row.get("estoque_id")).longValue();
     Integer quantidadeAnterior =
-            row.get("quantidade_anterior") != null
-                    ? ((Number) row.get("quantidade_anterior")).intValue()
-                    : 0;
+        row.get("quantidade_anterior") != null
+            ? ((Number) row.get("quantidade_anterior")).intValue()
+            : 0;
 
     jdbcTemplate.update(
-            """
+        """
             UPDATE historico_estoque
             SET
               qtd_total_unidades = ?,
               fk_funcionario = ?
             WHERE id = ?
             """,
-            request.quantidade_unidades(),
-            request.funcionario().id(),
-            request.id());
+        request.quantidade_unidades(),
+        request.funcionario().id(),
+        request.id());
 
     int diferenca = request.quantidade_unidades() - quantidadeAnterior;
 
     jdbcTemplate.update(
-            """
+        """
             UPDATE estoque
             SET
               qtd_total_unidades = COALESCE(qtd_total_unidades, 0) + ?,
@@ -329,39 +322,35 @@ public class ItemRepository {
               data_hora_ultima_reposicao = now()
             WHERE id = ?
             """,
-            diferenca,
-            request.fornecedor(),
-            estoqueId);
+        diferenca,
+        request.fornecedor(),
+        estoqueId);
   }
 
   @Transactional
   public Long criarCategoria(CategoriaItem.Request request) {
     String sql =
-            """
+        """
             INSERT INTO categoria_item (categoria, descricao, data_registro_categoria)
             VALUES (?, ?, now())
             RETURNING id
             """;
 
-    return jdbcTemplate.queryForObject(
-            sql,
-            Long.class,
-            request.nome().trim(),
-            request.descricao());
+    return jdbcTemplate.queryForObject(sql, Long.class, request.nome().trim(), request.descricao());
   }
 
   @Transactional
   public void atualizarCategoria(Long id, CategoriaItem.Request request) {
     int rows =
-            jdbcTemplate.update(
-                    """
+        jdbcTemplate.update(
+            """
                     UPDATE categoria_item
                     SET categoria = ?, descricao = ?
                     WHERE id = ?
                     """,
-                    request.nome().trim(),
-                    request.descricao(),
-                    id);
+            request.nome().trim(),
+            request.descricao(),
+            id);
 
     if (rows == 0) {
       throw new NotFoundException("Categoria não encontrada para o id: " + id);
@@ -370,7 +359,7 @@ public class ItemRepository {
 
   public List<CategoriaItem> listarCategorias() {
     String sql =
-            """
+        """
             SELECT
               c.id                       AS categoria_id,
               NULL                       AS categoria_funcionario_id,
@@ -387,7 +376,7 @@ public class ItemRepository {
 
   public CategoriaItem findCategoriaById(Long id) {
     String sql =
-            """
+        """
             SELECT
               c.id                       AS categoria_id,
               NULL                       AS categoria_funcionario_id,

@@ -71,8 +71,7 @@ public class QuartoService {
       throw new IllegalArgumentException("quantidade_rede não pode ser negativo.");
     if (quarto.quantidade_beliche() != null && quarto.quantidade_beliche() < 0)
       throw new IllegalArgumentException("quantidade_beliche não pode ser negativo.");
-    if (quarto.status() == null)
-      throw new IllegalArgumentException("Status é obrigatório.");
+    if (quarto.status() == null) throw new IllegalArgumentException("Status é obrigatório.");
     if (quarto.descricao() == null || quarto.descricao().isBlank())
       throw new IllegalArgumentException("Descrição é obrigatória.");
     if (quarto.categoria() == null || quarto.categoria().id() == null)

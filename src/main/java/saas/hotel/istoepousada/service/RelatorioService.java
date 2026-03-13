@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.service;
 
+import java.time.LocalDate;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -7,60 +8,57 @@ import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Relatorio;
 import saas.hotel.istoepousada.repository.RelatorioRepository;
 
-import java.time.LocalDate;
-
 @Service
 public class RelatorioService {
-    private final RelatorioRepository relatorioRepository;
+  private final RelatorioRepository relatorioRepository;
 
-    public RelatorioService(
-            RelatorioRepository relatorioRepository) {
-        this.relatorioRepository = relatorioRepository;
-    }
+  public RelatorioService(RelatorioRepository relatorioRepository) {
+    this.relatorioRepository = relatorioRepository;
+  }
 
-    public Relatorio.Extrato buscar(
-            Long id,
-            LocalDate dataInicio,
-            LocalDate dataFim,
-            Long funcionarioId,
-            Long quartoId,
-            Long tipoPagamentoId,
-            Relatorio.Registro registro,
-            Boolean despesaPessoal,
-            Pageable pageable) {
-        if (dataInicio == null && dataFim == null) {
-            LocalDate hoje = LocalDate.now();
-            dataInicio = hoje.minusDays(1);
-            dataFim = hoje;
-        }
-        return relatorioRepository.buscar(
-                id,
-                dataInicio,
-                dataFim,
-                funcionarioId,
-                quartoId,
-                tipoPagamentoId,
-                registro,
-                despesaPessoal,
-                pageable);
+  public Relatorio.Extrato buscar(
+      Long id,
+      LocalDate dataInicio,
+      LocalDate dataFim,
+      Long funcionarioId,
+      Long quartoId,
+      Long tipoPagamentoId,
+      Relatorio.Registro registro,
+      Boolean despesaPessoal,
+      Pageable pageable) {
+    if (dataInicio == null && dataFim == null) {
+      LocalDate hoje = LocalDate.now();
+      dataInicio = hoje.minusDays(1);
+      dataFim = hoje;
     }
+    return relatorioRepository.buscar(
+        id,
+        dataInicio,
+        dataFim,
+        funcionarioId,
+        quartoId,
+        tipoPagamentoId,
+        registro,
+        despesaPessoal,
+        pageable);
+  }
 
-    @Transactional
-    public Relatorio criar(Relatorio.Request request) {
-        validarRequest(request);
-        return relatorioRepository.insert(request);
-    }
+  @Transactional
+  public Relatorio criar(Relatorio.Request request) {
+    validarRequest(request);
+    return relatorioRepository.insert(request);
+  }
 
-    @Transactional
-    public Relatorio atualizar(Relatorio.Update relatorio) {
-        if (relatorio.id() == null) throw new IllegalArgumentException("id é obrigatório.");
-        return relatorioRepository.update(relatorio);
-    }
+  @Transactional
+  public Relatorio atualizar(Relatorio.Update relatorio) {
+    if (relatorio.id() == null) throw new IllegalArgumentException("id é obrigatório.");
+    return relatorioRepository.update(relatorio);
+  }
 
-    private void validarRequest(Relatorio.Request request) {
-        if (request == null) throw new IllegalArgumentException("Request é obrigatória.");
-        if (!StringUtils.hasText(request.relatorio()))
-            throw new IllegalArgumentException("Descrição do relatório é obrigatória.");
-        if (request.valor() == null) throw new IllegalArgumentException("valor é obrigatório.");
-    }
+  private void validarRequest(Relatorio.Request request) {
+    if (request == null) throw new IllegalArgumentException("Request é obrigatória.");
+    if (!StringUtils.hasText(request.relatorio()))
+      throw new IllegalArgumentException("Descrição do relatório é obrigatória.");
+    if (request.valor() == null) throw new IllegalArgumentException("valor é obrigatório.");
+  }
 }

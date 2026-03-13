@@ -145,7 +145,8 @@ public class CargoController {
   })
   @PutMapping("/cargo/{id}")
   public Cargo atualizar(
-      @Parameter(description = "ID do descricao", example = "1", required = true) @PathVariable Long id,
+      @Parameter(description = "ID do descricao", example = "1", required = true) @PathVariable
+          Long id,
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
               description = "Dados para atualização do descricao",
               required = true,

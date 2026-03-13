@@ -26,10 +26,11 @@ public class UsuarioService {
   private final FuncionarioRepository funcionarioRepository;
   private final JwtUtil jwtUtil;
 
-  public UsuarioService(UsuarioRepository repository, FuncionarioRepository funcionarioRepository, JwtUtil jwtUtil) {
+  public UsuarioService(
+      UsuarioRepository repository, FuncionarioRepository funcionarioRepository, JwtUtil jwtUtil) {
     this.repository = repository;
-      this.funcionarioRepository = funcionarioRepository;
-      this.jwtUtil = jwtUtil;
+    this.funcionarioRepository = funcionarioRepository;
+    this.jwtUtil = jwtUtil;
   }
 
   @Transactional(readOnly = true)
@@ -111,7 +112,7 @@ public class UsuarioService {
     String usernameTrim = update.username().trim();
 
     if (!usernameTrim.equalsIgnoreCase(atual.username())
-            && repository.existsByUsername(usernameTrim)) {
+        && repository.existsByUsername(usernameTrim)) {
       throw new IllegalArgumentException("Username já existe: " + usernameTrim);
     }
 
@@ -148,7 +149,8 @@ public class UsuarioService {
     if (!autenticado) throw new UnauthorizedException("Credenciais inválidas");
 
     var usuario = findByUsername(request.username());
-    Funcionario.Authorization funcionario = funcionarioRepository.funcionarioLogin(new Usuario.Id(usuario.id()));
+    Funcionario.Authorization funcionario =
+        funcionarioRepository.funcionarioLogin(new Usuario.Id(usuario.id()));
 
     if (funcionario == null)
       throw new NotFoundException("Usuário não possui funcionário vinculado");

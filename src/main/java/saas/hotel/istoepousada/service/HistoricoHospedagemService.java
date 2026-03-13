@@ -1,15 +1,15 @@
-//package saas.hotel.istoepousada.service;
+// package saas.hotel.istoepousada.service;
 //
-//import java.time.LocalDate;
-//import java.util.Optional;
-//import org.springframework.stereotype.Service;
-//import org.springframework.transaction.annotation.Transactional;
-//import saas.hotel.istoepousada.dto.HistoricoHospedagem;
-//import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
-//import saas.hotel.istoepousada.repository.HistoricoHospedagemRepository;
+// import java.time.LocalDate;
+// import java.util.Optional;
+// import org.springframework.stereotype.Service;
+// import org.springframework.transaction.annotation.Transactional;
+// import saas.hotel.istoepousada.dto.HistoricoHospedagem;
+// import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
+// import saas.hotel.istoepousada.repository.HistoricoHospedagemRepository;
 //
-//@Service
-//public class HistoricoHospedagemService {
+// @Service
+// public class HistoricoHospedagemService {
 //
 //  private final HistoricoHospedagemRepository historicoHospedagemRepository;
 //
@@ -31,4 +31,4 @@
 //            new NotFoundException(
 //                "Nenhum histórico de hospedagem encontrado para a pessoa informada."));
 //  }
-//}
+// }

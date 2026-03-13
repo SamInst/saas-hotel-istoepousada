@@ -1,30 +1,30 @@
-//package saas.hotel.istoepousada.controller;
+// package saas.hotel.istoepousada.controller;
 //
-//import io.swagger.v3.oas.annotations.Operation;
-//import io.swagger.v3.oas.annotations.Parameter;
-//import io.swagger.v3.oas.annotations.media.ArraySchema;
-//import io.swagger.v3.oas.annotations.media.Content;
-//import io.swagger.v3.oas.annotations.media.ExampleObject;
-//import io.swagger.v3.oas.annotations.media.Schema;
-//import io.swagger.v3.oas.annotations.responses.ApiResponse;
-//import io.swagger.v3.oas.annotations.responses.ApiResponses;
-//import io.swagger.v3.oas.annotations.tags.Tag;
-//import java.util.List;
-//import org.springframework.http.MediaType;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.web.bind.annotation.*;
-//import saas.hotel.istoepousada.dto.EmpresaResponse;
-//import saas.hotel.istoepousada.dto.Endereco;
-//import saas.hotel.istoepousada.dto.Objeto;
-//import saas.hotel.istoepousada.service.EnderecoService;
+// import io.swagger.v3.oas.annotations.Operation;
+// import io.swagger.v3.oas.annotations.Parameter;
+// import io.swagger.v3.oas.annotations.media.ArraySchema;
+// import io.swagger.v3.oas.annotations.media.Content;
+// import io.swagger.v3.oas.annotations.media.ExampleObject;
+// import io.swagger.v3.oas.annotations.media.Schema;
+// import io.swagger.v3.oas.annotations.responses.ApiResponse;
+// import io.swagger.v3.oas.annotations.responses.ApiResponses;
+// import io.swagger.v3.oas.annotations.tags.Tag;
+// import java.util.List;
+// import org.springframework.http.MediaType;
+// import org.springframework.http.ResponseEntity;
+// import org.springframework.web.bind.annotation.*;
+// import saas.hotel.istoepousada.dto.EmpresaResponse;
+// import saas.hotel.istoepousada.dto.Endereco;
+// import saas.hotel.istoepousada.dto.Objeto;
+// import saas.hotel.istoepousada.service.EnderecoService;
 //
-//@Tag(
+// @Tag(
 //    name = "Localidade (Endereço)",
 //    description = "Endpoints utilitários para preencher combobox de País, Estado e Município.")
-//@RestController
-//@RequestMapping("")
-//@CrossOrigin(origins = "*")
-//public class LocalidadeController {
+// @RestController
+// @RequestMapping("")
+// @CrossOrigin(origins = "*")
+// public class LocalidadeController {
 //
 //  private final EnderecoService enderecoService;
 //
@@ -35,7 +35,8 @@
 //  @Operation(
 //      summary = "Buscar empresa por CNPJ",
 //      description =
-//          "Consulta o CNPJ na API CNPJA e retorna os dados da empresa com endereço completo incluindo IDs do banco de dados.")
+//          "Consulta o CNPJ na API CNPJA e retorna os dados da empresa com endereço completo
+// incluindo IDs do banco de dados.")
 //  @ApiResponses({
 //    @ApiResponse(
 //        responseCode = "200",
@@ -88,7 +89,8 @@
 //  @Operation(
 //      summary = "Buscar endereço por CEP",
 //      description =
-//          "Consulta o CEP no ViaCEP e retorna o endereço completo com IDs de país, estado e município do banco de dados.")
+//          "Consulta o CEP no ViaCEP e retorna o endereço completo com IDs de país, estado e
+// município do banco de dados.")
 //  @ApiResponses({
 //    @ApiResponse(
 //        responseCode = "200",
@@ -193,7 +195,8 @@
 //  @Operation(
 //      summary = "Listar municípios por estado",
 //      description =
-//          "Retorna os municípios vinculados a um estado (estado) para preencher o combobox de município.")
+//          "Retorna os municípios vinculados a um estado (estado) para preencher o combobox de
+// município.")
 //  @ApiResponses({
 //    @ApiResponse(
 //        responseCode = "200",
@@ -222,4 +225,4 @@
 //    List<Objeto> response = enderecoService.listarMunicipios(estado);
 //    return ResponseEntity.ok(response);
 //  }
-//}
+// }

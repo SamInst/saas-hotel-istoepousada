@@ -16,12 +16,12 @@ import saas.hotel.istoepousada.repository.HistoricoRecebidosFuncionarioRepositor
 public class HistoricoRecebidosFuncionarioService {
 
   private static final Path UPLOAD_DIR =
-          Path.of("storage", "comprovantes", "recebidos-funcionario");
+      Path.of("storage", "comprovantes", "recebidos-funcionario");
 
   private final HistoricoRecebidosFuncionarioRepository historicoRecebidosFuncionarioRepository;
 
   public HistoricoRecebidosFuncionarioService(
-          HistoricoRecebidosFuncionarioRepository historicoRecebidosFuncionarioRepository) {
+      HistoricoRecebidosFuncionarioRepository historicoRecebidosFuncionarioRepository) {
     this.historicoRecebidosFuncionarioRepository = historicoRecebidosFuncionarioRepository;
   }
 
@@ -33,7 +33,8 @@ public class HistoricoRecebidosFuncionarioService {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public Funcionario.Historico.Recebido inserir(Funcionario.Historico.Recebido.Request recebido) throws IOException {
+  public Funcionario.Historico.Recebido inserir(Funcionario.Historico.Recebido.Request recebido)
+      throws IOException {
 
     if (recebido.historico().id() == null)
       throw new IllegalArgumentException("ID do histórico do funcionário é obrigatório.");
@@ -43,25 +44,24 @@ public class HistoricoRecebidosFuncionarioService {
     String pathArquivo = salvarArquivo(recebido.pagamento().arquivo());
 
     Funcionario.Historico.Recebido.Request requestComArquivo =
-            new Funcionario.Historico.Recebido.Request(
-                    recebido.funcionario(),
-                    recebido.historico(),
-                    recebido.data_hora_inicio(),
-                    recebido.data_hora_fim(),
-                    recebido.data_hora_pagamento(),
-                    recebido.pagamento(),
-                    pathArquivo);
+        new Funcionario.Historico.Recebido.Request(
+            recebido.funcionario(),
+            recebido.historico(),
+            recebido.data_hora_inicio(),
+            recebido.data_hora_fim(),
+            recebido.data_hora_pagamento(),
+            recebido.pagamento(),
+            pathArquivo);
 
     return historicoRecebidosFuncionarioRepository.insert(recebido);
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public Funcionario.Historico.Recebido atualizar(Funcionario.Historico.Recebido.Update recebido) throws IOException {
-    if (recebido == null)
-      throw new IllegalArgumentException("Dados do recebido são obrigatórios.");
+  public Funcionario.Historico.Recebido atualizar(Funcionario.Historico.Recebido.Update recebido)
+      throws IOException {
+    if (recebido == null) throw new IllegalArgumentException("Dados do recebido são obrigatórios.");
 
-    if (recebido.id() == null)
-      throw new IllegalArgumentException("ID do recebido é obrigatório.");
+    if (recebido.id() == null) throw new IllegalArgumentException("ID do recebido é obrigatório.");
 
     if (recebido.data_hora_inicio() == null)
       throw new IllegalArgumentException("Data/hora de início é obrigatória.");
@@ -114,15 +114,15 @@ public class HistoricoRecebidosFuncionarioService {
       throw new IllegalArgumentException("Pagamento é obrigatório.");
     }
     if (request.pagamento().tipo_pagamento() == null
-            || request.pagamento().tipo_pagamento().id() == null) {
+        || request.pagamento().tipo_pagamento().id() == null) {
       throw new IllegalArgumentException("Tipo de pagamento é obrigatório.");
     }
     if (request.pagamento().funcionario() == null
-            || request.pagamento().funcionario().id() == null) {
+        || request.pagamento().funcionario().id() == null) {
       throw new IllegalArgumentException("Funcionário do pagamento é obrigatório.");
     }
     if (request.pagamento().nome_pagador() == null
-            || request.pagamento().nome_pagador().isBlank()) {
+        || request.pagamento().nome_pagador().isBlank()) {
       throw new IllegalArgumentException("Nome do pagador é obrigatório.");
     }
     if (request.pagamento().valor() == null) {

@@ -1,12 +1,12 @@
-//package saas.hotel.istoepousada.dto;
+// package saas.hotel.istoepousada.dto;
 //
-//import com.fasterxml.jackson.annotation.JsonFormat;
+// import com.fasterxml.jackson.annotation.JsonFormat;
 //
-//import java.time.LocalTime;
-//import java.util.List;
-//import java.util.Map;
+// import java.time.LocalTime;
+// import java.util.List;
+// import java.util.Map;
 //
-//public record QuartoResponse(List<QuartoData> datas) {
+// public record QuartoResponse(List<QuartoData> datas) {
 //  public record QuartoData(
 //      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data,
 //      Integer quantidade_total_hospedados,
@@ -228,4 +228,4 @@
 //            LocalTime hora_checkout
 //    ){}
 //  }
-//}
+// }

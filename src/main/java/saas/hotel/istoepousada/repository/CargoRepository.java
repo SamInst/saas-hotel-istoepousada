@@ -29,7 +29,7 @@ public class CargoRepository {
   }
 
   private static final String SELECT_WITH_TELAS_PERMISSOES =
-          """
+      """
           SELECT
               c.id          AS cargo_id,
               c.descricao       AS cargo_cargo,
@@ -47,104 +47,96 @@ public class CargoRepository {
           """;
 
   private static final RowMapper<Cargo> CARGO_ROW_MAPPER =
-          (rs, rowNum) ->
-                  new Cargo(
-                          rs.getLong("cargo_id"),
-                          rs.getString("cargo_cargo"),
-                          List.of());
+      (rs, rowNum) -> new Cargo(rs.getLong("cargo_id"), rs.getString("cargo_cargo"), List.of());
 
   private static final RowMapper<Tela> TELA_ROW_MAPPER =
-          (rs, rowNum) -> {
-            Long telaId = rs.getObject("tela_id", Long.class);
-            if (telaId == null) return null;
+      (rs, rowNum) -> {
+        Long telaId = rs.getObject("tela_id", Long.class);
+        if (telaId == null) return null;
 
-            return new Tela(
-                    telaId,
-                    rs.getString("tela_nome"),
-                    rs.getString("tela_descricao"),
-                    List.of());
-          };
+        return new Tela(
+            telaId, rs.getString("tela_nome"), rs.getString("tela_descricao"), List.of());
+      };
 
   private static final RowMapper<Permissao> PERMISSAO_ROW_MAPPER =
-          (rs, rowNum) -> {
-            Long permissaoId = rs.getObject("permissao_id", Long.class);
-            if (permissaoId == null) return null;
+      (rs, rowNum) -> {
+        Long permissaoId = rs.getObject("permissao_id", Long.class);
+        if (permissaoId == null) return null;
 
-            return new Permissao(
-                    permissaoId,
-                    rs.getString("permissao_permissao"),
-                    rs.getString("permissao_descricao"));
-          };
+        return new Permissao(
+            permissaoId, rs.getString("permissao_permissao"), rs.getString("permissao_descricao"));
+      };
 
   private static final ResultSetExtractor<List<Cargo>> CARGO_WITH_TELAS_PERMISSOES_EXTRACTOR =
-          rs -> {
-            Map<Long, Cargo> cargoMap = new LinkedHashMap<>();
-            Map<Long, LinkedHashMap<Long, Tela>> telasPorCargo = new HashMap<>();
-            Map<Long, Map<Long, List<Permissao>>> permissoesPorCargoTela = new HashMap<>();
-            Map<Long, Map<Long, Set<Long>>> permissaoIdsPorCargoTela = new HashMap<>();
+      rs -> {
+        Map<Long, Cargo> cargoMap = new LinkedHashMap<>();
+        Map<Long, LinkedHashMap<Long, Tela>> telasPorCargo = new HashMap<>();
+        Map<Long, Map<Long, List<Permissao>>> permissoesPorCargoTela = new HashMap<>();
+        Map<Long, Map<Long, Set<Long>>> permissaoIdsPorCargoTela = new HashMap<>();
 
-            int rowNum = 0;
+        int rowNum = 0;
 
-            while (rs.next()) {
-              Long cargoId = rs.getLong("cargo_id");
+        while (rs.next()) {
+          Long cargoId = rs.getLong("cargo_id");
 
-              if (!cargoMap.containsKey(cargoId)) {
-                Cargo cargo = CARGO_ROW_MAPPER.mapRow(rs, rowNum);
-                cargoMap.put(cargoId, cargo);
-                telasPorCargo.put(cargoId, new LinkedHashMap<>());
-                permissoesPorCargoTela.put(cargoId, new HashMap<>());
-                permissaoIdsPorCargoTela.put(cargoId, new HashMap<>());
+          if (!cargoMap.containsKey(cargoId)) {
+            Cargo cargo = CARGO_ROW_MAPPER.mapRow(rs, rowNum);
+            cargoMap.put(cargoId, cargo);
+            telasPorCargo.put(cargoId, new LinkedHashMap<>());
+            permissoesPorCargoTela.put(cargoId, new HashMap<>());
+            permissaoIdsPorCargoTela.put(cargoId, new HashMap<>());
+          }
+
+          Tela tela = TELA_ROW_MAPPER.mapRow(rs, rowNum);
+          if (tela != null) {
+            telasPorCargo.get(cargoId).putIfAbsent(tela.id(), tela);
+
+            Permissao permissao = PERMISSAO_ROW_MAPPER.mapRow(rs, rowNum);
+            if (permissao != null) {
+              permissoesPorCargoTela
+                  .get(cargoId)
+                  .computeIfAbsent(tela.id(), k -> new ArrayList<>());
+
+              permissaoIdsPorCargoTela
+                  .get(cargoId)
+                  .computeIfAbsent(tela.id(), k -> new HashSet<>());
+
+              if (permissaoIdsPorCargoTela.get(cargoId).get(tela.id()).add(permissao.id())) {
+                permissoesPorCargoTela.get(cargoId).get(tela.id()).add(permissao);
               }
-
-              Tela tela = TELA_ROW_MAPPER.mapRow(rs, rowNum);
-              if (tela != null) {
-                telasPorCargo.get(cargoId).putIfAbsent(tela.id(), tela);
-
-                Permissao permissao = PERMISSAO_ROW_MAPPER.mapRow(rs, rowNum);
-                if (permissao != null) {
-                  permissoesPorCargoTela
-                          .get(cargoId)
-                          .computeIfAbsent(tela.id(), k -> new ArrayList<>());
-
-                  permissaoIdsPorCargoTela
-                          .get(cargoId)
-                          .computeIfAbsent(tela.id(), k -> new HashSet<>());
-
-                  if (permissaoIdsPorCargoTela.get(cargoId).get(tela.id()).add(permissao.id())) {
-                    permissoesPorCargoTela.get(cargoId).get(tela.id()).add(permissao);
-                  }
-                }
-              }
-
-              rowNum++;
             }
+          }
 
-            List<Cargo> result = new ArrayList<>();
+          rowNum++;
+        }
 
-            for (Map.Entry<Long, Cargo> entry : cargoMap.entrySet()) {
-              Long cargoId = entry.getKey();
-              Cargo cargoBase = entry.getValue();
+        List<Cargo> result = new ArrayList<>();
 
-              List<Tela> telas =
-                      telasPorCargo.getOrDefault(cargoId, new LinkedHashMap<>()).values().stream()
-                              .map(
-                                      tela ->
-                                              new Tela(
-                                                      tela.id(),
-                                                      tela.nome(),
-                                                      tela.descricao(),
-                                                      permissoesPorCargoTela
-                                                              .getOrDefault(cargoId, Map.of())
-                                                              .getOrDefault(tela.id(), List.of())))
-                              .toList();
+        for (Map.Entry<Long, Cargo> entry : cargoMap.entrySet()) {
+          Long cargoId = entry.getKey();
+          Cargo cargoBase = entry.getValue();
 
-              result.add(new Cargo(cargoBase.id(), cargoBase.descricao(), telas));
-            }
+          List<Tela> telas =
+              telasPorCargo.getOrDefault(cargoId, new LinkedHashMap<>()).values().stream()
+                  .map(
+                      tela ->
+                          new Tela(
+                              tela.id(),
+                              tela.nome(),
+                              tela.descricao(),
+                              permissoesPorCargoTela
+                                  .getOrDefault(cargoId, Map.of())
+                                  .getOrDefault(tela.id(), List.of())))
+                  .toList();
 
-            return result;
-          };
+          result.add(new Cargo(cargoBase.id(), cargoBase.descricao(), telas));
+        }
 
-  public Page<Cargo> buscarCargoPorIdOuNome(Long id, String termo, Long pessoaId, Pageable pageable) {
+        return result;
+      };
+
+  public Page<Cargo> buscarCargoPorIdOuNome(
+      Long id, String termo, Long pessoaId, Pageable pageable) {
     boolean hasId = id != null;
     boolean hasPessoaId = pessoaId != null;
     boolean hasTermo = termo != null && !termo.trim().isEmpty();
@@ -166,7 +158,8 @@ public class CargoRepository {
     }
 
     if (hasPessoaId) {
-      where.append(" AND EXISTS (SELECT 1 FROM funcionario f WHERE f.fk_pessoa = ? AND f.fk_cargo = c.id) ");
+      where.append(
+          " AND EXISTS (SELECT 1 FROM funcionario f WHERE f.fk_pessoa = ? AND f.fk_cargo = c.id) ");
       params.add(pessoaId);
     }
 
@@ -183,12 +176,12 @@ public class CargoRepository {
     }
 
     String idsSql =
-            """
+        """
             SELECT c.id
             FROM cargo c
             """
-                    + where
-                    + """
+            + where
+            + """
         ORDER BY c.cargo
         LIMIT ? OFFSET ?
         """;
@@ -198,7 +191,7 @@ public class CargoRepository {
     idsParams.add(pageable.getOffset());
 
     List<Long> ids =
-            jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
+        jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
 
     if (ids.isEmpty()) {
       return new PageImpl<>(List.of(), pageable, total);
@@ -207,15 +200,15 @@ public class CargoRepository {
     String inPlaceholders = String.join(",", Collections.nCopies(ids.size(), "?"));
 
     String pageSql =
-            (SELECT_WITH_TELAS_PERMISSOES
-                    + """
+        (SELECT_WITH_TELAS_PERMISSOES
+                + """
         WHERE c.id IN (%s)
         ORDER BY c.descricao, t.nome, p.permissao
         """)
-                    .formatted(inPlaceholders);
+            .formatted(inPlaceholders);
 
     List<Cargo> content =
-            jdbcTemplate.query(pageSql, CARGO_WITH_TELAS_PERMISSOES_EXTRACTOR, ids.toArray());
+        jdbcTemplate.query(pageSql, CARGO_WITH_TELAS_PERMISSOES_EXTRACTOR, ids.toArray());
 
     return new PageImpl<>(Objects.requireNonNull(content), pageable, total);
   }
@@ -231,10 +224,8 @@ public class CargoRepository {
   public boolean existsById(Long id) {
     try {
       Integer value =
-              jdbcTemplate.queryForObject(
-                      "SELECT 1 FROM cargo WHERE id = ? LIMIT 1",
-                      Integer.class,
-                      id);
+          jdbcTemplate.queryForObject(
+              "SELECT 1 FROM cargo WHERE id = ? LIMIT 1", Integer.class, id);
       return value != null;
     } catch (EmptyResultDataAccessException ex) {
       return false;
@@ -246,15 +237,14 @@ public class CargoRepository {
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
     jdbcTemplate.update(
-            connection -> {
-              PreparedStatement ps =
-                      connection.prepareStatement(
-                              "INSERT INTO cargo (cargo) VALUES (?)",
-                              Statement.RETURN_GENERATED_KEYS);
-              ps.setString(1, request.descricao().trim());
-              return ps;
-            },
-            keyHolder);
+        connection -> {
+          PreparedStatement ps =
+              connection.prepareStatement(
+                  "INSERT INTO cargo (cargo) VALUES (?)", Statement.RETURN_GENERATED_KEYS);
+          ps.setString(1, request.descricao().trim());
+          return ps;
+        },
+        keyHolder);
 
     Number generated = keyHolder.getKey();
     if (generated == null) {
@@ -264,17 +254,12 @@ public class CargoRepository {
     Long generatedId = generated.longValue();
 
     if (request.telas() != null && !request.telas().isEmpty()) {
-      vincularCargoTelas(
-              generatedId,
-              request.telas().stream().map(Tela.Id::id).toList(),
-              true);
+      vincularCargoTelas(generatedId, request.telas().stream().map(Tela.Id::id).toList(), true);
     }
 
     if (request.permissoes() != null && !request.permissoes().isEmpty()) {
       vincularPermissoesCargo(
-              generatedId,
-              request.permissoes().stream().map(Permissao.Id::id).toList(),
-              true);
+          generatedId, request.permissoes().stream().map(Permissao.Id::id).toList(), true);
     }
 
     return findByIdOrThrow(generatedId);
@@ -283,10 +268,8 @@ public class CargoRepository {
   @Transactional
   public Cargo update(Cargo.Update request) {
     int rows =
-            jdbcTemplate.update(
-                    "UPDATE cargo SET cargo = ? WHERE id = ?",
-                    request.descricao().trim(),
-                    request.id());
+        jdbcTemplate.update(
+            "UPDATE cargo SET cargo = ? WHERE id = ?", request.descricao().trim(), request.id());
 
     if (rows == 0) {
       throw new NotFoundException("Cargo não cadastrado para o id: " + request.id());
@@ -296,10 +279,7 @@ public class CargoRepository {
       jdbcTemplate.update("DELETE FROM cargo_tela WHERE cargo_id = ?", request.id());
 
       if (!request.telas().isEmpty()) {
-        vincularCargoTelas(
-                request.id(),
-                request.telas().stream().map(Tela.Id::id).toList(),
-                true);
+        vincularCargoTelas(request.id(), request.telas().stream().map(Tela.Id::id).toList(), true);
       }
     }
 
@@ -308,9 +288,7 @@ public class CargoRepository {
 
       if (!request.permissoes().isEmpty()) {
         vincularPermissoesCargo(
-                request.id(),
-                request.permissoes().stream().map(Permissao.Id::id).toList(),
-                true);
+            request.id(), request.permissoes().stream().map(Permissao.Id::id).toList(), true);
       }
     }
 
@@ -330,29 +308,29 @@ public class CargoRepository {
 
     if (Boolean.TRUE.equals(vinculo)) {
       String insertSql =
-              "INSERT INTO cargo_tela (cargo_id, tela_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
+          "INSERT INTO cargo_tela (cargo_id, tela_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
 
       jdbcTemplate.batchUpdate(
-              insertSql,
-              telaIds,
-              200,
-              (ps, telaId) -> {
-                ps.setLong(1, cargoId);
-                ps.setLong(2, telaId);
-              });
+          insertSql,
+          telaIds,
+          200,
+          (ps, telaId) -> {
+            ps.setLong(1, cargoId);
+            ps.setLong(2, telaId);
+          });
       return;
     }
 
     String deleteSql = "DELETE FROM cargo_tela WHERE cargo_id = ? AND tela_id = ?";
 
     jdbcTemplate.batchUpdate(
-            deleteSql,
-            telaIds,
-            200,
-            (ps, telaId) -> {
-              ps.setLong(1, cargoId);
-              ps.setLong(2, telaId);
-            });
+        deleteSql,
+        telaIds,
+        200,
+        (ps, telaId) -> {
+          ps.setLong(1, cargoId);
+          ps.setLong(2, telaId);
+        });
   }
 
   @Transactional
@@ -361,28 +339,28 @@ public class CargoRepository {
 
     if (Boolean.TRUE.equals(vinculo)) {
       String insertSql =
-              "INSERT INTO cargo_permissao (fk_cargo, fk_permissao) VALUES (?, ?) ON CONFLICT DO NOTHING";
+          "INSERT INTO cargo_permissao (fk_cargo, fk_permissao) VALUES (?, ?) ON CONFLICT DO NOTHING";
 
       jdbcTemplate.batchUpdate(
-              insertSql,
-              permissaoIds,
-              200,
-              (ps, permissaoId) -> {
-                ps.setLong(1, cargoId);
-                ps.setLong(2, permissaoId);
-              });
+          insertSql,
+          permissaoIds,
+          200,
+          (ps, permissaoId) -> {
+            ps.setLong(1, cargoId);
+            ps.setLong(2, permissaoId);
+          });
       return;
     }
 
     String deleteSql = "DELETE FROM cargo_permissao WHERE fk_cargo = ? AND fk_permissao = ?";
 
     jdbcTemplate.batchUpdate(
-            deleteSql,
-            permissaoIds,
-            200,
-            (ps, permissaoId) -> {
-              ps.setLong(1, cargoId);
-              ps.setLong(2, permissaoId);
-            });
+        deleteSql,
+        permissaoIds,
+        200,
+        (ps, permissaoId) -> {
+          ps.setLong(1, cargoId);
+          ps.setLong(2, permissaoId);
+        });
   }
 }

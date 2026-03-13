@@ -12,20 +12,19 @@ import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Login;
 import saas.hotel.istoepousada.dto.Usuario;
-import saas.hotel.istoepousada.service.AuthService;
 import saas.hotel.istoepousada.service.UsuarioService;
 
 @Tag(name = "Autenticação", description = "Endpoints de autenticação JWT")
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
-    private final UsuarioService usuarioService;
+  private final UsuarioService usuarioService;
 
-    public AuthController(UsuarioService usuarioService) {
-        this.usuarioService = usuarioService;
-    }
+  public AuthController(UsuarioService usuarioService) {
+    this.usuarioService = usuarioService;
+  }
 
-    @Operation(
+  @Operation(
       summary = "Login",
       description = "Autentica um funcionário e retorna um token JWT com seus dados e permissões")
   @ApiResponses({
@@ -61,7 +60,7 @@ public class AuthController {
                                 }
                                 """)))
           @RequestBody
-      Usuario.Request request) {
+          Usuario.Request request) {
     return usuarioService.login(request);
   }
 

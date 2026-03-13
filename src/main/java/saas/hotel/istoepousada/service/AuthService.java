@@ -1,12 +1,6 @@
 package saas.hotel.istoepousada.service;
 
 import org.springframework.stereotype.Service;
-import saas.hotel.istoepousada.dto.Funcionario;
-import saas.hotel.istoepousada.dto.Login;
-import saas.hotel.istoepousada.dto.Usuario;
-import saas.hotel.istoepousada.handler.exceptions.InvalidTokenException;
-import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
-import saas.hotel.istoepousada.handler.exceptions.UnauthorizedException;
 import saas.hotel.istoepousada.repository.FuncionarioRepository;
 import saas.hotel.istoepousada.repository.UsuarioRepository;
 import saas.hotel.istoepousada.security.JwtUtil;
@@ -25,6 +19,4 @@ public class AuthService {
     this.funcionarioRepository = funcionarioRepository;
     this.jwtUtil = jwtUtil;
   }
-
-
 }

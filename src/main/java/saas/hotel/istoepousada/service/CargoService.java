@@ -32,7 +32,6 @@ public class CargoService {
       throw new IllegalArgumentException("Nome do descricao é obrigatório.");
     }
 
-
     return cargoRepository.insert(request);
   }
 

@@ -123,7 +123,7 @@ public class FuncionarioController {
                                             }
                                             """)))
           @RequestBody
-      Funcionario.Request request) {
+          Funcionario.Request request) {
     return funcionarioService.create(request);
   }
 
@@ -174,7 +174,7 @@ public class FuncionarioController {
                                             }
                                             """)))
           @RequestBody
-      Funcionario.Request request) {
+          Funcionario.Request request) {
     return funcionarioService.update(id, request);
   }
 }

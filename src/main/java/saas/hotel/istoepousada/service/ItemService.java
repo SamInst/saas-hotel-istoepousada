@@ -20,14 +20,14 @@ public class ItemService {
   }
 
   public Page<Item> buscar(
-          Long id,
-          String termo,
-          Long categoriaId,
-          LocalDate dataInicioCadastro,
-          LocalDate dataFimCadastro,
-          Pageable pageable) {
+      Long id,
+      String termo,
+      Long categoriaId,
+      LocalDate dataInicioCadastro,
+      LocalDate dataFimCadastro,
+      Pageable pageable) {
     return itemRepository.buscar(
-            id, termo, categoriaId, dataInicioCadastro, dataFimCadastro, pageable);
+        id, termo, categoriaId, dataInicioCadastro, dataFimCadastro, pageable);
   }
 
   public Item buscarPorId(Long id) {

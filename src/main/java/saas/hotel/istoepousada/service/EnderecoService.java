@@ -1,16 +1,16 @@
-//package saas.hotel.istoepousada.service;
+// package saas.hotel.istoepousada.service;
 //
-//import java.util.List;
-//import org.springframework.stereotype.Service;
-//import org.springframework.web.client.HttpClientErrorException;
-//import org.springframework.web.client.RestClientException;
-//import saas.hotel.istoepousada.dto.*;
-//import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
-//import saas.hotel.istoepousada.handler.exceptions.UnavaiableException;
-//import saas.hotel.istoepousada.repository.LocalidadeRepository;
+// import java.util.List;
+// import org.springframework.stereotype.Service;
+// import org.springframework.web.client.HttpClientErrorException;
+// import org.springframework.web.client.RestClientException;
+// import saas.hotel.istoepousada.dto.*;
+// import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
+// import saas.hotel.istoepousada.handler.exceptions.UnavaiableException;
+// import saas.hotel.istoepousada.repository.LocalidadeRepository;
 //
-//@Service
-//public class EnderecoService {
+// @Service
+// public class EnderecoService {
 //
 //  private final LocalidadeRepository localidadeRepository;
 //
@@ -150,4 +150,4 @@
 //
 //    return data;
 //  }
-//}
+// }

@@ -38,7 +38,8 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
     if (requireTela == null && requirePermissao == null) return true;
 
-    Funcionario.Authorization funcionario = (Funcionario.Authorization) request.getAttribute("funcionario");
+    Funcionario.Authorization funcionario =
+        (Funcionario.Authorization) request.getAttribute("funcionario");
     log.info("FuncionarioAuth no request: {}", funcionario);
 
     if (funcionario == null) {

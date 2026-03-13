@@ -114,15 +114,14 @@ public class HistoricoFuncionarioController {
         body.get("salario") == null ? null : ((Number) body.get("salario")).floatValue();
 
     return historicoFuncionarioService.insert(
-            new Funcionario.Historico.Request(
-                    new Cargo.Id(cargoId),
-                    new Funcionario.Id(funcionarioId),
-                    salario));
+        new Funcionario.Historico.Request(
+            new Cargo.Id(cargoId), new Funcionario.Id(funcionarioId), salario));
   }
 
   @Operation(
       summary = "Atualizar histórico do funcionário",
-      description = "Atualiza descricao, funcionário e salário de um registro de histórico existente.")
+      description =
+          "Atualiza descricao, funcionário e salário de um registro de histórico existente.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
@@ -165,10 +164,7 @@ public class HistoricoFuncionarioController {
         body.get("salario") == null ? null : ((Number) body.get("salario")).floatValue();
 
     Funcionario.Historico.Update historico =
-        new Funcionario.Historico.Update(
-           id,
-            new Cargo.Id(cargoId),
-            salario);
+        new Funcionario.Historico.Update(id, new Cargo.Id(cargoId), salario);
     return historicoFuncionarioService.update(historico);
   }
 }

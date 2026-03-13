@@ -58,11 +58,11 @@ public class JwtUtil {
       String resolvedToken = resolveToken(token);
 
       Claims claims =
-              Jwts.parser()
-                      .verifyWith(getSigningKey())
-                      .build()
-                      .parseSignedClaims(resolvedToken)
-                      .getPayload();
+          Jwts.parser()
+              .verifyWith(getSigningKey())
+              .build()
+              .parseSignedClaims(resolvedToken)
+              .getPayload();
 
       @SuppressWarnings("unchecked")
       Map<String, Object> funcionarioMap = (Map<String, Object>) claims.get("funcionario");
@@ -79,16 +79,14 @@ public class JwtUtil {
       String resolvedToken = resolveToken(token);
       if (resolvedToken == null || resolvedToken.isBlank()) return false;
 
-      Jwts.parser()
-              .verifyWith(getSigningKey())
-              .build()
-              .parseSignedClaims(resolvedToken);
+      Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(resolvedToken);
 
       return true;
     } catch (JwtException | IllegalArgumentException e) {
       return false;
     }
   }
+
   private String resolveToken(String token) {
     if (token == null || token.isBlank()) return null;
     token = token.trim();

@@ -205,10 +205,6 @@ public class EmpresaController {
           Boolean vinculo) {
 
     empresaService.vincularPessoa(
-            new Empresa.Vincular(
-                    new Empresa.Id(empresaId),
-                    new Pessoa.Id(pessoaId),
-                    vinculo)
-    );
+        new Empresa.Vincular(new Empresa.Id(empresaId), new Pessoa.Id(pessoaId), vinculo));
   }
 }
