@@ -31,6 +31,21 @@ public class VeiculoRepository {
     }
   }
 
+  public Veiculo findByPlaca(String placa) {
+    String sql =
+        """
+                SELECT id, modelo, marca, ano, placa, cor
+                FROM veiculo
+                WHERE placa = ?
+                """;
+
+    try {
+      return jdbcTemplate.queryForObject(sql, Veiculo.ROW_MAPPER, placa);
+    } catch (EmptyResultDataAccessException ex) {
+      throw new NotFoundException("Veiculo nao encontrado para a placa: " + placa);
+    }
+  }
+
   public List<Veiculo> findAll() {
     String sql =
         """
@@ -100,21 +115,7 @@ public class VeiculoRepository {
     return findById(veiculo.id());
   }
 
-  public void vincularPessoa(Veiculo.Vincular vinculo) {
-    String sql =
-        """
-            INSERT INTO pessoa_veiculo (pessoa_id, veiculo_id, vinculo_ativo)
-            VALUES (?, ?, true)
-            ON CONFLICT (veiculo_id)
-            DO UPDATE SET
-              pessoa_id = EXCLUDED.pessoa_id,
-              vinculo_ativo = true
-            """;
-
-    jdbcTemplate.update(sql, vinculo.pessoa().id(), vinculo.veiculo().id());
-  }
-
-  public void setVinculoAtivo(Veiculo.Vincular vinculo) {
+  public void setVinculo(Veiculo.Vincular vinculo) {
     String sql =
         """
             INSERT INTO pessoa_veiculo (pessoa_id, veiculo_id, vinculo_ativo)

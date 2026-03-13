@@ -55,31 +55,30 @@ public record Pessoa(
       List<Veiculo> veiculos,
       @NotNull Funcionario.Id funcionario,
       Pessoa.Id titular,
-      List<Pessoa.Id> acompanhantes
-  ) {}
+      List<Pessoa.Id> acompanhantes) {}
+
   public record Update(
-          @NotNull Long id,
-          @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_nascimento,
-          @NotNull String nome,
-          @NotNull String cpf,
-          String rg,
-          @NotNull String email,
-          @NotNull String telefone,
-          String pais,
-          String estado,
-          String municipio,
-          String endereco,
-          String complemento,
-          @NotNull String cep,
-          String bairro,
-          Integer sexo,
-          String numero,
-          @NotNull Status status,
-          List<Veiculo.Update> veiculos_vinculados,
-          @NotNull Funcionario.Id funcionario,
-          Pessoa.Id titular,
-          List<Empresa.Id> empresas
-  ){}
+      @NotNull Long id,
+      @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_nascimento,
+      @NotNull String nome,
+      @NotNull String cpf,
+      String rg,
+      @NotNull String email,
+      @NotNull String telefone,
+      String pais,
+      String estado,
+      String municipio,
+      String endereco,
+      String complemento,
+      @NotNull String cep,
+      String bairro,
+      Integer sexo,
+      String numero,
+      @NotNull Status status,
+      List<Veiculo.Update> veiculos_vinculados,
+      @NotNull Funcionario.Id funcionario,
+      Pessoa.Id titular,
+      List<Empresa.Id> empresas) {}
 
   public record Nome(@NotNull Long id, @NotNull String nome) {}
 
@@ -156,4 +155,6 @@ public record Pessoa(
               List.of());
 
   public record BatchRequest(List<Pessoa.Request> pessoas, List<Empresa.Id> empresas) {}
+
+  public record VinculoVeiculo(Pessoa.Id pessoa, Veiculo.Id veiculo, Boolean vinculo) {}
 }

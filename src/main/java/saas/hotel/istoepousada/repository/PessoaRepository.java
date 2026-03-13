@@ -283,7 +283,7 @@ public class PessoaRepository {
       params.add(placaTrim);
     }
 
-    Long total;
+    long total;
     try {
       String countSql = "SELECT COUNT(*) FROM pessoa p" + where;
       total = jdbcTemplate.queryForObject(countSql, Long.class, params.toArray());
@@ -291,7 +291,7 @@ public class PessoaRepository {
       total = 0L;
     }
 
-    if (total == null || total == 0) {
+    if (total == 0) {
       return new PageImpl<>(List.of(), pageable, 0);
     }
 
@@ -324,7 +324,7 @@ public class PessoaRepository {
             + " WHERE p.id IN ("
             + inPlaceholders
             + ") "
-            + " ORDER BY p.nome ASC, e.razao_social ASC, v.placa ASC ";
+            + " ORDER BY p.nome, e.razao_social, v.placa ";
 
     List<Pessoa> content =
         jdbcTemplate.query(pageSql, PESSOA_COM_EMPRESAS_E_VEICULOS_EXTRACTOR, ids.toArray());
@@ -470,6 +470,7 @@ public class PessoaRepository {
                     fk_funcionario = ?,
                     fk_titular = ?
                 WHERE id = ?
+                RETURNING id
                 """;
 
     Integer idade =
@@ -477,29 +478,30 @@ public class PessoaRepository {
             ? Period.between(pessoa.data_nascimento(), LocalDate.now()).getYears()
             : null;
 
-    var pessoa_id = jdbcTemplate.queryForObject(
-        sql,
-        Long.class,
-        pessoa.nome(),
-        pessoa.data_nascimento() != null ? Date.valueOf(pessoa.data_nascimento()) : null,
-        idade,
-        pessoa.cpf(),
-        pessoa.rg(),
-        pessoa.email(),
-        pessoa.telefone(),
-        pessoa.pais(),
-        pessoa.estado(),
-        pessoa.municipio(),
-        pessoa.endereco(),
-        pessoa.complemento(),
-        pessoa.cep(),
-        pessoa.bairro(),
-        pessoa.sexo(),
-        pessoa.numero(),
-        pessoa.status() == null ? Pessoa.Status.ATIVO.name() : pessoa.status().name(),
-        getFuncionarioIdFromRequest(),
-        pessoa.titular() != null ? pessoa.titular().id() : null,
-        pessoa.id());
+    var pessoa_id =
+        jdbcTemplate.queryForObject(
+            sql,
+            Long.class,
+            pessoa.nome(),
+            pessoa.data_nascimento() != null ? Date.valueOf(pessoa.data_nascimento()) : null,
+            idade,
+            pessoa.cpf(),
+            pessoa.rg(),
+            pessoa.email(),
+            pessoa.telefone(),
+            pessoa.pais(),
+            pessoa.estado(),
+            pessoa.municipio(),
+            pessoa.endereco(),
+            pessoa.complemento(),
+            pessoa.cep(),
+            pessoa.bairro(),
+            pessoa.sexo(),
+            pessoa.numero(),
+            pessoa.status() == null ? Pessoa.Status.ATIVO.name() : pessoa.status().name(),
+            getFuncionarioIdFromRequest(),
+            pessoa.titular() != null ? pessoa.titular().id() : null,
+            pessoa.id());
     return findById(pessoa_id);
   }
 
@@ -615,8 +617,7 @@ public class PessoaRepository {
 
   public void vincularTitular(Long pessoaId, Long titularId, Boolean vinculo) {
     if (vinculo) {
-      jdbcTemplate.update(
-              "UPDATE pessoa SET fk_titular = ? WHERE id = ?", titularId, pessoaId);
+      jdbcTemplate.update("UPDATE pessoa SET fk_titular = ? WHERE id = ?", titularId, pessoaId);
     } else {
       jdbcTemplate.update("UPDATE pessoa SET fk_titular = NULL WHERE id = ?", pessoaId);
     }

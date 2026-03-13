@@ -14,7 +14,6 @@ import saas.hotel.istoepousada.dto.Empresa;
 import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.dto.Veiculo;
 import saas.hotel.istoepousada.repository.PessoaRepository;
-import saas.hotel.istoepousada.repository.VeiculoRepository;
 
 @Service
 public class PessoaService {
@@ -22,16 +21,16 @@ public class PessoaService {
   private static final Logger log = LoggerFactory.getLogger(PessoaService.class);
 
   private final PessoaRepository pessoaRepository;
-  private final VeiculoRepository veiculoRepository;
   private final EmpresaService empresaService;
+  private final VeiculoService veiculoService;
 
   public PessoaService(
       PessoaRepository pessoaRepository,
-      VeiculoRepository veiculoRepository,
-      EmpresaService empresaService) {
+      EmpresaService empresaService,
+      VeiculoService veiculoService) {
     this.pessoaRepository = pessoaRepository;
-    this.veiculoRepository = veiculoRepository;
     this.empresaService = empresaService;
+    this.veiculoService = veiculoService;
   }
 
   public Page<Pessoa> buscar(
@@ -50,6 +49,34 @@ public class PessoaService {
 
   @Transactional
   public Pessoa atualizarPessoa(Pessoa.Update pessoa) {
+    if (pessoa.veiculos_vinculados() != null) {
+      pessoa
+          .veiculos_vinculados()
+          .forEach(
+              veiculo -> {
+                if (veiculo.id() != null) {
+                  veiculoService.update(veiculo);
+                } else {
+                  veiculoService.create(
+                      new Veiculo.Request(
+                          veiculo.modelo(),
+                          veiculo.marca(),
+                          veiculo.ano(),
+                          veiculo.placa(),
+                          veiculo.cor()),
+                      new Pessoa.Id(pessoa.id()));
+                }
+              });
+    }
+
+    if (pessoa.empresas() != null) {
+      pessoa
+          .empresas()
+          .forEach(
+              empresa ->
+                  empresaService.vincularPessoa(
+                      new Empresa.Vincular(empresa, new Pessoa.Id(pessoa.id()), true)));
+    }
     return pessoaRepository.update(pessoa);
   }
 
@@ -129,28 +156,12 @@ public class PessoaService {
     return salvarOuAtualizarVeiculos(salva, pessoa.veiculos());
   }
 
-  private Pessoa sincronizarEmpresas(Pessoa salva, List<Empresa> empresas) {
-    if (empresas == null || empresas.isEmpty()) {
-      return salva;
-    }
-
-    List<Long> idsEmpresas =
-        empresas.stream().map(Empresa::id).filter(Objects::nonNull).distinct().toList();
-
-    for (Long empresaId : idsEmpresas) {
-      empresaService.vincularPessoa(
-          new Empresa.Vincular(new Empresa.Id(empresaId), new Pessoa.Id(salva.id()), true));
-    }
-
-    return pessoaRepository.findById(salva.id());
-  }
-
   private Pessoa salvarOuAtualizarVeiculos(Pessoa salva, List<Veiculo> veiculosRequest) {
     if (veiculosRequest == null) {
       return salva;
     }
 
-    List<Veiculo> veiculosExistentes = veiculoRepository.findAllByPessoaId(salva.id());
+    List<Veiculo> veiculosExistentes = veiculoService.findAllByPessoaId(salva.id());
 
     if (veiculosExistentes.isEmpty()) {
       if (veiculosRequest.isEmpty()) {
@@ -161,7 +172,7 @@ public class PessoaService {
 
       for (Veiculo veiculo : veiculosRequest) {
         Veiculo veiculoSalvo =
-            veiculoRepository.update(
+            veiculoService.update(
                 new Veiculo.Update(
                     veiculo.id(),
                     new Pessoa.Id(salva.id()),
@@ -173,7 +184,7 @@ public class PessoaService {
         if (veiculoSalvo.id() == null) {
           throw new IllegalStateException("Veículo salvo sem ID.");
         }
-        veiculoRepository.setVinculoAtivo(
+        veiculoService.setVinculoAtivo(
             new Veiculo.Vincular(
                 new Veiculo.Id(veiculoSalvo.id()), new Pessoa.Id(salva.id()), true));
         veiculosSalvos.add(veiculoSalvo);
@@ -195,7 +206,7 @@ public class PessoaService {
               newVeiculo.placa(),
               newVeiculo.cor());
 
-      veiculoRepository.update(
+      veiculoService.update(
           new Veiculo.Update(
               veiculoAtualizado.id(),
               new Pessoa.Id(salva.id()),
@@ -204,7 +215,7 @@ public class PessoaService {
               veiculoAtualizado.ano(),
               veiculoAtualizado.placa(),
               veiculoAtualizado.cor()));
-      veiculoRepository.setVinculoAtivo(
+      veiculoService.setVinculoAtivo(
           new Veiculo.Vincular(new Veiculo.Id(oldVeiculo.id()), new Pessoa.Id(salva.id()), true));
     }
 
@@ -242,4 +253,10 @@ public class PessoaService {
     }
   }
 
+  public void vincularTitular(Pessoa.VinculoVeiculo vinculo) {
+    pessoaRepository.findById(vinculo.pessoa().id());
+    pessoaRepository.findById(vinculo.veiculo().id());
+    pessoaRepository.vincularTitular(
+        vinculo.pessoa().id(), vinculo.veiculo().id(), vinculo.vinculo());
+  }
 }

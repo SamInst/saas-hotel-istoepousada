@@ -6,16 +6,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Empresa;
 import saas.hotel.istoepousada.repository.EmpresaRepository;
-import saas.hotel.istoepousada.repository.PessoaRepository;
 
 @Service
 public class EmpresaService {
   private final EmpresaRepository empresaRepository;
-  private final PessoaRepository pessoaRepository;
 
-  public EmpresaService(EmpresaRepository empresaRepository, PessoaRepository pessoaRepository) {
+  public EmpresaService(EmpresaRepository empresaRepository) {
     this.empresaRepository = empresaRepository;
-    this.pessoaRepository = pessoaRepository;
   }
 
   public Page<Empresa> buscarPorIdNomeOuCnpj(Long id, String termo, Pageable pageable) {
