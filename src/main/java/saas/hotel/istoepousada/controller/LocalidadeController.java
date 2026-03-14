@@ -64,7 +64,8 @@
 //                                          "complemento": "Andar 15 Conj 15 Sala 664",
 //                                          "pais": { "uuid": 1, "descricao": "Brasil" },
 //                                          "estado": { "uuid": 25, "descricao": "São Paulo" },
-//                                          "municipio": { "uuid": 3550308, "descricao": "São Paulo" }
+//                                          "municipio": { "uuid": 3550308, "descricao": "São Paulo"
+// }
 //                                        },
 //                                        "telefone": "(98) 84508897",
 //                                        "email": "sanhelsonnunes@gmail.com"
