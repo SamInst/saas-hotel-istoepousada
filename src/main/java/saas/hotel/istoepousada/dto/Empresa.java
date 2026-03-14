@@ -37,7 +37,11 @@ public record Empresa(
       String endereco,
       @NotNull String cep,
       String numero,
-      String complemento) {}
+      String complemento,
+      String pais,
+      String estado,
+      String municipio,
+      String bairro) {}
 
   public record Update(
       @NotNull Long id,

@@ -20,9 +20,14 @@ public class EmpresaService {
     return empresaRepository.findByIdNomeOuCnpj(id, termoNormalizado, pageable);
   }
 
-  public Empresa salvar(Empresa.Update empresa) {
-    validarEmpresa(empresa);
+  public Empresa salvar(Empresa.Request empresa) {
+    validarEmpresaRequest(empresa);
     return empresaRepository.create(empresa);
+  }
+
+  public Empresa update(Empresa.Update empresa) {
+    validarEmpresaUpdate(empresa);
+    return empresaRepository.update(empresa);
   }
 
   public void vincularPessoa(Empresa.Vincular vinculo) {
@@ -34,7 +39,19 @@ public class EmpresaService {
     empresaRepository.vincularPessoa(vinculo);
   }
 
-  private void validarEmpresa(Empresa.Update empresa) {
+  private void validarEmpresaUpdate(Empresa.Update empresa) {
+    if (empresa == null) {
+      throw new IllegalArgumentException("Empresa é obrigatória.");
+    }
+    if (!StringUtils.hasText(empresa.razao_social())) {
+      throw new IllegalArgumentException("Razão social é obrigatória.");
+    }
+    if (!StringUtils.hasText(empresa.cnpj())) {
+      throw new IllegalArgumentException("CNPJ é obrigatório.");
+    }
+  }
+
+  private void validarEmpresaRequest(Empresa.Request empresa) {
     if (empresa == null) {
       throw new IllegalArgumentException("Empresa é obrigatória.");
     }
