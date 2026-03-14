@@ -43,7 +43,7 @@ public class CargoController {
       description =
           """
                     Lista cargos paginados. Filtros são opcionais:
-                    - id: busca específica por ID
+                    - uuid: busca específica por ID
                     - termo: filtra por nome/descrição do descricao (ILIKE)
                     - pessoaId: filtra cargos vinculados a uma pessoa específica (através da tabela funcionario)
 
@@ -98,7 +98,7 @@ public class CargoController {
   @ResponseStatus(HttpStatus.CREATED)
   public Cargo criar(
       @io.swagger.v3.oas.annotations.parameters.RequestBody(
-              description = "Dados do descricao. O campo 'id' deve ser null ou omitido.",
+              description = "Dados do descricao. O campo 'uuid' deve ser null ou omitido.",
               required = true,
               content =
                   @Content(
@@ -304,10 +304,10 @@ public class CargoController {
                       value =
                           """
                                             [
-                                              { "id": 1, "descricao": "DASHBOARD" },
-                                              { "id": 2, "descricao": "CADASTRO" },
-                                              { "id": 3, "descricao": "FINANCEIRO" },
-                                              { "id": 4, "descricao": "RESERVAS" }
+                                              { "uuid": 1, "descricao": "DASHBOARD" },
+                                              { "uuid": 2, "descricao": "CADASTRO" },
+                                              { "uuid": 3, "descricao": "FINANCEIRO" },
+                                              { "uuid": 4, "descricao": "RESERVAS" }
                                             ]
                                             """)))
   @GetMapping("/telas")
@@ -316,7 +316,7 @@ public class CargoController {
   }
 
   @Operation(
-      summary = "Listar permissões do sistema por tela id",
+      summary = "Listar permissões do sistema por tela uuid",
       description =
           """
                             Retorna a lista de permissões cadastradas.
@@ -342,11 +342,11 @@ public class CargoController {
                       value =
                           """
                                             [
-                                              { "id": 10, "descricao": "RELATORIO_VISUALIZAR" },
-                                              { "id": 11, "descricao": "RELATORIO_CRIAR" },
-                                              { "id": 12, "descricao": "RELATORIO_EDITAR" },
-                                              { "id": 20, "descricao": "RESERVA_CRIAR" },
-                                              { "id": 21, "descricao": "RESERVA_CANCELAR" }
+                                              { "uuid": 10, "descricao": "RELATORIO_VISUALIZAR" },
+                                              { "uuid": 11, "descricao": "RELATORIO_CRIAR" },
+                                              { "uuid": 12, "descricao": "RELATORIO_EDITAR" },
+                                              { "uuid": 20, "descricao": "RESERVA_CRIAR" },
+                                              { "uuid": 21, "descricao": "RESERVA_CANCELAR" }
                                             ]
                                             """)))
   @GetMapping("/permissoes")

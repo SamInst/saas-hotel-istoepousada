@@ -181,7 +181,7 @@ public class FuncionarioRepository {
     List<Object> params = new ArrayList<>();
 
     if (hasId) {
-      where.append(" AND f.id = ? ");
+      where.append(" AND f.uuid = ? ");
       params.add(id);
     }
 
@@ -192,17 +192,17 @@ public class FuncionarioRepository {
     }
 
     if (hasCargoId) {
-      where.append(" AND c.id = ? ");
+      where.append(" AND c.uuid = ? ");
       params.add(cargoId);
     }
 
     if (hasPessoaId) {
-      where.append(" AND p.id = ? ");
+      where.append(" AND p.uuid = ? ");
       params.add(pessoaId);
     }
 
     if (hasUsuarioId) {
-      where.append(" AND u.id = ? ");
+      where.append(" AND u.uuid = ? ");
       params.add(usuarioId);
     }
 
@@ -268,7 +268,7 @@ public class FuncionarioRepository {
   public Funcionario findById(Long id) {
     Page<Funcionario> page = buscar(id, null, null, null, null, Pageable.ofSize(1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Funcionário não encontrado para o id: " + id);
+      throw new NotFoundException("Funcionário não encontrado para o uuid: " + id);
     }
     return page.getContent().getFirst();
   }
@@ -276,7 +276,7 @@ public class FuncionarioRepository {
   public Funcionario findByUsuarioId(Long usuarioId) {
     Page<Funcionario> page = buscar(null, null, null, null, usuarioId, Pageable.ofSize(1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Funcionário não encontrado para o usuario id: " + usuarioId);
+      throw new NotFoundException("Funcionário não encontrado para o usuario uuid: " + usuarioId);
     }
     return page.getContent().getFirst();
   }

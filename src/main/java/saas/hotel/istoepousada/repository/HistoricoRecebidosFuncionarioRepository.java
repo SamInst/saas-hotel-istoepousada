@@ -133,7 +133,7 @@ public class HistoricoRecebidosFuncionarioRepository {
     try {
       return jdbcTemplate.queryForObject(sql, RECEBIDOS_ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
-      throw new NotFoundException("Recebido não encontrado para o id: " + id);
+      throw new NotFoundException("Recebido não encontrado para o uuid: " + id);
     }
   }
 

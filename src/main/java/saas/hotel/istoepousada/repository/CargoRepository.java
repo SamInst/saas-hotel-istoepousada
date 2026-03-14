@@ -31,19 +31,19 @@ public class CargoRepository {
   private static final String SELECT_WITH_TELAS_PERMISSOES =
       """
           SELECT
-              c.id          AS cargo_id,
+              c.uuid          AS cargo_id,
               c.descricao       AS cargo_cargo,
-              t.id          AS tela_id,
+              t.uuid          AS tela_id,
               t.nome        AS tela_nome,
               t.descricao   AS tela_descricao,
-              p.id          AS permissao_id,
+              p.uuid          AS permissao_id,
               p.permissao   AS permissao_permissao,
               p.descricao   AS permissao_descricao
           FROM descricao c
-          LEFT JOIN cargo_tela ct ON ct.cargo_id = c.id
-          LEFT JOIN tela t ON t.id = ct.tela_id
-          LEFT JOIN cargo_permissao cp ON cp.fk_cargo = c.id
-          LEFT JOIN permissao p ON p.id = cp.fk_permissao AND p.fk_tela = t.id
+          LEFT JOIN cargo_tela ct ON ct.cargo_id = c.uuid
+          LEFT JOIN tela t ON t.uuid = ct.tela_id
+          LEFT JOIN cargo_permissao cp ON cp.fk_cargo = c.uuid
+          LEFT JOIN permissao p ON p.uuid = cp.fk_permissao AND p.fk_tela = t.uuid
           """;
 
   private static final RowMapper<Cargo> CARGO_ROW_MAPPER =
@@ -148,7 +148,7 @@ public class CargoRepository {
     List<Object> params = new ArrayList<>();
 
     if (hasId) {
-      where.append(" AND c.id = ? ");
+      where.append(" AND c.uuid = ? ");
       params.add(id);
     }
 
@@ -159,7 +159,7 @@ public class CargoRepository {
 
     if (hasPessoaId) {
       where.append(
-          " AND EXISTS (SELECT 1 FROM funcionario f WHERE f.fk_pessoa = ? AND f.fk_cargo = c.id) ");
+          " AND EXISTS (SELECT 1 FROM funcionario f WHERE f.fk_pessoa = ? AND f.fk_cargo = c.uuid) ");
       params.add(pessoaId);
     }
 
@@ -202,7 +202,7 @@ public class CargoRepository {
     String pageSql =
         (SELECT_WITH_TELAS_PERMISSOES
                 + """
-        WHERE c.id IN (%s)
+        WHERE c.uuid IN (%s)
         ORDER BY c.descricao, t.nome, p.permissao
         """)
             .formatted(inPlaceholders);
@@ -216,7 +216,7 @@ public class CargoRepository {
   public Cargo findByIdOrThrow(Long id) {
     Page<Cargo> page = buscarCargoPorIdOuNome(id, null, null, Pageable.ofSize(1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Cargo não cadastrado para o id: " + id);
+      throw new NotFoundException("Cargo não cadastrado para o uuid: " + id);
     }
     return page.getContent().getFirst();
   }
@@ -248,7 +248,7 @@ public class CargoRepository {
 
     Number generated = keyHolder.getKey();
     if (generated == null) {
-      throw new IllegalStateException("Não foi possível obter o id do descricao inserido.");
+      throw new IllegalStateException("Não foi possível obter o uuid do descricao inserido.");
     }
 
     Long generatedId = generated.longValue();
@@ -272,7 +272,7 @@ public class CargoRepository {
             "UPDATE cargo SET cargo = ? WHERE id = ?", request.descricao().trim(), request.id());
 
     if (rows == 0) {
-      throw new NotFoundException("Cargo não cadastrado para o id: " + request.id());
+      throw new NotFoundException("Cargo não cadastrado para o uuid: " + request.id());
     }
 
     if (request.telas() != null) {

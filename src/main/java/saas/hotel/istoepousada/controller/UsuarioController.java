@@ -42,7 +42,7 @@ public class UsuarioController {
       description =
           """
                     Lista usuários paginados. Filtros são opcionais:
-                    - id: busca específica por ID
+                    - uuid: busca específica por ID
                     - username: filtra por username (ILIKE)
                     - bloqueado=true: retorna somente usuários bloqueados
 
@@ -161,7 +161,7 @@ public class UsuarioController {
                               value =
                                   """
                                             {
-                                              "id": 1,
+                                              "uuid": 1,
                                               "username": "novo.username",
                                               "bloqueado": false
                                             }
@@ -202,7 +202,7 @@ public class UsuarioController {
                               value =
                                   """
                                             {
-                                              "id": 1,
+                                              "uuid": 1,
                                               "username": "novo.username",
                                               "senha": "novaSenha456",
                                               "bloqueado": false

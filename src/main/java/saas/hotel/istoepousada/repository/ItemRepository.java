@@ -60,7 +60,7 @@ public class ItemRepository {
     List<Object> params = new java.util.ArrayList<>();
 
     if (hasId) {
-      where.append(" AND i.id = ? ");
+      where.append(" AND i.uuid = ? ");
       params.add(id);
     }
 
@@ -133,7 +133,7 @@ public class ItemRepository {
   public Item findById(Long id) {
     Page<Item> page = buscar(id, null, null, null, null, Pageable.ofSize(1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Item não encontrado para o id: " + id);
+      throw new NotFoundException("Item não encontrado para o uuid: " + id);
     }
     return page.getContent().getFirst();
   }
@@ -179,7 +179,7 @@ public class ItemRepository {
             request.id());
 
     if (rows == 0) {
-      throw new NotFoundException("Item não encontrado para o id: " + request.id());
+      throw new NotFoundException("Item não encontrado para o uuid: " + request.id());
     }
 
     return findById(request.id());
@@ -353,7 +353,7 @@ public class ItemRepository {
             id);
 
     if (rows == 0) {
-      throw new NotFoundException("Categoria não encontrada para o id: " + id);
+      throw new NotFoundException("Categoria não encontrada para o uuid: " + id);
     }
   }
 
@@ -391,7 +391,7 @@ public class ItemRepository {
     try {
       return jdbcTemplate.queryForObject(sql, CategoriaItem.ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
-      throw new NotFoundException("Categoria não encontrada para o id: " + id);
+      throw new NotFoundException("Categoria não encontrada para o uuid: " + id);
     }
   }
 }

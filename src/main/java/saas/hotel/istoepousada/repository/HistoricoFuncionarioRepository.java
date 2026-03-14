@@ -78,7 +78,7 @@ public class HistoricoFuncionarioRepository {
     try {
       return jdbcTemplate.queryForObject(sql, HISTORICO_ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
-      throw new NotFoundException("Histórico não encontrado para o id: " + id);
+      throw new NotFoundException("Histórico não encontrado para o uuid: " + id);
     }
   }
 
@@ -103,7 +103,7 @@ public class HistoricoFuncionarioRepository {
 
     Number generated = keyHolder.getKey();
     if (generated == null) {
-      throw new IllegalStateException("Não foi possível obter o id do histórico inserido.");
+      throw new IllegalStateException("Não foi possível obter o uuid do histórico inserido.");
     }
 
     return findById(generated.longValue());

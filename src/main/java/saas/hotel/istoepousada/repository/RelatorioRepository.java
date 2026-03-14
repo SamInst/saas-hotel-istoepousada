@@ -106,7 +106,7 @@ public class RelatorioRepository {
     List<Object> params = new ArrayList<>();
 
     if (id != null) {
-      where.append(" AND r.id = ? ");
+      where.append(" AND r.uuid = ? ");
       params.add(id);
     }
     if (dataInicio != null) {
@@ -126,7 +126,7 @@ public class RelatorioRepository {
       params.add(quartoId);
     }
     if (tipoPagamentoId != null) {
-      where.append(" AND tp.id = ? ");
+      where.append(" AND tp.uuid = ? ");
       params.add(tipoPagamentoId);
     }
     if (despesaPessoal != null) {
@@ -330,7 +330,7 @@ public class RelatorioRepository {
         request.quarto() != null ? request.quarto().id() : null,
         valorHistoricoDinheiro,
         despesaPessoal,
-        pagamento.id());
+        pagamento.uuid());
   }
 
   public Relatorio update(Relatorio.Update relatorio) {
@@ -360,7 +360,7 @@ public class RelatorioRepository {
             relatorio.id());
 
     if (rows == 0) {
-      throw new NotFoundException("Relatório não encontrado para o id: " + relatorio.id());
+      throw new NotFoundException("Relatório não encontrado para o uuid: " + relatorio.id());
     }
 
     recalcularHistoricoPosteriores(relatorio.id(), valorHistoricoDinheiro);
@@ -449,12 +449,12 @@ public class RelatorioRepository {
         buscar(id, null, null, null, null, null, null, null, Pageable.ofSize(1));
 
     if (resp == null || resp.page() == null || resp.page().isEmpty()) {
-      throw new NotFoundException("Relatório não encontrado para o id: " + id);
+      throw new NotFoundException("Relatório não encontrado para o uuid: " + id);
     }
 
     Relatorio.Extrato.Diaria diaria = resp.page().getContent().getFirst();
     if (diaria.relatorios() == null || diaria.relatorios().isEmpty()) {
-      throw new NotFoundException("Relatório não encontrado para o id: " + id);
+      throw new NotFoundException("Relatório não encontrado para o uuid: " + id);
     }
 
     return diaria.relatorios().getFirst();

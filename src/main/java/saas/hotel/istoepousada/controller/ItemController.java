@@ -35,7 +35,7 @@ public class ItemController {
   @Operation(
       summary = "Buscar itens",
       description =
-          "Busca itens com filtros opcionais de id, termo, categoria e período de cadastro.")
+          "Busca itens com filtros opcionais de uuid, termo, categoria e período de cadastro.")
   @ApiResponse(responseCode = "200", description = "Itens encontrados")
   @GetMapping("/item/buscar")
   public Page<Item> buscar(
@@ -50,7 +50,7 @@ public class ItemController {
         id, termo, categoriaId, dataInicioCadastro, dataFimCadastro, pageable);
   }
 
-  @Operation(summary = "Buscar item por id")
+  @Operation(summary = "Buscar item por uuid")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Item encontrado"),
     @ApiResponse(responseCode = "404", description = "Item não encontrado")
@@ -169,8 +169,8 @@ public class ItemController {
   }
 
   @Operation(
-      summary = "Buscar categoria por id",
-      description = "Retorna uma categoria específica pelo id.")
+      summary = "Buscar categoria por uuid",
+      description = "Retorna uma categoria específica pelo uuid.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Categoria encontrada"),
     @ApiResponse(responseCode = "404", description = "Categoria não encontrada")

@@ -34,7 +34,7 @@ public class FuncionarioController {
       description =
           """
                     Lista funcionários paginados. Filtros são opcionais:
-                    - id: busca específica por ID do funcionário
+                    - uuid: busca específica por ID do funcionário
                     - termo: filtra por nome (ILIKE) ou CPF (exato)
                     - cargoId: filtra por descricao específico
                     - pessoaId: filtra por ID da pessoa vinculada

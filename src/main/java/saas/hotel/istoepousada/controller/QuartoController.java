@@ -35,8 +35,8 @@ public class QuartoController {
       description =
           """
                     Lista quartos paginados. Filtros opcionais:
-                    - id: busca específica por ID
-                    - termo: busca global (descricao ILIKE e também id quando numérico)
+                    - uuid: busca específica por ID
+                    - termo: busca global (descricao ILIKE e também uuid quando numérico)
                     - status: filtra pelo status do quarto
 
                     Se nenhum filtro for informado, retorna todos os quartos paginados.
@@ -53,7 +53,7 @@ public class QuartoController {
   @GetMapping
   public Page<Quarto> listar(
       @Parameter(description = "ID do quarto") @RequestParam(required = false) Long id,
-      @Parameter(description = "Busca global (descricao ILIKE ou id se numérico)")
+      @Parameter(description = "Busca global (descricao ILIKE ou uuid se numérico)")
           @RequestParam(required = false)
           String termo,
       @Parameter(

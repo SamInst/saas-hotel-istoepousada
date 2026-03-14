@@ -33,7 +33,7 @@ public class HistoricoRecebidosFuncionarioController {
 
   @Operation(
       summary = "Buscar recebidos por histórico do funcionário",
-      description = "Lista recebidos pelo id do histórico do funcionário.")
+      description = "Lista recebidos pelo uuid do histórico do funcionário.")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Lista de recebidos")})
   @GetMapping
   public List<Funcionario.Historico.Recebido> buscar(

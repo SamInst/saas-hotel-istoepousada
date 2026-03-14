@@ -8,7 +8,7 @@ import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.service.PagamentoService;
 
 @RestController
-@RequestMapping("/api/pagamentos")
+@RequestMapping("/pagamento")
 public class PagamentoController {
   private final PagamentoService service;
 
@@ -22,19 +22,14 @@ public class PagamentoController {
     return service.criar(req);
   }
 
-  @GetMapping("/{id}")
-  public Pagamento findById(@PathVariable UUID id) {
-    return service.buscar(id);
-  }
-
   @GetMapping
   public List<Pagamento> findAll() {
     return service.listar();
   }
 
-  @PutMapping("/{id}")
-  public Pagamento update(@PathVariable UUID id, @RequestBody Pagamento.Request req) {
-    return service.atualizar(id, req);
+  @PutMapping
+  public Pagamento update(@RequestBody Pagamento.Update pagamento) {
+    return service.atualizar(pagamento);
   }
 
   @DeleteMapping("/cancelar/{id}")

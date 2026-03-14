@@ -33,7 +33,7 @@
 //          buildBaseSql()
 //              + """
 //              WHERE dpf.pessoa_id = ?
-//                AND pe.id = ?
+//                AND pe.uuid = ?
 //              ORDER BY pe.data_entrada DESC, d.numero_diaria ASC, d.data_inicio ASC,
 // dp.representante DESC, p.nome ASC
 //              """;
@@ -78,7 +78,7 @@
 //  private String buildBaseSql() {
 //    return """
 //        SELECT
-//          pe.id                 AS pernoite_id,
+//          pe.uuid                 AS pernoite_id,
 //          pe.data_entrada       AS pernoite_data_entrada,
 //          pe.data_saida         AS pernoite_data_saida,
 //          pe.status             AS pernoite_status,
@@ -87,7 +87,7 @@
 //          pe.valor_total        AS pernoite_valor_total,
 //          pe.ativo              AS pernoite_ativo,
 //
-//          d.id                  AS diaria_id,
+//          d.uuid                  AS diaria_id,
 //          d.data_inicio         AS diaria_data_inicio,
 //          d.data_fim            AS diaria_data_fim,
 //          d.valor_diaria        AS diaria_valor,
@@ -96,7 +96,7 @@
 //          d.quantidade_pessoa   AS diaria_quantidade_pessoa,
 //          d.observacao          AS diaria_observacao,
 //
-//          q.id                  AS quarto_id,
+//          q.uuid                  AS quarto_id,
 //          q.descricao           AS quarto_descricao,
 //          q.qtd_pessoas         AS quarto_qtd_pessoas,
 //          q.status              AS quarto_status,
@@ -107,7 +107,7 @@
 //
 //          dp.representante      AS diaria_pessoa_representante,
 //
-//          p.id                  AS pessoa_id,
+//          p.uuid                  AS pessoa_id,
 //          p.data_hora_cadastro  AS pessoa_data_hora_cadastro,
 //          p.nome                AS pessoa_nome,
 //          p.data_nascimento     AS pessoa_data_nascimento,
@@ -128,23 +128,23 @@
 //          p.numero              AS pessoa_numero,
 //          p.status              AS pessoa_status,
 //
-//          pg.id                  AS diaria_pagamento_id,
+//          pg.uuid                  AS diaria_pagamento_id,
 //          pg.descricao           AS diaria_pagamento_descricao,
 //          pg.valor               AS diaria_pagamento_valor,
 //          pg.data_hora_pagamento AS diaria_pagamento_data_hora,
-//          tp.id                  AS diaria_pagamento_tipo_pagamento_id,
+//          tp.uuid                  AS diaria_pagamento_tipo_pagamento_id,
 //          tp.descricao           AS diaria_pagamento_tipo_pagamento_descricao,
 //
-//          cs.id                 AS diaria_consumo_id,
+//          cs.uuid                 AS diaria_consumo_id,
 //          cs.data_hora_consumo  AS diaria_consumo_data_hora,
 //          cs.quantidade         AS diaria_consumo_quantidade,
-//          ctp.id                AS consumo_tipo_pagamento_id,
+//          ctp.uuid                AS consumo_tipo_pagamento_id,
 //          ctp.descricao         AS consumo_tipo_pagamento_descricao,
 //
-//          it.id                      AS item_id,
+//          it.uuid                      AS item_id,
 //          it.descricao               AS item_descricao,
 //          it.data_hora_registro_item AS item_data_hora,
-//          ci.id                      AS categoria_id,
+//          ci.uuid                      AS categoria_id,
 //          ci.descricao               AS categoria_categoria,
 //
 //          p.fk_funcionario               AS pessoa_fk_funcionario,
@@ -154,23 +154,23 @@
 //          titular.nome                   AS pessoa_titular_nome
 //
 //        FROM pernoite pe
-//        JOIN diaria d ON d.pernoite_id = pe.id
-//        LEFT JOIN quarto q ON q.id = d.quarto_id
+//        JOIN diaria d ON d.pernoite_id = pe.uuid
+//        LEFT JOIN quarto q ON q.uuid = d.quarto_id
 //
-//        JOIN diaria_pessoa dpf ON dpf.diaria_id = d.id AND dpf.pessoa_id = ?
-//        LEFT JOIN diaria_pessoa dp ON dp.diaria_id = d.id
-//        LEFT JOIN pessoa p ON p.id = dp.pessoa_id
+//        JOIN diaria_pessoa dpf ON dpf.diaria_id = d.uuid AND dpf.pessoa_id = ?
+//        LEFT JOIN diaria_pessoa dp ON dp.diaria_id = d.uuid
+//        LEFT JOIN pessoa p ON p.uuid = dp.pessoa_id
 //
-//        LEFT JOIN diaria_pagamento pg ON pg.diaria_id = d.id
-//        LEFT JOIN tipo_pagamento tp ON tp.id = pg.tipo_pagamento_id
+//        LEFT JOIN diaria_pagamento pg ON pg.diaria_id = d.uuid
+//        LEFT JOIN tipo_pagamento tp ON tp.uuid = pg.tipo_pagamento_id
 //
-//        LEFT JOIN diaria_consumo cs ON cs.diaria_id = d.id
-//        LEFT JOIN item it ON it.id = cs.item_id
-//        LEFT JOIN categoria_item ci ON ci.id = it.fk_categoria
-//        LEFT JOIN tipo_pagamento ctp ON ctp.id = cs.tipo_pagamento_id
+//        LEFT JOIN diaria_consumo cs ON cs.diaria_id = d.uuid
+//        LEFT JOIN item it ON it.uuid = cs.item_id
+//        LEFT JOIN categoria_item ci ON ci.uuid = it.fk_categoria
+//        LEFT JOIN tipo_pagamento ctp ON ctp.uuid = cs.tipo_pagamento_id
 //
-//        LEFT JOIN pessoa func ON func.id = p.fk_funcionario
-//        LEFT JOIN pessoa titular ON titular.id = p.fk_titular
+//        LEFT JOIN pessoa func ON func.uuid = p.fk_funcionario
+//        LEFT JOIN pessoa titular ON titular.uuid = p.fk_titular
 //        """;
 //  }
 //
@@ -186,7 +186,7 @@
 //        PernoiteAgg pAgg =
 //            pernoites.computeIfAbsent(
 //                pernoiteId,
-//                id -> {
+//                uuid -> {
 //                  try {
 //                    return new PernoiteAgg(Pernoite.mapPernoite(rs, "pernoite_"));
 //                  } catch (SQLException e) {
@@ -200,7 +200,7 @@
 //        DiariaAgg dAgg =
 //            pAgg.diarias.computeIfAbsent(
 //                diariaId,
-//                id -> {
+//                uuid -> {
 //                  try {
 //                    return new DiariaAgg(Diaria.mapDiaria(rs, "diaria_"));
 //                  } catch (SQLException e) {
@@ -234,7 +234,7 @@
 //                (tpId == null && tpDesc == null) ? null : new TipoPagamento(tpId, tpDesc);
 //            pagamento =
 //                new DiariaPagamento(
-//                    pagamento.id(),
+//                    pagamento.uuid(),
 //                    pagamento.descricao(),
 //                    pagamento.valor(),
 //                    pagamento.data_hora(),
@@ -333,12 +333,12 @@
 //  private Optional<Long> buscarUltimoPernoiteId(Long pessoaId) {
 //    String sql =
 //        """
-//                SELECT pe.id
+//                SELECT pe.uuid
 //                  FROM pernoite pe
-//                  JOIN diaria d ON d.pernoite_id = pe.id
-//                  JOIN diaria_pessoa dp ON dp.diaria_id = d.id
+//                  JOIN diaria d ON d.pernoite_id = pe.uuid
+//                  JOIN diaria_pessoa dp ON dp.diaria_id = d.uuid
 //                 WHERE dp.pessoa_id = ?
-//                 ORDER BY pe.data_saida DESC NULLS LAST, pe.data_entrada DESC NULLS LAST, pe.id
+//                 ORDER BY pe.data_saida DESC NULLS LAST, pe.data_entrada DESC NULLS LAST, pe.uuid
 // DESC
 //                 LIMIT 1
 //                """;

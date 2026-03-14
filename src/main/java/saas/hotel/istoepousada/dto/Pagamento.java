@@ -7,7 +7,7 @@ import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
 
 public record Pagamento(
-    @NotNull UUID id,
+    @NotNull UUID uuid,
     @NotNull TipoPagamento tipo_pagamento,
     @NotNull Funcionario.Nome funcionario,
     @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime data_hora_registro,
@@ -29,7 +29,7 @@ public record Pagamento(
       MultipartFile arquivo) {}
 
   public record Update(
-      @NotNull UUID id,
+      @NotNull UUID uuid,
       @NotNull TipoPagamento.Id tipo_pagamento,
       @NotNull Funcionario.Id funcionario,
       @NotNull String nome_pagador,
@@ -39,7 +39,7 @@ public record Pagamento(
       MultipartFile arquivo) {}
 
   public record Desconto(
-      @NotNull UUID id,
+      @NotNull UUID uuid,
       @NotNull Funcionario.Nome funcionario,
       Integer porcentagem,
       Double valor,

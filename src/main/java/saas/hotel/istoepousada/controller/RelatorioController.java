@@ -37,7 +37,7 @@ public class RelatorioController {
       description =
           """
                             Lista relatórios paginados. Filtros são opcionais:
-                            - id: busca específica por ID (mesclada na busca global)
+                            - uuid: busca específica por ID (mesclada na busca global)
                             - dataInicio: filtra a partir da data (>= 00:00)
                             - dataFim: filtra até a data (< próximo dia 00:00)
                             - funcionarioId: ID da pessoa (funcionário responsável)

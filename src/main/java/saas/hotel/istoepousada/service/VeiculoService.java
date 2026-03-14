@@ -69,10 +69,4 @@ public class VeiculoService {
     veiculoRepository.findById(vinculo.veiculo().id());
     veiculoRepository.setVinculo(vinculo);
   }
-
-  @Transactional
-  public void deleteById(Long id) {
-    veiculoRepository.findById(id);
-    veiculoRepository.deleteById(id);
-  }
 }

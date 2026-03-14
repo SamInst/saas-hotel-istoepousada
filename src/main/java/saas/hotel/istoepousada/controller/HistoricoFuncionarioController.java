@@ -52,8 +52,8 @@ public class HistoricoFuncionarioController {
   }
 
   @Operation(
-      summary = "Buscar histórico por id",
-      description = "Retorna um registro de histórico pelo id.")
+      summary = "Buscar histórico por uuid",
+      description = "Retorna um registro de histórico pelo uuid.")
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",

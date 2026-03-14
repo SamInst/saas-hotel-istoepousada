@@ -31,7 +31,7 @@ public class QuartoService {
 
   @Transactional
   public Quarto atualizar(Quarto.Update quarto) {
-    if (quarto.id() == null) throw new IllegalArgumentException("id é obrigatório.");
+    if (quarto.id() == null) throw new IllegalArgumentException("uuid é obrigatório.");
     validarParametros(quarto);
     return quartoRepository.update(quarto);
   }
@@ -57,7 +57,7 @@ public class QuartoService {
   }
 
   private void validarParametros(Quarto.Update quarto) {
-    if (quarto.id() == null) throw new IllegalArgumentException("id é obrigatório.");
+    if (quarto.id() == null) throw new IllegalArgumentException("uuid é obrigatório.");
     if (quarto == null) throw new IllegalArgumentException("Quarto é obrigatório.");
     if (!StringUtils.hasText(quarto.descricao()))
       throw new IllegalArgumentException("descricao é obrigatória.");

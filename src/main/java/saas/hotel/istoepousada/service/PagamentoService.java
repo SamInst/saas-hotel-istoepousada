@@ -31,8 +31,8 @@ public class PagamentoService {
   }
 
   @Transactional
-  public Pagamento atualizar(UUID id, Pagamento.Request req) {
-    return pagamentoRepository.update(id, req);
+  public Pagamento atualizar(Pagamento.Update pagamento) {
+    return pagamentoRepository.update(pagamento);
   }
 
   @Transactional

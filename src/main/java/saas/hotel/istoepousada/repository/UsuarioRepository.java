@@ -49,7 +49,7 @@ public class UsuarioRepository {
     List<Object> params = new ArrayList<>();
 
     if (hasId) {
-      where.append(" AND u.id = ? ");
+      where.append(" AND u.uuid = ? ");
       params.add(id);
     }
 
@@ -92,7 +92,7 @@ public class UsuarioRepository {
     try {
       return jdbcTemplate.queryForObject(SELECT_BASE + " WHERE u.id = ? ", USUARIO_ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
-      throw new NotFoundException("Usuário não encontrado para o id: " + id);
+      throw new NotFoundException("Usuário não encontrado para o uuid: " + id);
     }
   }
 
@@ -141,7 +141,7 @@ public class UsuarioRepository {
     Long generatedId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : null;
 
     if (generatedId == null) {
-      throw new IllegalStateException("Não foi possível obter o id do usuário criado");
+      throw new IllegalStateException("Não foi possível obter o uuid do usuário criado");
     }
 
     return findById(generatedId);

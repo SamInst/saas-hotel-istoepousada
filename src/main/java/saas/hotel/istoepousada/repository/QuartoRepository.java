@@ -58,7 +58,7 @@ public class QuartoRepository {
     List<Object> params = new ArrayList<>();
 
     if (id != null) {
-      where.append(" AND quarto.id = ? ");
+      where.append(" AND quarto.uuid = ? ");
       params.add(id);
     }
 
@@ -70,7 +70,7 @@ public class QuartoRepository {
       params.add("%" + t + "%");
 
       if (isNumeric) {
-        where.append(" OR quarto.id = ? ");
+        where.append(" OR quarto.uuid = ? ");
         params.add(Long.parseLong(t));
       }
 
@@ -151,7 +151,7 @@ public class QuartoRepository {
 
       return jdbcTemplate.queryForObject(sql, Quarto.ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
-      throw new NotFoundException("Quarto não encontrado para o id: " + id);
+      throw new NotFoundException("Quarto não encontrado para o uuid: " + id);
     }
   }
 
@@ -213,7 +213,7 @@ public class QuartoRepository {
             request.id());
 
     if (rows == 0) {
-      throw new NotFoundException("Quarto não encontrado para o id: " + request.id());
+      throw new NotFoundException("Quarto não encontrado para o uuid: " + request.id());
     }
 
     atualizarCategoriaAtiva(request.id(), request.categoria().id());

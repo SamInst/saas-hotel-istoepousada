@@ -14,7 +14,7 @@
 //      Integer quartos_ocupados,
 //      List<Categoria> categorias) {
 //    public record Categoria(
-//        Long id,
+//        Long uuid,
 //        String nome,
 //        String descricao,
 //        ModeloCobranca modelo,
@@ -22,7 +22,7 @@
 //        List<Quarto> quartos) {
 //
 //      public record Quarto(
-//          Long id,
+//          Long uuid,
 //          String descricao,
 //          Integer quantidade_pessoa,
 //          Sta status,
@@ -40,7 +40,7 @@
 //
 //
 //        public record QuartoDetalhe(
-//                Long id,
+//                Long uuid,
 //                Integer quantidade,
 //                String descricao) {
 //          public record Request(
@@ -49,7 +49,7 @@
 //        }
 //
 //        public record QuartoManutencao(
-//            Long id,
+//            Long uuid,
 //            Long quarto_id,
 //            Funcionario funcionario,
 //            String descricao,
@@ -137,7 +137,7 @@
 //
 //
 //  public record Pagamento(
-//      Long id,
+//      Long uuid,
 //      Funcionario funcionario,
 //      TipoPagamento tipo_pagamento,
 //      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
@@ -153,7 +153,7 @@
 //        Float valor) {}
 //
 //    public record Desconto(
-//        Long id,
+//        Long uuid,
 //        Funcionario funcionario,
 //        Integer porcentagem,
 //        Float valor,
@@ -166,7 +166,7 @@
 //
 //
 //  public record DayUse(
-//      Long id,
+//      Long uuid,
 //      Quarto quarto,
 //      Funcionario funcionario,
 //      LocalTime hora_inicio,
@@ -195,7 +195,7 @@
 //  }
 //
 //  public record Sazonalidade(
-//      Long id,
+//      Long uuid,
 //      String descricao,
 //      Funcionario funcionario,
 //      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,

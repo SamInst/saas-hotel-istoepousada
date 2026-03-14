@@ -51,7 +51,7 @@ public class RelatorioService {
 
   @Transactional
   public Relatorio atualizar(Relatorio.Update relatorio) {
-    if (relatorio.id() == null) throw new IllegalArgumentException("id é obrigatório.");
+    if (relatorio.id() == null) throw new IllegalArgumentException("uuid é obrigatório.");
     return relatorioRepository.update(relatorio);
   }
 

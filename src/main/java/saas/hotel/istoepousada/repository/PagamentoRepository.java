@@ -96,16 +96,16 @@ public class PagamentoRepository {
   public Pagamento create(Pagamento.Request request) {
     var sql =
         """
-                        INSERT INTO pagamento (
-                          fk_tipo_pagamento,
-                          fk_funcionario,
-                          nome_pagador,
-                          descricao,
-                          valor
-                        )
-                        VALUES (?, ?, ?, ?, ?)
-                        RETURNING id
-                        """;
+        INSERT INTO pagamento (
+          fk_tipo_pagamento,
+          fk_funcionario,
+          nome_pagador,
+          descricao,
+          valor
+        )
+        VALUES (?, ?, ?, ?, ?)
+        RETURNING id
+        """;
 
     UUID id =
         jdbcTemplate.queryForObject(
@@ -130,7 +130,7 @@ public class PagamentoRepository {
     return jdbcTemplate.query(sql, PAGAMENTO_ROW_MAPPER);
   }
 
-  public Pagamento update(UUID id, Pagamento.Request request) {
+  public Pagamento update(Pagamento.Update pagamento) {
     var sql =
         """
                         UPDATE pagamento
@@ -148,12 +148,12 @@ public class PagamentoRepository {
         jdbcTemplate.queryForObject(
             sql,
             (rs, rowNum) -> rs.getObject("id", UUID.class),
-            request.tipo_pagamento().id(),
-            request.funcionario().id(),
-            request.nome_pagador(),
-            request.descricao(),
-            request.valor(),
-            id);
+            pagamento.tipo_pagamento().id(),
+            pagamento.funcionario().id(),
+            pagamento.nome_pagador(),
+            pagamento.descricao(),
+            pagamento.valor(),
+            pagamento.uuid());
 
     return findById(updatedId);
   }
@@ -172,18 +172,18 @@ public class PagamentoRepository {
   //                  valor
   //                )
   //                VALUES (?, ?, ?, ?)
-  //                RETURNING id
+  //                RETURNING uuid
   //                """;
   //
-  //    Long id =
+  //    Long uuid =
   //        jdbcTemplate.queryForObject(
   //            sql,
-  //            (rs, rowNum) -> rs.getObject("id", Long.class),
+  //            (rs, rowNum) -> rs.getObject("uuid", Long.class),
   //            request.pagamento_id(),
   //            request.funcionario_id(),
   //            request.porcentagem() == null ? 0 : request.porcentagem(),
   //            request.valor() == null ? 0f : request.valor());
   //
-  //    return findDescontoById(id);
+  //    return findDescontoById(uuid);
   //  }
 }

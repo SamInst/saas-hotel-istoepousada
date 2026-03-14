@@ -253,7 +253,7 @@ public class PessoaRepository {
     List<Object> params = new ArrayList<>();
 
     if (hasId) {
-      where.append(" AND p.id = ? ");
+      where.append(" AND p.uuid = ? ");
       params.add(id);
     }
 
@@ -274,8 +274,8 @@ public class PessoaRepository {
                             AND EXISTS (
                                 SELECT 1
                                 FROM pessoa_veiculo pv2
-                                JOIN veiculo v2 ON v2.id = pv2.veiculo_id
-                                WHERE pv2.pessoa_id = p.id
+                                JOIN veiculo v2 ON v2.uuid = pv2.veiculo_id
+                                WHERE pv2.pessoa_id = p.uuid
                                   AND pv2.vinculo_ativo = true
                                   AND UPPER(v2.placa) = ?
                             )
@@ -385,7 +385,7 @@ public class PessoaRepository {
   public Pessoa findById(Long id) {
     Page<Pessoa> page = buscar(id, null, null, null, Pageable.ofSize(1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
+      throw new NotFoundException("Pessoa não encontrada para o uuid: " + id);
     }
     return page.getContent().getFirst();
   }

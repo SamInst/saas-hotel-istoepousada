@@ -62,9 +62,9 @@
 //                                          "bairro": "Bela Vista",
 //                                          "numero": 777,
 //                                          "complemento": "Andar 15 Conj 15 Sala 664",
-//                                          "pais": { "id": 1, "descricao": "Brasil" },
-//                                          "estado": { "id": 25, "descricao": "São Paulo" },
-//                                          "municipio": { "id": 3550308, "descricao": "São Paulo" }
+//                                          "pais": { "uuid": 1, "descricao": "Brasil" },
+//                                          "estado": { "uuid": 25, "descricao": "São Paulo" },
+//                                          "municipio": { "uuid": 3550308, "descricao": "São Paulo" }
 //                                        },
 //                                        "telefone": "(98) 84508897",
 //                                        "email": "sanhelsonnunes@gmail.com"
@@ -110,9 +110,9 @@
 //                                        "bairro": "Turu",
 //                                        "numero": 123,
 //                                        "complemento": "",
-//                                        "pais": { "id": 1, "descricao": "Brasil" },
-//                                        "estado": { "id": 10, "descricao": "Maranhão" },
-//                                        "municipio": { "id": 100, "descricao": "São Luís" }
+//                                        "pais": { "uuid": 1, "descricao": "Brasil" },
+//                                        "estado": { "uuid": 10, "descricao": "Maranhão" },
+//                                        "municipio": { "uuid": 100, "descricao": "São Luís" }
 //                                      }
 //                                      """))),
 //    @ApiResponse(responseCode = "400", description = "CEP inválido"),
@@ -149,8 +149,8 @@
 //                        value =
 //                            """
 //                                      [
-//                                        { "id": 1, "descricao": "Brasil" },
-//                                        { "id": 2, "descricao": "Portugal" }
+//                                        { "uuid": 1, "descricao": "Brasil" },
+//                                        { "uuid": 2, "descricao": "Portugal" }
 //                                      ]
 //                                      """)))
 //  })
@@ -178,8 +178,8 @@
 //                        value =
 //                            """
 //                                      [
-//                                        { "id": 10, "descricao": "Maranhão" },
-//                                        { "id": 11, "descricao": "Piauí" }
+//                                        { "uuid": 10, "descricao": "Maranhão" },
+//                                        { "uuid": 11, "descricao": "Piauí" }
 //                                      ]
 //                                      """))),
 //    @ApiResponse(responseCode = "400", description = "Parâmetro inválido")
@@ -211,8 +211,8 @@
 //                        value =
 //                            """
 //                                      [
-//                                        { "id": 100, "descricao": "São Luís" },
-//                                        { "id": 101, "descricao": "Imperatriz" }
+//                                        { "uuid": 100, "descricao": "São Luís" },
+//                                        { "uuid": 101, "descricao": "Imperatriz" }
 //                                      ]
 //                                      """))),
 //    @ApiResponse(responseCode = "400", description = "Parâmetro inválido")

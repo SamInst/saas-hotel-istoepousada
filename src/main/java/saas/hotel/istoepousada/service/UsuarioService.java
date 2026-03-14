@@ -59,7 +59,7 @@ public class UsuarioService {
     String senhaMd5 = gerarMD5(usuario.senha());
     Usuario created = repository.create(usernameTrim, senhaMd5);
 
-    log.info("Usuário criado: id={}, username={}", created.id(), created.username());
+    log.info("Usuário criado: uuid={}, username={}", created.id(), created.username());
     return created;
   }
 
@@ -73,7 +73,7 @@ public class UsuarioService {
 
     Usuario updated = repository.updateUsername(usuario.id(), usuario.username().trim());
 
-    log.info("Usuário atualizado: id={}, username={}", updated.id(), updated.username());
+    log.info("Usuário atualizado: uuid={}, username={}", updated.id(), updated.username());
     return updated;
   }
 
@@ -84,9 +84,9 @@ public class UsuarioService {
     Usuario updated = repository.updateBloqueado(id, bloqueado);
 
     if (Boolean.TRUE.equals(bloqueado)) {
-      log.info("Usuário bloqueado: id={}", id);
+      log.info("Usuário bloqueado: uuid={}", id);
     } else {
-      log.info("Usuário desbloqueado: id={}", id);
+      log.info("Usuário desbloqueado: uuid={}", id);
     }
 
     return updated;
@@ -119,7 +119,7 @@ public class UsuarioService {
     String senhaMd5 = gerarMD5(update.senha());
     Usuario updated = repository.updateUsernameESenha(update.id(), usernameTrim, senhaMd5);
 
-    log.info("Username e senha alterados: id={}, username={}", updated.id(), updated.username());
+    log.info("Username e senha alterados: uuid={}, username={}", updated.id(), updated.username());
     return updated;
   }
 
