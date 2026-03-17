@@ -3,9 +3,10 @@ package saas.hotel.istoepousada.service;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import saas.hotel.istoepousada.dto.Cargo;
+import saas.hotel.istoepousada.dto.Permissao;
+import saas.hotel.istoepousada.dto.Tela;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.repository.CargoRepository;
 
@@ -18,13 +19,8 @@ public class CargoService {
     this.cargoRepository = cargoRepository;
   }
 
-  public Page<Cargo> listar(Long id, String termo, Long pessoaId, Pageable pageable) {
-    return cargoRepository.buscarCargoPorIdOuNome(id, termo, pessoaId, pageable);
-  }
-
-  public Cargo buscarPorId(Long id) {
-    if (id == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
-    return cargoRepository.findByIdOrThrow(id);
+  public Page<Cargo> listar(Cargo.Buscar buscar) {
+    return cargoRepository.buscarCargoPorIdOuNome(buscar);
   }
 
   public Cargo criar(Cargo.Request request) {
@@ -38,7 +34,7 @@ public class CargoService {
   public Cargo atualizar(Cargo.Update cargo) {
     if (cargo.id() == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
-    if (!cargoRepository.existsById(cargo.id()))
+    if (!cargoRepository.existsById(new Cargo.Id(cargo.id())))
       throw new NotFoundException("Cargo não cadastrado para o uuid: " + cargo.id());
 
     if (cargo.descricao() == null || cargo.descricao().trim().isEmpty())
@@ -47,47 +43,51 @@ public class CargoService {
     return cargoRepository.update(cargo);
   }
 
-  public void deletar(Long id) {
-    if (id == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
+  public void deletar(Cargo.Id cargo) {
+    if (cargo == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
-    if (!cargoRepository.existsById(id)) {
-      throw new NotFoundException("Cargo não cadastrado para o uuid: " + id);
-    }
+    if (!cargoRepository.existsById(cargo))
+      throw new NotFoundException("Cargo não cadastrado para o uuid: " + cargo.id());
 
-    cargoRepository.deleteById(id);
+    cargoRepository.deleteById(cargo);
   }
 
-  public void vincularTelas(Long cargoId, List<Long> telaIds, Boolean vinculo) {
-    if (cargoId == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
+  public void vincularTelas(Cargo.Vincular vinculo) {
+    if (vinculo.cargo().id() == null)
+      throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
-    if (!cargoRepository.existsById(cargoId)) {
-      throw new NotFoundException("Cargo não cadastrado para o uuid: " + cargoId);
-    }
+    if (!cargoRepository.existsById(vinculo.cargo()))
+      throw new NotFoundException("Cargo não cadastrado para o id: " + vinculo.cargo().id());
 
-    if (telaIds == null || telaIds.isEmpty()) {
-      return;
-    }
+    if (vinculo.telas() == null || vinculo.telas().isEmpty()) return;
 
-    List<Long> ids = telaIds.stream().filter(Objects::nonNull).distinct().toList();
+    List<Tela.Id> ids = vinculo.telas().stream().filter(Objects::nonNull).distinct().toList();
+
     if (ids.isEmpty()) return;
 
-    cargoRepository.vincularCargoTelas(cargoId, ids, vinculo);
+    vinculo.telas().clear();
+    vinculo.telas().addAll(ids);
+
+    cargoRepository.vincularCargoTelas(vinculo);
   }
 
-  public void vincularPermissoes(Long cargoId, List<Long> permissaoIds, Boolean vinculo) {
-    if (cargoId == null) throw new IllegalArgumentException("ID do descricao é obrigatório.");
+  public void vincularPermissoes(Permissao.Vincular vinculo) {
+    if (vinculo.cargo().id() == null)
+      throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
-    if (!cargoRepository.existsById(cargoId)) {
-      throw new NotFoundException("Cargo não cadastrado para o uuid: " + cargoId);
-    }
+    if (!cargoRepository.existsById(vinculo.cargo()))
+      throw new NotFoundException("Cargo não cadastrado para o id: " + vinculo.cargo().id());
 
-    if (permissaoIds == null || permissaoIds.isEmpty()) {
-      return;
-    }
+    if (vinculo.permissoes() == null || vinculo.permissoes().isEmpty()) return;
 
-    List<Long> ids = permissaoIds.stream().filter(Objects::nonNull).distinct().toList();
+    List<Permissao.Id> ids =
+        vinculo.permissoes().stream().filter(Objects::nonNull).distinct().toList();
+
     if (ids.isEmpty()) return;
 
-    cargoRepository.vincularPermissoesCargo(cargoId, ids, vinculo);
+    vinculo.permissoes().clear();
+    vinculo.permissoes().addAll(ids);
+
+    cargoRepository.vincularPermissoesCargo(vinculo);
   }
 }

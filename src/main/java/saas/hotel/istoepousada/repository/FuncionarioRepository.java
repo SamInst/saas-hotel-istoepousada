@@ -300,7 +300,7 @@ public class FuncionarioRepository {
     return findById(funcionario_id);
   }
 
-  public Funcionario update(Long id, Funcionario.Request request) {
+  public Funcionario update(Funcionario.Update funcionario) {
     jdbcTemplate.queryForObject(
         """
                 UPDATE funcionario
@@ -310,11 +310,11 @@ public class FuncionarioRepository {
                  WHERE id = ?
                 """,
         Long.class,
-        request.cargo().id(),
-        Date.valueOf(request.data_admissao()),
-        request.salario(),
-        id);
-    return findById(id);
+        funcionario.cargo().id(),
+        Date.valueOf(funcionario.data_admissao()),
+        funcionario.salario(),
+        funcionario.id());
+    return findById(funcionario.id());
   }
 
   public Funcionario.Authorization funcionarioLogin(Usuario.Id usuario) {

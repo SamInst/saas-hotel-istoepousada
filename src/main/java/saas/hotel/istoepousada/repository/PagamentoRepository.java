@@ -1,12 +1,9 @@
 package saas.hotel.istoepousada.repository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
-import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Pagamento;
 
 @Repository
@@ -18,66 +15,29 @@ public class PagamentoRepository {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  private static final RowMapper<Pagamento> PAGAMENTO_ROW_MAPPER =
-      (rs, rowNum) -> {
-        Long tipo_pagamento_id = rs.getObject("tipo_pagamento_id", Long.class);
-        String tipo_pagamento_descricao = rs.getString("tipo_pagamento_descricao");
-
-        Long funcionario_id = rs.getObject("funcionario_id", Long.class);
-        String funcionario_nome = rs.getString("funcionario_nome");
-
-        UUID desconto_id = rs.getObject("desconto_id", UUID.class);
-        Long desconto_funcionario_id = rs.getObject("desconto_funcionario_id", Long.class);
-        String desconto_funcionario_nome = rs.getString("desconto_funcionario_nome");
-
-        Pagamento.Desconto desconto =
-            desconto_id == null
-                ? null
-                : new Pagamento.Desconto(
-                    desconto_id,
-                    desconto_funcionario_id == null
-                        ? null
-                        : new Funcionario.Nome(desconto_funcionario_id, desconto_funcionario_nome),
-                    rs.getObject("desconto_porcentagem", Integer.class),
-                    rs.getObject("desconto_valor") == null ? null : rs.getDouble("desconto_valor"),
-                    rs.getObject("desconto_data_hora_registro", LocalDateTime.class));
-
-        return new Pagamento(
-            rs.getObject("id", UUID.class),
-            tipo_pagamento_id == null
-                ? null
-                : new Pagamento.TipoPagamento(tipo_pagamento_id, tipo_pagamento_descricao),
-            funcionario_id == null ? null : new Funcionario.Nome(funcionario_id, funcionario_nome),
-            rs.getObject("data_hora_registro", LocalDateTime.class),
-            rs.getString("nome_pagador"),
-            rs.getString("descricao"),
-            rs.getObject("valor") == null ? null : rs.getDouble("valor"),
-            rs.getBoolean("cancelado"),
-            desconto,
-            rs.getString("pagamento_path_arquivo"));
-      };
-
   private static final String SELECT_PAGAMENTO_BASE =
       """
                     SELECT
-                      p.id,
-                      p.data_hora_registro,
-                      p.nome_pagador,
-                      p.descricao,
-                      p.valor,
+                      p.id                 as pagamento_id,
+                      p.data_hora_registro as pagamento_data_hora_registro,
+                      p.nome_pagador       as pagamento_nome_pagador,
+                      p.descricao          as pagamento_descricao,
+                      p.valor              as pagamento_valor,
+                      p.cancelado          as pagamento_cancelado,
+                      p.path_arquivo       AS pagamento_path_arquivo,
 
-                      tp.id AS tipo_pagamento_id,
-                      tp.descricao AS tipo_pagamento_descricao,
+                      tp.id                AS tipo_pagamento_id,
+                      tp.descricao         AS tipo_pagamento_descricao,
 
-                      f.id AS funcionario_id,
-                      pe.nome AS funcionario_nome,
+                      f.id                 AS pagamento_funcionario_id,
+                      pe.nome              AS pagamento_funcionario_nome,
 
-                      d.id AS desconto_id,
-                      d.fk_funcionario AS desconto_funcionario_id,
-                      pde.nome AS desconto_funcionario_nome,
-                      d.porcentagem AS desconto_porcentagem,
-                      d.valor AS desconto_valor,
-                      d.data_hora_registro AS desconto_data_hora_registro
+                      d.id                 AS pagamento_desconto_id,
+                      d.fk_funcionario     AS pagamento_desconto_funcionario_id,
+                      pde.nome             AS pagamento_desconto_funcionario_nome,
+                      d.porcentagem        AS pagamento_desconto_porcentagem,
+                      d.valor              AS pagamento_desconto_valor,
+                      d.data_hora_registro AS pagamento_desconto_data_hora_registro
                     FROM pagamento p
                     JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
                     LEFT JOIN funcionario f ON f.id = p.fk_funcionario
@@ -122,31 +82,28 @@ public class PagamentoRepository {
 
   public Pagamento findById(UUID id) {
     var sql = SELECT_PAGAMENTO_BASE + " WHERE p.id = ? ";
-    return jdbcTemplate.queryForObject(sql, PAGAMENTO_ROW_MAPPER, id);
+    return jdbcTemplate.queryForObject(sql, Pagamento.ROW_MAPPER, id);
   }
 
   public List<Pagamento> findAll() {
     var sql = SELECT_PAGAMENTO_BASE + " ORDER BY p.data_hora_registro DESC ";
-    return jdbcTemplate.query(sql, PAGAMENTO_ROW_MAPPER);
+    return jdbcTemplate.query(sql, Pagamento.ROW_MAPPER);
   }
 
   public Pagamento update(Pagamento.Update pagamento) {
-    var sql =
-        """
-                        UPDATE pagamento
-                        SET
-                          fk_tipo_pagamento = COALESCE(?, fk_tipo_pagamento),
-                          fk_funcionario    = COALESCE(?, fk_funcionario),
-                          nome_pagador      = COALESCE(?, nome_pagador),
-                          descricao         = COALESCE(?, descricao),
-                          valor             = COALESCE(?, valor)
-                        WHERE id = ?
-                        RETURNING id
-                        """;
-
-    UUID updatedId =
-        jdbcTemplate.queryForObject(
-            sql,
+    var result =
+        jdbcTemplate.query(
+            """
+             UPDATE pagamento
+             SET
+               fk_tipo_pagamento = COALESCE(?, fk_tipo_pagamento),
+               fk_funcionario    = COALESCE(?, fk_funcionario),
+               nome_pagador      = COALESCE(?, nome_pagador),
+               descricao         = COALESCE(?, descricao),
+               valor             = COALESCE(?, valor)
+             WHERE id = ?
+             RETURNING id
+             """,
             (rs, rowNum) -> rs.getObject("id", UUID.class),
             pagamento.tipo_pagamento().id(),
             pagamento.funcionario().id(),
@@ -155,7 +112,12 @@ public class PagamentoRepository {
             pagamento.valor(),
             pagamento.uuid());
 
-    return findById(updatedId);
+    if (result.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Pagamento com id " + pagamento.uuid() + " não encontrado");
+    }
+
+    return findById(result.getFirst());
   }
 
   public void cancelarPagamento(UUID id) {

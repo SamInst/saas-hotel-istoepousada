@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.web.multipart.MultipartFile;
 
 public record Funcionario(
@@ -28,7 +29,40 @@ public record Funcionario(
       @NotNull Cargo.Id cargo,
       @NotNull Float salario) {}
 
-  public record Nome(@NotNull Long id, @NotNull String nome) {}
+  public record Nome(@NotNull Long id, @NotNull String nome) {
+
+    public static final RowMapper<Funcionario.Nome> ROW_MAPPER =
+        (rs, row_num) -> {
+          Long funcionarioId = rs.getObject("funcionario_id", Long.class);
+          return funcionarioId == null
+              ? null
+              : new Funcionario.Nome(funcionarioId, rs.getString("funcionario_nome"));
+        };
+
+    public static final RowMapper<Funcionario.Nome> ROW_MAPPER_PAGAMENTO =
+        (rs, row_num) -> {
+          Long funcionarioId = rs.getObject("pagamento_funcionario_id", Long.class);
+          return funcionarioId == null
+              ? null
+              : new Funcionario.Nome(funcionarioId, rs.getString("pagamento_funcionario_nome"));
+        };
+    public static final RowMapper<Funcionario.Nome> ROW_MAPPER_PAGAMENTO_DESCONTO =
+        (rs, row_num) -> {
+          Long funcionarioId = rs.getObject("pagamento_desconto_funcionario_id", Long.class);
+          return funcionarioId == null
+              ? null
+              : new Funcionario.Nome(
+                  funcionarioId, rs.getString("pagamento_desconto_funcionario_nome"));
+        };
+
+    public static final RowMapper<Funcionario.Nome> ROW_MAPPER_RELATORIO =
+        (rs, row_num) -> {
+          Long funcionarioId = rs.getObject("relatorio_funcionario_id", Long.class);
+          return funcionarioId == null
+              ? null
+              : new Funcionario.Nome(funcionarioId, rs.getString("relatorio_funcionario_nome"));
+        };
+  }
 
   public record Authorization(
       @NotNull Long id,

@@ -1,6 +1,7 @@
 package saas.hotel.istoepousada.dto;
 
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import org.springframework.jdbc.core.RowMapper;
 
 public record Permissao(@NotNull Long id, @NotNull String permissao, @NotNull String descricao) {
@@ -15,4 +16,6 @@ public record Permissao(@NotNull Long id, @NotNull String permissao, @NotNull St
         return new Permissao(
             permissaoId, rs.getString("permissao_permissao"), rs.getString("permissao_descricao"));
       };
+
+  public record Vincular(Cargo.Id cargo, List<Permissao.Id> permissoes, Boolean ativo) {}
 }

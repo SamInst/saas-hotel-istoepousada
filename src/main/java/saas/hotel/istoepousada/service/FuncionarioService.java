@@ -30,9 +30,8 @@ public class FuncionarioService {
 
     pessoaService.alterarStatus(request.pessoa().id(), Pessoa.Status.CONTRATO_ATIVO);
 
-    var usuario =
-        usuarioService.create(
-            new Usuario.Request(request.usuario().username(), request.usuario().senha()));
+    usuarioService.create(
+        new Usuario.Request(request.usuario().username(), request.usuario().senha()));
 
     return funcionarioRepository.insert(
         new Funcionario.Request(
@@ -61,8 +60,8 @@ public class FuncionarioService {
     }
   }
 
-  public Funcionario update(Long id, Funcionario.Request request) {
-    return funcionarioRepository.update(id, request);
+  public Funcionario update(Funcionario.Update funcionario) {
+    return funcionarioRepository.update(funcionario);
   }
 
   public Page<Funcionario> search(

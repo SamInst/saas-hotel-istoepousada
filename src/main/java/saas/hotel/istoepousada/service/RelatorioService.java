@@ -1,7 +1,5 @@
 package saas.hotel.istoepousada.service;
 
-import java.time.LocalDate;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -16,31 +14,8 @@ public class RelatorioService {
     this.relatorioRepository = relatorioRepository;
   }
 
-  public Relatorio.Extrato buscar(
-      Long id,
-      LocalDate dataInicio,
-      LocalDate dataFim,
-      Long funcionarioId,
-      Long quartoId,
-      Long tipoPagamentoId,
-      Relatorio.Registro registro,
-      Boolean despesaPessoal,
-      Pageable pageable) {
-    if (dataInicio == null && dataFim == null) {
-      LocalDate hoje = LocalDate.now();
-      dataInicio = hoje.minusDays(1);
-      dataFim = hoje;
-    }
-    return relatorioRepository.buscar(
-        id,
-        dataInicio,
-        dataFim,
-        funcionarioId,
-        quartoId,
-        tipoPagamentoId,
-        registro,
-        despesaPessoal,
-        pageable);
+  public Relatorio.Extrato buscar(Relatorio.Buscar relatorio) {
+    return relatorioRepository.buscar(relatorio);
   }
 
   @Transactional
@@ -59,6 +34,5 @@ public class RelatorioService {
     if (request == null) throw new IllegalArgumentException("Request é obrigatória.");
     if (!StringUtils.hasText(request.relatorio()))
       throw new IllegalArgumentException("Descrição do relatório é obrigatória.");
-    if (request.valor() == null) throw new IllegalArgumentException("valor é obrigatório.");
   }
 }

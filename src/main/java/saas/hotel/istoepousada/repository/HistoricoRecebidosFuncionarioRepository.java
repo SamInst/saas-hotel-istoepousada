@@ -43,7 +43,7 @@ public class HistoricoRecebidosFuncionarioRepository {
                   rs.getObject("pagamento_data_hora_registro", LocalDateTime.class),
                   rs.getString("pagamento_nome_pagador"),
                   rs.getString("pagamento_descricao"),
-                  rs.getObject("pagamento_valor", Double.class),
+                  rs.getFloat("pagamento_valor"),
                   rs.getBoolean("pagamento_cancelado"),
                   new Pagamento.Desconto(
                       rs.getObject("pagamento_desconto_id", UUID.class),
@@ -51,7 +51,7 @@ public class HistoricoRecebidosFuncionarioRepository {
                           rs.getLong("pagamento_desconto_funcionario_id"),
                           rs.getString("pagamento_desconto_funcionario_nome")),
                       rs.getInt("pagamento_desconto_porcentagem"),
-                      rs.getDouble("pagamento_desconto_valor"),
+                      rs.getFloat("pagamento_desconto_valor"),
                       rs.getTimestamp("pagamento_desconto_data_hora_registro").toLocalDateTime()),
                   rs.getString("")),
               rs.getString("path_arquivo"));
