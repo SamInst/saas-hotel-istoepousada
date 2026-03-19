@@ -27,7 +27,7 @@ public class VeiculoRepository {
     try {
       return jdbcTemplate.queryForObject(sql, Veiculo.ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
-      throw new NotFoundException("Veiculo nao encontrado para o uuid: " + id);
+      throw new NotFoundException("Veiculo nao encontrado para o id: " + id);
     }
   }
 
@@ -38,11 +38,11 @@ public class VeiculoRepository {
                 FROM veiculo
                 WHERE placa = ?
                 """;
-
     try {
+
       return jdbcTemplate.queryForObject(sql, Veiculo.ROW_MAPPER, placa);
     } catch (EmptyResultDataAccessException ex) {
-      throw new NotFoundException("Veiculo nao encontrado para a placa: " + placa);
+      return null;
     }
   }
 

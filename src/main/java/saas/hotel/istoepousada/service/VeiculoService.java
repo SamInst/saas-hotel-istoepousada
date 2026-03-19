@@ -24,42 +24,26 @@ public class VeiculoService {
   }
 
   @Transactional(readOnly = true)
-  public List<Veiculo> findAll() {
-    return veiculoRepository.findAll();
-  }
-
-  @Transactional(readOnly = true)
   public List<Veiculo> findAllByPessoaId(Long pessoa_id) {
     pessoaRepository.findById(pessoa_id);
     return veiculoRepository.findAllByPessoaId(pessoa_id);
   }
 
   @Transactional
-  public Veiculo create(Veiculo.Request request, Pessoa.Id pessoa) {
-    var placa = veiculoRepository.findByPlaca(request.placa());
+  public Veiculo create(Veiculo.Request veiculo) {
+    var placa = veiculoRepository.findByPlaca(veiculo.placa());
     if (placa != null) {
-      throw new IllegalArgumentException("Veiculo ja cadastrado com a placa: " + request.placa());
+      throw new IllegalArgumentException("Veiculo ja cadastrado com a placa: " + veiculo.placa());
     }
-    pessoaRepository.findById(pessoa.id());
 
-    Veiculo veiculo_criado = veiculoRepository.create(request);
-
-    veiculoRepository.setVinculo(
-        new Veiculo.Vincular(new Veiculo.Id(veiculo_criado.id()), pessoa, true));
-
+    Veiculo veiculo_criado = veiculoRepository.create(veiculo);
     return veiculoRepository.findById(veiculo_criado.id());
   }
 
   @Transactional
   public Veiculo update(Veiculo.Update update) {
-    pessoaRepository.findById(update.pessoa().id());
     veiculoRepository.findById(update.id());
-
     Veiculo veiculo_atualizado = veiculoRepository.update(update);
-
-    veiculoRepository.setVinculo(
-        new Veiculo.Vincular(new Veiculo.Id(veiculo_atualizado.id()), update.pessoa(), true));
-
     return veiculoRepository.findById(veiculo_atualizado.id());
   }
 

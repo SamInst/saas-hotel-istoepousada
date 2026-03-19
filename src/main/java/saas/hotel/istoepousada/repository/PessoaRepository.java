@@ -183,15 +183,18 @@ public class PessoaRepository {
       Long id, String termo, String placaVeiculo, Pessoa.Status status, Pageable pageable) {
 
     boolean hasId = id != null;
-    boolean hasTermo = termo != null && !termo.trim().isEmpty();
+    boolean hasTermo = termo != null && !termo.isEmpty();
     boolean hasPlaca = placaVeiculo != null && !placaVeiculo.trim().isEmpty();
 
-    String termoTrim = hasTermo ? termo.trim() : null;
-    String search = hasTermo ? "%" + termoTrim + "%" : null;
+    String search = hasTermo ? "%" + termo + "%" : null;
     String placaTrim = hasPlaca ? placaVeiculo.trim().toUpperCase() : null;
 
+    String veiculoJoinCondition = hasPlaca 
+        ? " AND UPPER(v.placa) = ?"
+        : "";
+
     String baseSelect =
-        """
+        String.format("""
                         SELECT
                             p.id                   AS pessoa_id,
                             p.data_hora_registro   AS pessoa_data_hora_registro,
@@ -215,7 +218,7 @@ public class PessoaRepository {
                             p.status               AS pessoa_status,
                             p.fk_funcionario       AS pessoa_fk_funcionario,
                             p.fk_titular           AS pessoa_fk_titular,
-                            func.nome              AS pessoa_funcionario_nome,
+                            pessoa_funcionario.nome AS pessoa_funcionario_nome,
                             titular.nome           AS pessoa_titular_nome,
                             e.id                   AS empresa_id,
                             e.data_hora_registro   AS empresa_data_hora_registro,
@@ -241,26 +244,27 @@ public class PessoaRepository {
                             v.placa                AS veiculo_placa,
                             v.cor                  AS veiculo_cor
                         FROM pessoa p
-                        LEFT JOIN pessoa func ON func.id = p.fk_funcionario
+                        LEFT JOIN funcionario func ON func.id = p.fk_funcionario
+                        LEFT JOIN pessoa pessoa_funcionario ON pessoa_funcionario.id = func.fk_pessoa
                         LEFT JOIN pessoa titular ON titular.id = p.fk_titular
                         LEFT JOIN empresa_pessoa ep ON ep.fk_pessoa = p.id
                         LEFT JOIN empresa e ON e.id = ep.fk_empresa
                         LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id AND pv.vinculo_ativo = true
-                        LEFT JOIN veiculo v ON v.id = pv.veiculo_id
-                        """;
+                        LEFT JOIN veiculo v ON v.id = pv.veiculo_id%s
+                        """, veiculoJoinCondition);
 
     StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
     List<Object> params = new ArrayList<>();
 
     if (hasId) {
-      where.append(" AND p.uuid = ? ");
+      where.append(" AND p.id = ? ");
       params.add(id);
     }
 
     if (hasTermo) {
       where.append(" AND (p.nome ILIKE ? OR p.cpf = ?) ");
       params.add(search);
-      params.add(termoTrim);
+      params.add(termo);
     }
 
     if (status != null) {
@@ -271,15 +275,15 @@ public class PessoaRepository {
     if (hasPlaca) {
       where.append(
           """
-                            AND EXISTS (
-                                SELECT 1
-                                FROM pessoa_veiculo pv2
-                                JOIN veiculo v2 ON v2.uuid = pv2.veiculo_id
-                                WHERE pv2.pessoa_id = p.uuid
-                                  AND pv2.vinculo_ativo = true
-                                  AND UPPER(v2.placa) = ?
-                            )
-                            """);
+          AND EXISTS (
+              SELECT 1
+              FROM pessoa_veiculo pv2
+              JOIN veiculo v2 ON v2.id = pv2.veiculo_id
+              WHERE pv2.pessoa_id = p.id
+                AND pv2.vinculo_ativo = true
+                AND UPPER(v2.placa) = ?
+          )
+          """);
       params.add(placaTrim);
     }
 
@@ -326,8 +330,13 @@ public class PessoaRepository {
             + ") "
             + " ORDER BY p.nome, e.razao_social, v.placa ";
 
+    List<Object> pageParams = new ArrayList<>(Arrays.asList(ids.toArray()));
+    if (hasPlaca) {
+      pageParams.addFirst(placaTrim);
+    }
+
     List<Pessoa> content =
-        jdbcTemplate.query(pageSql, PESSOA_COM_EMPRESAS_E_VEICULOS_EXTRACTOR, ids.toArray());
+        jdbcTemplate.query(pageSql, PESSOA_COM_EMPRESAS_E_VEICULOS_EXTRACTOR, pageParams.toArray());
 
     List<Pessoa> enriched = adicionarAcompanhantesParaTitulares(content);
 
@@ -385,7 +394,7 @@ public class PessoaRepository {
   public Pessoa findById(Long id) {
     Page<Pessoa> page = buscar(id, null, null, null, Pageable.ofSize(1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Pessoa não encontrada para o uuid: " + id);
+      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
     }
     return page.getContent().getFirst();
   }

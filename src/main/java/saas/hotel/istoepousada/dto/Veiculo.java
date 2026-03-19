@@ -8,11 +8,14 @@ public record Veiculo(
   public record Id(@NotNull Long id) {}
 
   public record Request(
-      String modelo, String marca, Integer ano, @NotNull String placa, String cor) {}
+      String modelo,
+      String marca,
+      Integer ano,
+      @NotNull String placa,
+      String cor) {}
 
   public record Update(
       @NotNull Long id,
-      @NotNull Pessoa.Id pessoa,
       String modelo,
       String marca,
       Integer ano,

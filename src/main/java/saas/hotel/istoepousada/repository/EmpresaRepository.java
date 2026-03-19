@@ -33,7 +33,7 @@ public class EmpresaRepository {
     List<Object> params = new ArrayList<>();
 
     if (has_id) {
-      where.append(" AND e.uuid = ? ");
+      where.append(" AND e.id = ? ");
       params.add(id);
     }
 

@@ -30,40 +30,40 @@ public class LocalidadeRepository {
     this.cnpjaClient = cnpjaClient;
   }
 
-  public List<Objeto> listarPaises() {
-    String sql =
-        """
-                SELECT id, descricao
-                FROM public.pais
-                ORDER BY descricao
-            """;
-
-    return jdbcTemplate.query(sql, mapObjeto);
-  }
-
-  public List<Objeto> listarEstadosPorPais(Long pais) {
-    String sql =
-        """
-                SELECT id, descricao
-                FROM public.estado
-                WHERE fk_pais = ?
-                ORDER BY descricao
-            """;
-
-    return jdbcTemplate.query(sql, mapObjeto, pais);
-  }
-
-  public List<Objeto> listarMunicipiosPorEstado(Long estado) {
-    String sql =
-        """
-                SELECT id, descricao
-                FROM public.municipio
-                WHERE municipio.fk_estado = ?
-                ORDER BY descricao
-            """;
-
-    return jdbcTemplate.query(sql, mapObjeto, estado);
-  }
+//  public List<Objeto> listarPaises() {
+//    String sql =
+//        """
+//                SELECT id, descricao
+//                FROM public.pais
+//                ORDER BY descricao
+//            """;
+//
+//    return jdbcTemplate.query(sql, mapObjeto);
+//  }
+//
+//  public List<Objeto> listarEstadosPorPais(Long pais) {
+//    String sql =
+//        """
+//                SELECT id, descricao
+//                FROM public.estado
+//                WHERE fk_pais = ?
+//                ORDER BY descricao
+//            """;
+//
+//    return jdbcTemplate.query(sql, mapObjeto, pais);
+//  }
+//
+//  public List<Objeto> listarMunicipiosPorEstado(Long estado) {
+//    String sql =
+//        """
+//                SELECT id, descricao
+//                FROM public.municipio
+//                WHERE municipio.fk_estado = ?
+//                ORDER BY descricao
+//            """;
+//
+//    return jdbcTemplate.query(sql, mapObjeto, estado);
+//  }
 
   public ViaCep buscarPorCep(String cep) {
     String cepLimpo = limparCep(cep);

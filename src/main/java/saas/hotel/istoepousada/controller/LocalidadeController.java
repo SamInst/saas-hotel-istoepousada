@@ -1,229 +1,38 @@
-// package saas.hotel.istoepousada.controller;
-//
-// import io.swagger.v3.oas.annotations.Operation;
-// import io.swagger.v3.oas.annotations.Parameter;
-// import io.swagger.v3.oas.annotations.media.ArraySchema;
-// import io.swagger.v3.oas.annotations.media.Content;
-// import io.swagger.v3.oas.annotations.media.ExampleObject;
-// import io.swagger.v3.oas.annotations.media.Schema;
-// import io.swagger.v3.oas.annotations.responses.ApiResponse;
-// import io.swagger.v3.oas.annotations.responses.ApiResponses;
-// import io.swagger.v3.oas.annotations.tags.Tag;
-// import java.util.List;
-// import org.springframework.http.MediaType;
-// import org.springframework.http.ResponseEntity;
-// import org.springframework.web.bind.annotation.*;
-// import saas.hotel.istoepousada.dto.EmpresaResponse;
-// import saas.hotel.istoepousada.dto.Endereco;
-// import saas.hotel.istoepousada.dto.Objeto;
-// import saas.hotel.istoepousada.service.EnderecoService;
-//
-// @Tag(
-//    name = "Localidade (Endereço)",
-//    description = "Endpoints utilitários para preencher combobox de País, Estado e Município.")
-// @RestController
-// @RequestMapping("")
-// @CrossOrigin(origins = "*")
-// public class LocalidadeController {
-//
-//  private final EnderecoService enderecoService;
-//
-//  public LocalidadeController(EnderecoService enderecoService) {
-//    this.enderecoService = enderecoService;
-//  }
-//
-//  @Operation(
-//      summary = "Buscar empresa por CNPJ",
-//      description =
-//          "Consulta o CNPJ na API CNPJA e retorna os dados da empresa com endereço completo
-// incluindo IDs do banco de dados.")
-//  @ApiResponses({
-//    @ApiResponse(
-//        responseCode = "200",
-//        description = "Empresa encontrada com sucesso",
-//        content =
-//            @Content(
-//                mediaType = MediaType.APPLICATION_JSON_VALUE,
-//                schema = @Schema(implementation = EmpresaResponse.class),
-//                examples =
-//                    @ExampleObject(
-//                        name = "Exemplo",
-//                        value =
-//                            """
-//                                      {
-//                                        "cnpj": "52.006.953/0001-60",
-//                                        "razaoSocial": "SAM HELSON LTDA",
-//                                        "nomeFantasia": "Sam Helson",
-//                                        "situacao": "Ativa",
-//                                        "dataAbertura": "30/08/2023",
-//                                        "endereco": {
-//                                          "cep": "01311914",
-//                                          "endereco": "Avenida Paulista",
-//                                          "bairro": "Bela Vista",
-//                                          "numero": 777,
-//                                          "complemento": "Andar 15 Conj 15 Sala 664",
-//                                          "pais": { "uuid": 1, "descricao": "Brasil" },
-//                                          "estado": { "uuid": 25, "descricao": "São Paulo" },
-//                                          "municipio": { "uuid": 3550308, "descricao": "São Paulo"
-// }
-//                                        },
-//                                        "telefone": "(98) 84508897",
-//                                        "email": "sanhelsonnunes@gmail.com"
-//                                      }
-//                                      """))),
-//    @ApiResponse(
-//        responseCode = "404",
-//        description = "CNPJ não encontrado ou dados não cadastrados no banco")
-//  })
-//  @GetMapping("/cnpj/{cnpj}")
-//  public ResponseEntity<EmpresaResponse> buscarPorCnpj(
-//      @Parameter(
-//              description = "CNPJ a ser consultado (sem formatação)",
-//              example = "52006953000160",
-//              required = true)
-//          @PathVariable
-//          String cnpj) {
-//    EmpresaResponse response = enderecoService.buscarEmpresaPorCnpj(cnpj);
-//    return ResponseEntity.ok(response);
-//  }
-//
-//  @Operation(
-//      summary = "Buscar endereço por CEP",
-//      description =
-//          "Consulta o CEP no ViaCEP e retorna o endereço completo com IDs de país, estado e
-// município do banco de dados.")
-//  @ApiResponses({
-//    @ApiResponse(
-//        responseCode = "200",
-//        description = "Endereço encontrado com sucesso",
-//        content =
-//            @Content(
-//                mediaType = MediaType.APPLICATION_JSON_VALUE,
-//                schema = @Schema(implementation = Endereco.class),
-//                examples =
-//                    @ExampleObject(
-//                        name = "Exemplo",
-//                        value =
-//                            """
-//                                      {
-//                                        "cep": "65066260",
-//                                        "endereco": "Rua Coronel Eurípedes Bezerra",
-//                                        "bairro": "Turu",
-//                                        "numero": 123,
-//                                        "complemento": "",
-//                                        "pais": { "uuid": 1, "descricao": "Brasil" },
-//                                        "estado": { "uuid": 10, "descricao": "Maranhão" },
-//                                        "municipio": { "uuid": 100, "descricao": "São Luís" }
-//                                      }
-//                                      """))),
-//    @ApiResponse(responseCode = "400", description = "CEP inválido"),
-//    @ApiResponse(
-//        responseCode = "404",
-//        description = "CEP não encontrado ou dados não cadastrados no banco")
-//  })
-//  @GetMapping("/cep/{cep}")
-//  public ResponseEntity<Endereco> buscarPorCep(
-//      @Parameter(
-//              description = "CEP a ser consultado (com ou sem formatação)",
-//              example = "65066-260",
-//              required = true)
-//          @PathVariable
-//          String cep) {
-//    Endereco response = enderecoService.buscarEnderecoPorCep(cep);
-//    return ResponseEntity.ok(response);
-//  }
-//
-//  @Operation(
-//      summary = "Listar países",
-//      description = "Retorna todos os países cadastrados para preencher o combobox de país.")
-//  @ApiResponses({
-//    @ApiResponse(
-//        responseCode = "200",
-//        description = "Lista de países",
-//        content =
-//            @Content(
-//                mediaType = MediaType.APPLICATION_JSON_VALUE,
-//                array = @ArraySchema(schema = @Schema(implementation = Objeto.class)),
-//                examples =
-//                    @ExampleObject(
-//                        name = "Exemplo",
-//                        value =
-//                            """
-//                                      [
-//                                        { "uuid": 1, "descricao": "Brasil" },
-//                                        { "uuid": 2, "descricao": "Portugal" }
-//                                      ]
-//                                      """)))
-//  })
-//  @GetMapping("/paises")
-//  public ResponseEntity<List<Objeto>> listarPaises() {
-//    List<Objeto> response = enderecoService.listarPaises();
-//    return ResponseEntity.ok(response);
-//  }
-//
-//  @Operation(
-//      summary = "Listar estados por país",
-//      description =
-//          "Retorna os estados vinculados a um país (pais) para preencher o combobox de estado.")
-//  @ApiResponses({
-//    @ApiResponse(
-//        responseCode = "200",
-//        description = "Lista de estados do país informado",
-//        content =
-//            @Content(
-//                mediaType = MediaType.APPLICATION_JSON_VALUE,
-//                array = @ArraySchema(schema = @Schema(implementation = Objeto.class)),
-//                examples =
-//                    @ExampleObject(
-//                        name = "Exemplo",
-//                        value =
-//                            """
-//                                      [
-//                                        { "uuid": 10, "descricao": "Maranhão" },
-//                                        { "uuid": 11, "descricao": "Piauí" }
-//                                      ]
-//                                      """))),
-//    @ApiResponse(responseCode = "400", description = "Parâmetro inválido")
-//  })
-//  @GetMapping("/estados/{pais}")
-//  public ResponseEntity<List<Objeto>> listarEstadosPorPais(
-//      @Parameter(description = "ID do país (pais)", example = "1", required = true) @PathVariable
-//          Long pais) {
-//    List<Objeto> response = enderecoService.listarEstados(pais);
-//    return ResponseEntity.ok(response);
-//  }
-//
-//  @Operation(
-//      summary = "Listar municípios por estado",
-//      description =
-//          "Retorna os municípios vinculados a um estado (estado) para preencher o combobox de
-// município.")
-//  @ApiResponses({
-//    @ApiResponse(
-//        responseCode = "200",
-//        description = "Lista de municípios do estado informado",
-//        content =
-//            @Content(
-//                mediaType = MediaType.APPLICATION_JSON_VALUE,
-//                array = @ArraySchema(schema = @Schema(implementation = Objeto.class)),
-//                examples =
-//                    @ExampleObject(
-//                        name = "Exemplo",
-//                        value =
-//                            """
-//                                      [
-//                                        { "uuid": 100, "descricao": "São Luís" },
-//                                        { "uuid": 101, "descricao": "Imperatriz" }
-//                                      ]
-//                                      """))),
-//    @ApiResponse(responseCode = "400", description = "Parâmetro inválido")
-//  })
-//  @GetMapping("/municipios/{estado}")
-//  public ResponseEntity<List<Objeto>> listarMunicipiosPorEstado(
-//      @Parameter(description = "ID do estado (estado)", example = "10", required = true)
-//          @PathVariable
-//          Long estado) {
-//    List<Objeto> response = enderecoService.listarMunicipios(estado);
-//    return ResponseEntity.ok(response);
-//  }
-// }
+package saas.hotel.istoepousada.controller;
+
+import io.swagger.v3.oas.annotations.Parameter;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import saas.hotel.istoepousada.dto.Empresa;
+import saas.hotel.istoepousada.dto.Endereco;
+import saas.hotel.istoepousada.service.EnderecoService;
+
+@RestController
+@RequestMapping("")
+@CrossOrigin(origins = "*")
+public class LocalidadeController {
+
+    private final EnderecoService enderecoService;
+
+    public LocalidadeController(EnderecoService enderecoService) {
+        this.enderecoService = enderecoService;
+    }
+
+    @GetMapping("/cnpj/{cnpj}")
+    public ResponseEntity<Empresa.EmpresaResponse> buscarPorCnpj(@PathVariable String cnpj) {
+        Empresa.EmpresaResponse response = enderecoService.buscarEmpresaPorCnpj(cnpj);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/cep/{cep}")
+    public ResponseEntity<Endereco> buscarPorCep(
+            @Parameter(
+                    description = "CEP a ser consultado (com ou sem formatação)",
+                    example = "65066-260",
+                    required = true)
+            @PathVariable
+            String cep) {
+        Endereco response = enderecoService.buscarEnderecoPorCep(cep);
+        return ResponseEntity.ok(response);
+    }
+}

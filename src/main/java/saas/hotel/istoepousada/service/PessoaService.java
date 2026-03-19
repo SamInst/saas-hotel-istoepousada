@@ -34,9 +34,9 @@ public class PessoaService {
   }
 
   public Page<Pessoa> buscar(
-      Long id, String termo, String placaVeiculo, Pessoa.Status status, Pageable pageable) {
+      Long id, String termo, String placa, Pessoa.Status status, Pageable pageable) {
     String termoNormalizado = StringUtils.hasText(termo) ? termo.trim() : null;
-    String placaNormalizada = StringUtils.hasText(placaVeiculo) ? placaVeiculo.trim() : null;
+    String placaNormalizada = StringUtils.hasText(placa) ? placa.trim() : null;
     return pessoaRepository.buscar(id, termoNormalizado, placaNormalizada, status, pageable);
   }
 
@@ -57,14 +57,19 @@ public class PessoaService {
                 if (veiculo.id() != null) {
                   veiculoService.update(veiculo);
                 } else {
-                  veiculoService.create(
+                  var new_veiculo = veiculoService.create(
                       new Veiculo.Request(
                           veiculo.modelo(),
                           veiculo.marca(),
                           veiculo.ano(),
                           veiculo.placa(),
-                          veiculo.cor()),
-                      new Pessoa.Id(pessoa.id()));
+                          veiculo.cor()));
+                  veiculoService.setVinculoAtivo(
+                          new Veiculo.Vincular(
+                                  new Veiculo.Id(
+                                          new_veiculo.id()),
+                                  new Pessoa.Id(pessoa.id()),
+                                  true));
                 }
               });
     }
@@ -86,24 +91,24 @@ public class PessoaService {
       throw new IllegalArgumentException("Lista de pessoas é obrigatória.");
     }
 
-    Pessoa.Request titularReq = request.pessoas().getFirst();
-    Pessoa titularSalvo = salvarInternoSemVinculoEmpresa(titularReq, null);
+    Pessoa.Request titular_requisicao = request.pessoas().getFirst();
+    Pessoa titular_salvo = salvarInternoSemVinculoEmpresa(titular_requisicao, null);
 
-    List<Pessoa> acompanhantesSalvos = new ArrayList<>();
+    List<Pessoa> acompanhantes_salvos = new ArrayList<>();
 
     for (Pessoa.Request pessoa : request.pessoas()) {
-      if (pessoa == titularReq) {
+      if (pessoa == titular_requisicao) {
         continue;
       }
 
-      Pessoa acompanhanteSalvo = salvarInternoSemVinculoEmpresa(pessoa, titularSalvo.id());
-      acompanhantesSalvos.add(acompanhanteSalvo);
+      Pessoa acompanhante_salvo = salvarInternoSemVinculoEmpresa(pessoa, titular_salvo.id());
+      acompanhantes_salvos.add(acompanhante_salvo);
     }
 
     if (request.empresas() != null && !request.empresas().isEmpty()) {
       List<Pessoa> todos = new ArrayList<>();
-      todos.add(titularSalvo);
-      todos.addAll(acompanhantesSalvos);
+      todos.add(titular_salvo);
+      todos.addAll(acompanhantes_salvos);
 
       for (Empresa.Id empresa :
           request.empresas().stream().filter(Objects::nonNull).distinct().toList()) {
@@ -116,86 +121,99 @@ public class PessoaService {
 
     Pessoa titularComAcompanhantes =
         new Pessoa(
-            titularSalvo.id(),
-            titularSalvo.data_hora_registro(),
-            titularSalvo.data_nascimento(),
-            titularSalvo.nome(),
-            titularSalvo.cpf(),
-            titularSalvo.rg(),
-            titularSalvo.email(),
-            titularSalvo.telefone(),
-            titularSalvo.pais(),
-            titularSalvo.estado(),
-            titularSalvo.municipio(),
-            titularSalvo.endereco(),
-            titularSalvo.complemento(),
-            titularSalvo.vezes_hospedado(),
-            titularSalvo.cep(),
-            titularSalvo.idade(),
-            titularSalvo.bairro(),
-            titularSalvo.sexo(),
-            titularSalvo.numero(),
-            titularSalvo.status(),
-            titularSalvo.empresas_vinculadas(),
-            titularSalvo.veiculos_vinculados(),
-            titularSalvo.funcionario(),
-            titularSalvo.titular(),
-            acompanhantesSalvos);
+            titular_salvo.id(),
+            titular_salvo.data_hora_registro(),
+            titular_salvo.data_nascimento(),
+            titular_salvo.nome(),
+            titular_salvo.cpf(),
+            titular_salvo.rg(),
+            titular_salvo.email(),
+            titular_salvo.telefone(),
+            titular_salvo.pais(),
+            titular_salvo.estado(),
+            titular_salvo.municipio(),
+            titular_salvo.endereco(),
+            titular_salvo.complemento(),
+            titular_salvo.vezes_hospedado(),
+            titular_salvo.cep(),
+            titular_salvo.idade(),
+            titular_salvo.bairro(),
+            titular_salvo.sexo(),
+            titular_salvo.numero(),
+            titular_salvo.status(),
+            titular_salvo.empresas_vinculadas(),
+            titular_salvo.veiculos_vinculados(),
+            titular_salvo.funcionario(),
+            titular_salvo.titular(),
+            acompanhantes_salvos);
 
     List<Pessoa> retorno = new ArrayList<>();
     retorno.add(titularComAcompanhantes);
-    retorno.addAll(acompanhantesSalvos);
+    retorno.addAll(acompanhantes_salvos);
     return retorno;
   }
 
   private Pessoa salvarInternoSemVinculoEmpresa(Pessoa.Request pessoa, Long titular_id) {
     validarPessoa(pessoa);
 
-    Pessoa salva = pessoaRepository.insert(pessoa);
-    pessoaRepository.vincularTitular(salva.id(), titular_id, true);
-    return salvarOuAtualizarVeiculos(salva, pessoa.veiculos());
+    Pessoa new_pessoa = pessoaRepository.insert(pessoa);
+    pessoaRepository.vincularTitular(new_pessoa.id(), titular_id, true);
+    return salvarOuAtualizarVeiculos(new_pessoa, pessoa.veiculos());
   }
 
-  private Pessoa salvarOuAtualizarVeiculos(Pessoa salva, List<Veiculo> veiculosRequest) {
-    if (veiculosRequest == null) {
+  private Pessoa salvarOuAtualizarVeiculos(Pessoa salva, List<Veiculo> veiculos) {
+    if (veiculos == null) {
       return salva;
     }
 
     List<Veiculo> veiculosExistentes = veiculoService.findAllByPessoaId(salva.id());
 
     if (veiculosExistentes.isEmpty()) {
-      if (veiculosRequest.isEmpty()) {
+      if (veiculos.isEmpty()) {
         return salva;
       }
 
-      List<Veiculo> veiculosSalvos = new ArrayList<>(veiculosRequest.size());
+      List<Veiculo> veiculosSalvos = new ArrayList<>(veiculos.size());
 
-      for (Veiculo veiculo : veiculosRequest) {
-        Veiculo veiculoSalvo =
-            veiculoService.update(
-                new Veiculo.Update(
-                    veiculo.id(),
-                    new Pessoa.Id(salva.id()),
-                    veiculo.modelo(),
-                    veiculo.marca(),
-                    veiculo.ano(),
-                    veiculo.placa(),
-                    veiculo.cor()));
+      for (Veiculo veiculo : veiculos) {
+        Veiculo veiculoSalvo;
+        
+        if (veiculo.id() == null) {
+          veiculoSalvo =
+              veiculoService.create(
+                  new Veiculo.Request(
+                      veiculo.modelo(),
+                      veiculo.marca(),
+                      veiculo.ano(),
+                      veiculo.placa(),
+                      veiculo.cor()));
+        } else {
+          veiculoSalvo =
+              veiculoService.update(
+                  new Veiculo.Update(
+                      veiculo.id(),
+                      veiculo.modelo(),
+                      veiculo.marca(),
+                      veiculo.ano(),
+                      veiculo.placa(),
+                      veiculo.cor()));
+        }
+        veiculoService.setVinculoAtivo(
+                new Veiculo.Vincular(
+                        new Veiculo.Id(veiculoSalvo.id()), new Pessoa.Id(salva.id()), true));
+        
         if (veiculoSalvo.id() == null) {
           throw new IllegalStateException("Veículo salvo sem ID.");
         }
-        veiculoService.setVinculoAtivo(
-            new Veiculo.Vincular(
-                new Veiculo.Id(veiculoSalvo.id()), new Pessoa.Id(salva.id()), true));
         veiculosSalvos.add(veiculoSalvo);
       }
 
       return pessoaRepository.findById(salva.id());
     }
 
-    if (!veiculosRequest.isEmpty()) {
+    if (!veiculos.isEmpty()) {
       Veiculo oldVeiculo = veiculosExistentes.getFirst();
-      Veiculo newVeiculo = veiculosRequest.getFirst();
+      Veiculo newVeiculo = veiculos.getFirst();
 
       Veiculo veiculoAtualizado =
           new Veiculo(
@@ -209,7 +227,6 @@ public class PessoaService {
       veiculoService.update(
           new Veiculo.Update(
               veiculoAtualizado.id(),
-              new Pessoa.Id(salva.id()),
               veiculoAtualizado.modelo(),
               veiculoAtualizado.marca(),
               veiculoAtualizado.ano(),
