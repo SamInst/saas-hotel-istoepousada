@@ -1,7 +1,7 @@
 package saas.hotel.istoepousada.repository;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -10,8 +10,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import saas.hotel.istoepousada.dto.Usuario;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
@@ -120,31 +118,16 @@ public class UsuarioRepository {
     return count > 0;
   }
 
-  public Usuario create(String username, String senhaMd5) {
-    String sql =
-        """
-            INSERT INTO usuario (username, senha, bloqueado)
-            VALUES (?, ?, false)
-            """;
+  public Usuario create(String username, String senha) {
+    String senhaMd5 = gerarMD5(senha);
 
-    KeyHolder keyHolder = new GeneratedKeyHolder();
+    Long id = jdbcTemplate.queryForObject("""
+        INSERT INTO usuario (username, senha, bloqueado)
+        VALUES (?, ?, false)
+        RETURNING id
+        """, Long.class, username, senhaMd5);
 
-    jdbcTemplate.update(
-        connection -> {
-          PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-          ps.setString(1, username);
-          ps.setString(2, senhaMd5);
-          return ps;
-        },
-        keyHolder);
-
-    Long generatedId = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : null;
-
-    if (generatedId == null) {
-      throw new IllegalStateException("Não foi possível obter o uuid do usuário criado");
-    }
-
-    return findById(generatedId);
+    return findById(id);
   }
 
   public Usuario updateUsername(Long id, String username) {
@@ -165,13 +148,15 @@ public class UsuarioRepository {
     return findById(id);
   }
 
-  public Usuario updateUsernameESenha(Long id, String username, String senhaMd5) {
+  public Usuario updateUsernameESenha(Long id, String username, String senha) {
+    String senhaMd5 = gerarMD5(senha);
     String sql = "UPDATE usuario SET username = ?, senha = ? WHERE id = ?";
     jdbcTemplate.update(sql, username, senhaMd5, id);
     return findById(id);
   }
 
-  public boolean autenticar(String username, String senhaMd5) {
+  public boolean autenticar(String username, String senha) {
+    String senhaMd5 = gerarMD5(senha);
     String sql =
         """
             SELECT COUNT(*)
@@ -182,5 +167,25 @@ public class UsuarioRepository {
             """;
     Long count = jdbcTemplate.queryForObject(sql, Long.class, username, senhaMd5);
     return count > 0;
+  }
+
+  private String gerarMD5(String texto) {
+    try {
+      MessageDigest md = MessageDigest.getInstance("MD5");
+      byte[] messageDigest = md.digest(texto.getBytes());
+
+      StringBuilder hexString = new StringBuilder();
+      for (byte b : messageDigest) {
+        String hex = Integer.toHexString(0xff & b);
+        if (hex.length() == 1) {
+          hexString.append('0');
+        }
+        hexString.append(hex);
+      }
+
+      return hexString.toString();
+    } catch (NoSuchAlgorithmException e) {
+      throw new RuntimeException("Erro ao gerar MD5", e);
+    }
   }
 }

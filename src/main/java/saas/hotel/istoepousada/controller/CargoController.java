@@ -25,7 +25,7 @@ public class CargoController {
   }
 
   @GetMapping
-  public Page<Cargo> listar(@RequestBody Cargo.Buscar buscar) {
+  public Page<Cargo> listar(@ModelAttribute Cargo.Buscar buscar) {
     return cargoService.listar(buscar);
   }
 

@@ -3,7 +3,6 @@ package saas.hotel.istoepousada.service;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.dto.Veiculo;
 import saas.hotel.istoepousada.repository.PessoaRepository;
 import saas.hotel.istoepousada.repository.VeiculoRepository;

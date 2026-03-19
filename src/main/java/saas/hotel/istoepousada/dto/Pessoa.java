@@ -108,8 +108,8 @@ public record Pessoa(
     ATIVO,
     BLOQUEADO,
     HOSPEDADO,
-    CONTRATO_ATIVO,
-    CONTRATO_ENCERRADO;
+    CONTRATADO,
+    DEMITIDO;
 
     public static Status map(String status) {
       if (status == null || status.isBlank()) return ATIVO;

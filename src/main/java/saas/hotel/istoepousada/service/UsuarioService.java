@@ -56,8 +56,7 @@ public class UsuarioService {
       throw new IllegalArgumentException("Username já existe: " + usernameTrim);
     }
 
-    String senhaMd5 = gerarMD5(usuario.senha());
-    Usuario created = repository.create(usernameTrim, senhaMd5);
+    Usuario created = repository.create(usernameTrim, usuario.senha());
 
     log.info("Usuário criado: uuid={}, username={}", created.id(), created.username());
     return created;
@@ -94,7 +93,7 @@ public class UsuarioService {
 
   @Transactional(readOnly = true)
   public boolean autenticar(String username, String senha) {
-    boolean autenticado = repository.autenticar(username, gerarMD5(senha));
+    boolean autenticado = repository.autenticar(username, senha);
 
     if (autenticado) log.info("Autenticação bem-sucedida para username={}", username);
     else log.warn("Tentativa de autenticação falhou para username={}", username);
@@ -116,31 +115,10 @@ public class UsuarioService {
       throw new IllegalArgumentException("Username já existe: " + usernameTrim);
     }
 
-    String senhaMd5 = gerarMD5(update.senha());
-    Usuario updated = repository.updateUsernameESenha(update.id(), usernameTrim, senhaMd5);
+    Usuario updated = repository.updateUsernameESenha(update.id(), usernameTrim, update.senha());
 
     log.info("Username e senha alterados: uuid={}, username={}", updated.id(), updated.username());
     return updated;
-  }
-
-  private String gerarMD5(String texto) {
-    try {
-      MessageDigest md = MessageDigest.getInstance("MD5");
-      byte[] messageDigest = md.digest(texto.getBytes());
-
-      StringBuilder hexString = new StringBuilder();
-      for (byte b : messageDigest) {
-        String hex = Integer.toHexString(0xff & b);
-        if (hex.length() == 1) {
-          hexString.append('0');
-        }
-        hexString.append(hex);
-      }
-
-      return hexString.toString();
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException("Erro ao gerar MD5", e);
-    }
   }
 
   @Transactional(readOnly = true)

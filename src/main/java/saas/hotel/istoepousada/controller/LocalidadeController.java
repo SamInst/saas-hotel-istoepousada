@@ -12,27 +12,27 @@ import saas.hotel.istoepousada.service.EnderecoService;
 @CrossOrigin(origins = "*")
 public class LocalidadeController {
 
-    private final EnderecoService enderecoService;
+  private final EnderecoService enderecoService;
 
-    public LocalidadeController(EnderecoService enderecoService) {
-        this.enderecoService = enderecoService;
-    }
+  public LocalidadeController(EnderecoService enderecoService) {
+    this.enderecoService = enderecoService;
+  }
 
-    @GetMapping("/cnpj/{cnpj}")
-    public ResponseEntity<Empresa.EmpresaResponse> buscarPorCnpj(@PathVariable String cnpj) {
-        Empresa.EmpresaResponse response = enderecoService.buscarEmpresaPorCnpj(cnpj);
-        return ResponseEntity.ok(response);
-    }
+  @GetMapping("/cnpj/{cnpj}")
+  public ResponseEntity<Empresa.EmpresaResponse> buscarPorCnpj(@PathVariable String cnpj) {
+    Empresa.EmpresaResponse response = enderecoService.buscarEmpresaPorCnpj(cnpj);
+    return ResponseEntity.ok(response);
+  }
 
-    @GetMapping("/cep/{cep}")
-    public ResponseEntity<Endereco> buscarPorCep(
-            @Parameter(
-                    description = "CEP a ser consultado (com ou sem formatação)",
-                    example = "65066-260",
-                    required = true)
-            @PathVariable
-            String cep) {
-        Endereco response = enderecoService.buscarEnderecoPorCep(cep);
-        return ResponseEntity.ok(response);
-    }
+  @GetMapping("/cep/{cep}")
+  public ResponseEntity<Endereco> buscarPorCep(
+      @Parameter(
+              description = "CEP a ser consultado (com ou sem formatação)",
+              example = "65066-260",
+              required = true)
+          @PathVariable
+          String cep) {
+    Endereco response = enderecoService.buscarEnderecoPorCep(cep);
+    return ResponseEntity.ok(response);
+  }
 }

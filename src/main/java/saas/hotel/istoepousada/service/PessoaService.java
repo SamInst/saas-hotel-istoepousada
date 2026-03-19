@@ -57,19 +57,17 @@ public class PessoaService {
                 if (veiculo.id() != null) {
                   veiculoService.update(veiculo);
                 } else {
-                  var new_veiculo = veiculoService.create(
-                      new Veiculo.Request(
-                          veiculo.modelo(),
-                          veiculo.marca(),
-                          veiculo.ano(),
-                          veiculo.placa(),
-                          veiculo.cor()));
+                  var new_veiculo =
+                      veiculoService.create(
+                          new Veiculo.Request(
+                              veiculo.modelo(),
+                              veiculo.marca(),
+                              veiculo.ano(),
+                              veiculo.placa(),
+                              veiculo.cor()));
                   veiculoService.setVinculoAtivo(
-                          new Veiculo.Vincular(
-                                  new Veiculo.Id(
-                                          new_veiculo.id()),
-                                  new Pessoa.Id(pessoa.id()),
-                                  true));
+                      new Veiculo.Vincular(
+                          new Veiculo.Id(new_veiculo.id()), new Pessoa.Id(pessoa.id()), true));
                 }
               });
     }
@@ -177,7 +175,7 @@ public class PessoaService {
 
       for (Veiculo veiculo : veiculos) {
         Veiculo veiculoSalvo;
-        
+
         if (veiculo.id() == null) {
           veiculoSalvo =
               veiculoService.create(
@@ -199,9 +197,9 @@ public class PessoaService {
                       veiculo.cor()));
         }
         veiculoService.setVinculoAtivo(
-                new Veiculo.Vincular(
-                        new Veiculo.Id(veiculoSalvo.id()), new Pessoa.Id(salva.id()), true));
-        
+            new Veiculo.Vincular(
+                new Veiculo.Id(veiculoSalvo.id()), new Pessoa.Id(salva.id()), true));
+
         if (veiculoSalvo.id() == null) {
           throw new IllegalStateException("Veículo salvo sem ID.");
         }

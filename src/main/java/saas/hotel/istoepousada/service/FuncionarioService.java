@@ -3,6 +3,7 @@ package saas.hotel.istoepousada.service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Cargo;
 import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Pessoa;
@@ -24,25 +25,29 @@ public class FuncionarioService {
     this.usuarioService = usuarioService;
   }
 
+  @Transactional
   public Funcionario create(Funcionario.Request request) {
     validarFuncionarioRequest(request);
     Pessoa pessoa = pessoaService.findById(request.pessoa().id());
 
-    pessoaService.alterarStatus(request.pessoa().id(), Pessoa.Status.CONTRATO_ATIVO);
-
-    usuarioService.create(
-        new Usuario.Request(request.usuario().username(), request.usuario().senha()));
+    pessoaService.alterarStatus(request.pessoa().id(), Pessoa.Status.CONTRATADO);
 
     return funcionarioRepository.insert(
         new Funcionario.Request(
             new Pessoa.Id(pessoa.id()),
             request.data_admissao(),
             new Cargo.Id(request.cargo().id()),
-            null,
+            request.usuario(),
             request.salario()));
   }
 
   private void validarFuncionarioRequest(Funcionario.Request funcionario) {
+    if (funcionario.pessoa() == null) {
+      throw new IllegalArgumentException("Pessoa não pode ser nula");
+    }
+    if (funcionario.pessoa().id() == null) {
+      throw new IllegalArgumentException("ID da pessoa não pode ser nulo");
+    }
     if (funcionario.usuario() == null) {
       throw new IllegalArgumentException("Usuario não pode ser nulo");
     }

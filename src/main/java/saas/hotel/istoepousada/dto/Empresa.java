@@ -4,7 +4,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.jdbc.core.RowMapper;
-import saas.hotel.istoepousada.service.EnderecoService;
 
 public record Empresa(
     @NotNull Long id,
@@ -104,13 +103,13 @@ public record Empresa(
               List.of());
 
   public record EmpresaResponse(
-          String cnpj,
-          String razaoSocial,
-          String nomeFantasia,
-          String tipoEmpresa,
-          Empresa.Status status,
-          String dataAbertura,
-          Endereco endereco,
-          String telefone,
-          String email) {}
+      String cnpj,
+      String razaoSocial,
+      String nomeFantasia,
+      String tipoEmpresa,
+      Empresa.Status status,
+      String dataAbertura,
+      Endereco endereco,
+      String telefone,
+      String email) {}
 }

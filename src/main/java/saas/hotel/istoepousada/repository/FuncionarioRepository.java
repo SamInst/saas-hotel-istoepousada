@@ -20,9 +20,11 @@ import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 public class FuncionarioRepository {
 
   private final JdbcTemplate jdbcTemplate;
+  private final UsuarioRepository usuarioRepository;
 
-  public FuncionarioRepository(JdbcTemplate jdbcTemplate) {
+  public FuncionarioRepository(JdbcTemplate jdbcTemplate, UsuarioRepository usuarioRepository) {
     this.jdbcTemplate = jdbcTemplate;
+    this.usuarioRepository = usuarioRepository;
   }
 
   private static Funcionario mapFuncionarioBase(ResultSet rs, int rowNum) throws SQLException {
@@ -181,7 +183,7 @@ public class FuncionarioRepository {
     List<Object> params = new ArrayList<>();
 
     if (hasId) {
-      where.append(" AND f.uuid = ? ");
+      where.append(" AND f.id = ? ");
       params.add(id);
     }
 
@@ -192,17 +194,17 @@ public class FuncionarioRepository {
     }
 
     if (hasCargoId) {
-      where.append(" AND c.uuid = ? ");
+      where.append(" AND c.id = ? ");
       params.add(cargoId);
     }
 
     if (hasPessoaId) {
-      where.append(" AND p.uuid = ? ");
+      where.append(" AND p.id = ? ");
       params.add(pessoaId);
     }
 
     if (hasUsuarioId) {
-      where.append(" AND u.uuid = ? ");
+      where.append(" AND u.id = ? ");
       params.add(usuarioId);
     }
 
@@ -268,7 +270,7 @@ public class FuncionarioRepository {
   public Funcionario findById(Long id) {
     Page<Funcionario> page = buscar(id, null, null, null, null, Pageable.ofSize(1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Funcionário não encontrado para o uuid: " + id);
+      throw new NotFoundException("Funcionário não encontrado para o id: " + id);
     }
     return page.getContent().getFirst();
   }
@@ -276,28 +278,32 @@ public class FuncionarioRepository {
   public Funcionario findByUsuarioId(Long usuarioId) {
     Page<Funcionario> page = buscar(null, null, null, null, usuarioId, Pageable.ofSize(1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Funcionário não encontrado para o usuario uuid: " + usuarioId);
+      throw new NotFoundException("Funcionário não encontrado para o usuario id: " + usuarioId);
     }
     return page.getContent().getFirst();
   }
 
   public Funcionario insert(Funcionario.Request request) {
-    var funcionario_id =
+    var usuario = usuarioRepository.create(request.usuario().username(), request.usuario().senha());
+    var id =
         jdbcTemplate.queryForObject(
             """
                 INSERT INTO funcionario (
                  fk_pessoa,
                  fk_cargo,
+                 fk_usuario,
                  data_admissao,
                  salario)
-                VALUES (?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?)
+                RETURNING id
                 """,
             Long.class,
             request.pessoa().id(),
             request.cargo().id(),
+            usuario.id(),
             Date.valueOf(request.data_admissao()),
             request.salario());
-    return findById(funcionario_id);
+    return findById(id);
   }
 
   public Funcionario update(Funcionario.Update funcionario) {

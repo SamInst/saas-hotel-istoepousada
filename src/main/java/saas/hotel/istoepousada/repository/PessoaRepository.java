@@ -189,12 +189,11 @@ public class PessoaRepository {
     String search = hasTermo ? "%" + termo + "%" : null;
     String placaTrim = hasPlaca ? placaVeiculo.trim().toUpperCase() : null;
 
-    String veiculoJoinCondition = hasPlaca 
-        ? " AND UPPER(v.placa) = ?"
-        : "";
+    String veiculoJoinCondition = hasPlaca ? " AND UPPER(v.placa) = ?" : "";
 
     String baseSelect =
-        String.format("""
+        String.format(
+            """
                         SELECT
                             p.id                   AS pessoa_id,
                             p.data_hora_registro   AS pessoa_data_hora_registro,
@@ -251,7 +250,8 @@ public class PessoaRepository {
                         LEFT JOIN empresa e ON e.id = ep.fk_empresa
                         LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id AND pv.vinculo_ativo = true
                         LEFT JOIN veiculo v ON v.id = pv.veiculo_id%s
-                        """, veiculoJoinCondition);
+                        """,
+            veiculoJoinCondition);
 
     StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
     List<Object> params = new ArrayList<>();
