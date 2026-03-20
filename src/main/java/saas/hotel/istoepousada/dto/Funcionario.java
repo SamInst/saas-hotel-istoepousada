@@ -9,7 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public record Funcionario(
     @NotNull Long id,
-    @NotNull Pessoa.DadosPrincipais pessoa,
+    @NotNull Pessoa pessoa,
     @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_admissao,
     @NotNull Float salario,
     @NotNull Cargo cargo,

@@ -32,11 +32,12 @@ public class FuncionarioRepository {
 
     return new Funcionario(
         rs.getLong("id"),
-        Pessoa.DadosPrincipais.ROW_MAPPER.mapRow(rs, rowNum),
+        Pessoa.ROW_MAPPER.mapRow(rs, rowNum),
         rs.getObject("data_admissao", LocalDate.class),
         salario == null ? null : salario.floatValue(),
         Cargo.ROW_MAPPER.mapRow(rs, rowNum),
-        Usuario.ROW_MAPPER.mapRow(rs, rowNum));
+        Usuario.ROW_MAPPER.mapRow(rs, rowNum)
+    );
   }
 
   private static final ResultSetExtractor<List<Funcionario>> FUNCIONARIO_EXTRACTOR =
@@ -146,10 +147,26 @@ public class FuncionarioRepository {
                             p.id                                AS pessoa_id,
                             p.nome                              AS pessoa_nome,
                             p.data_nascimento                   AS pessoa_data_nascimento,
+                            p.data_hora_registro                AS pessoa_data_hora_registro,
                             p.cpf                               AS pessoa_cpf,
+                            p.rg                                AS pessoa_rg,
                             p.email                             AS pessoa_email,
                             p.telefone                          AS pessoa_telefone,
+                            p.pais                              AS pessoa_pais,
+                            p.estado                            AS pessoa_estado,
+                            p.municipio                         AS pessoa_municipio,
+                            p.endereco                          AS pessoa_endereco,
+                            p.complemento                       AS pessoa_complemento,
+                            p.vezes_hospedado                   AS pessoa_vezes_hospedado,
+                            p.cep                               AS pessoa_cep,
+                            p.idade                             AS pessoa_idade,
+                            p.bairro                            AS pessoa_bairro,
+                            p.sexo                              AS pessoa_sexo,
+                            p.numero                            AS pessoa_numero,
                             p.status                            AS pessoa_status,
+                            p.fk_titular                        AS pessoa_titular_id,
+                            p.fk_funcionario                    AS pessoa_funcionario_id,
+                            p.nome                              AS pessoa_funcionario_nome,
                             CASE WHEN p.fk_titular IS NOT NULL THEN TRUE ELSE FALSE END AS pessoa_titular,
 
                             c.id                                AS cargo_id,
@@ -309,12 +326,13 @@ public class FuncionarioRepository {
   public Funcionario update(Funcionario.Update funcionario) {
     jdbcTemplate.queryForObject(
         """
-                UPDATE funcionario
-                  SET fk_cargo = ?,
-                       data_admissao = ?,
-                       salario = ?
-                 WHERE id = ?
-                """,
+        UPDATE funcionario
+          SET fk_cargo = ?,
+               data_admissao = ?,
+               salario = ?
+         WHERE id = ?
+         RETURNING id
+        """,
         Long.class,
         funcionario.cargo().id(),
         Date.valueOf(funcionario.data_admissao()),
@@ -378,8 +396,8 @@ public class FuncionarioRepository {
           rs -> {
             Funcionario.Authorization authorization = null;
 
-            Long cargoId = null;
-            String cargoDescricao = null;
+            Long cargoId;
+            String cargoDescricao;
 
             Map<Long, Tela> telasMap = new LinkedHashMap<>();
             Map<Long, Permissao> permissoesMap = new LinkedHashMap<>();

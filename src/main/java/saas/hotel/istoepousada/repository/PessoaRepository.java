@@ -624,6 +624,46 @@ public class PessoaRepository {
         titularIds.toArray());
   }
 
+  public List<Pessoa> findPessoasByEmpresaId(Long empresa_id) {
+    String sql =
+            """
+                    SELECT DISTINCT
+                        p.id                 AS pessoa_id,
+                        p.data_hora_registro AS pessoa_data_hora_registro,
+                        p.data_nascimento    AS pessoa_data_nascimento,
+                        p.nome               AS pessoa_nome,
+                        p.cpf                AS pessoa_cpf,
+                        p.rg                 AS pessoa_rg,
+                        p.email              AS pessoa_email,
+                        p.telefone           AS pessoa_telefone,
+                        p.pais               AS pessoa_pais,
+                        p.estado             AS pessoa_estado,
+                        p.municipio          AS pessoa_municipio,
+                        p.endereco           AS pessoa_endereco,
+                        p.complemento        AS pessoa_complemento,
+                        p.vezes_hospedado    AS pessoa_vezes_hospedado,
+                        p.cep                AS pessoa_cep,
+                        p.idade              AS pessoa_idade,
+                        p.bairro             AS pessoa_bairro,
+                        p.sexo               AS pessoa_sexo,
+                        p.numero             AS pessoa_numero,
+                        p.status             AS pessoa_status,
+                        f.id                 AS pessoa_funcionario_id,
+                        pf.nome              AS pessoa_funcionario_nome,
+                        t.id                 AS pessoa_titular_id,
+                        t.nome               AS pessoa_titular_nome
+                    FROM empresa_pessoa ep
+                    JOIN pessoa p ON p.id = ep.fk_pessoa
+                    LEFT JOIN funcionario f ON f.id = p.fk_funcionario
+                    LEFT JOIN pessoa pf ON pf.id = f.fk_pessoa
+                    LEFT JOIN pessoa t ON t.id = p.fk_titular
+                    WHERE ep.fk_empresa = ?
+                    ORDER BY p.nome
+                    """;
+
+    return jdbcTemplate.query(sql, Pessoa.ROW_MAPPER, empresa_id);
+  }
+
   public void vincularTitular(Long pessoaId, Long titularId, Boolean vinculo) {
     if (vinculo) {
       jdbcTemplate.update("UPDATE pessoa SET fk_titular = ? WHERE id = ?", titularId, pessoaId);

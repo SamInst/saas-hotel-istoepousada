@@ -124,37 +124,36 @@ public record Pessoa(
   public static final RowMapper<Pessoa> ROW_MAPPER =
       (rs, row_num) ->
           new Pessoa(
-              rs.getLong("id"),
-              rs.getObject("data_hora_registro", LocalDateTime.class),
-              rs.getObject("data_nascimento", LocalDate.class),
-              rs.getString("nome"),
-              rs.getString("cpf"),
-              rs.getString("rg"),
-              rs.getString("email"),
-              rs.getString("telefone"),
-              rs.getString("pais"),
-              rs.getString("estado"),
-              rs.getString("municipio"),
-              rs.getString("endereco"),
-              rs.getString("complemento"),
-              rs.getObject("vezes_hospedado", Integer.class),
-              rs.getString("cep"),
-              rs.getObject("idade", Integer.class),
-              rs.getString("bairro"),
-              rs.getObject("sexo", Integer.class),
-              rs.getString("numero"),
-              Status.map(rs.getString("status")),
+              rs.getLong("pessoa_id"),
+              rs.getObject("pessoa_data_hora_registro", LocalDateTime.class),
+              rs.getObject("pessoa_data_nascimento", LocalDate.class),
+              rs.getString("pessoa_nome"),
+              rs.getString("pessoa_cpf"),
+              rs.getString("pessoa_rg"),
+              rs.getString("pessoa_email"),
+              rs.getString("pessoa_telefone"),
+              rs.getString("pessoa_pais"),
+              rs.getString("pessoa_estado"),
+              rs.getString("pessoa_municipio"),
+              rs.getString("pessoa_endereco"),
+              rs.getString("pessoa_complemento"),
+              rs.getObject("pessoa_vezes_hospedado", Integer.class),
+              rs.getString("pessoa_cep"),
+              rs.getObject("pessoa_idade", Integer.class),
+              rs.getString("pessoa_bairro"),
+              rs.getObject("pessoa_sexo", Integer.class),
+              rs.getString("pessoa_numero"),
+              Status.map(rs.getString("pessoa_status")),
               List.of(),
               List.of(),
               new Funcionario.Nome(
-                  rs.getObject("funcionario_id", Long.class), rs.getString("funcionario_nome")),
-              rs.getObject("titular_id", Long.class) == null
+                  rs.getObject("pessoa_funcionario_id", Long.class), rs.getString("pessoa_funcionario_nome")),
+              rs.getObject("pessoa_titular_id", Long.class) == null
                   ? null
                   : new Pessoa.Nome(
-                      rs.getObject("titular_id", Long.class), rs.getString("titular_nome")),
+                      rs.getObject("pessoa_titular_id", Long.class), rs.getString("pessoa_titular_nome")),
               List.of());
 
   public record BatchRequest(List<Pessoa.Request> pessoas, List<Empresa.Id> empresas) {}
-
   public record VinculoVeiculo(Pessoa.Id pessoa, Veiculo.Id veiculo, Boolean vinculo) {}
 }

@@ -80,6 +80,7 @@ public class RelatorioRepository {
         """;
 
   public Relatorio.Extrato buscar(Relatorio.Buscar relatorio) {
+    System.out.println(relatorio);
     Pageable pageable = PageRequest.of(relatorio.page(), relatorio.size());
 
     String baseFrom =
@@ -383,7 +384,16 @@ public class RelatorioRepository {
 
     Relatorio.Extrato resp =
         buscar(
-            new Relatorio.Buscar(relatorio.id(), null, null, null, null, null, null, null, 0, 1));
+            new Relatorio.Buscar(relatorio.id(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    0,
+                    1));
 
     if (resp == null || resp.page() == null || resp.page().isEmpty()) {
       throw new NotFoundException("Relatório não encontrado para o id: " + relatorio.id());

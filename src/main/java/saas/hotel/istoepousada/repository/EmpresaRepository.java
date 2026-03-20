@@ -95,7 +95,7 @@ public class EmpresaRepository {
         empresas.stream()
             .map(
                 empresa -> {
-                  List<Pessoa> pessoas_vinculadas = findPessoasByEmpresaId(empresa.id());
+                  List<Pessoa> pessoas_vinculadas = pessoaRepository.findPessoasByEmpresaId(empresa.id());
                   return new Empresa(
                       empresa.id(),
                       empresa.data_hora_registro(),
@@ -224,45 +224,7 @@ public class EmpresaRepository {
     return findByIdNomeOuCnpj(empresa.id(), null, Pageable.ofSize(1)).getContent().getFirst();
   }
 
-  public List<Pessoa> findPessoasByEmpresaId(Long empresa_id) {
-    String sql =
-        """
-                SELECT
-                    p.id,
-                    p.data_hora_registro AS data_hora_registro,
-                    p.data_nascimento,
-                    p.nome,
-                    p.cpf,
-                    p.rg,
-                    p.email,
-                    p.telefone,
-                    p.pais,
-                    p.estado,
-                    p.municipio,
-                    p.endereco,
-                    p.complemento,
-                    p.vezes_hospedado,
-                    p.cep,
-                    p.idade,
-                    p.bairro,
-                    p.sexo,
-                    p.numero,
-                    p.status,
-                    f.id AS funcionario_id,
-                    pf.nome AS funcionario_nome,
-                    t.id AS titular_id,
-                    t.nome AS titular_nome
-                FROM empresa_pessoa ep
-                JOIN pessoa p ON p.id = ep.fk_pessoa
-                LEFT JOIN funcionario f ON f.id = p.fk_funcionario
-                LEFT JOIN pessoa pf ON pf.id = f.fk_pessoa
-                LEFT JOIN pessoa t ON t.id = p.fk_titular
-                WHERE ep.fk_empresa = ?
-                ORDER BY p.nome
-                """;
 
-    return jdbcTemplate.query(sql, Pessoa.ROW_MAPPER, empresa_id);
-  }
 
   public void vincularPessoa(Empresa.Vincular vinculo) {
     String sql =

@@ -13,16 +13,13 @@ import saas.hotel.istoepousada.repository.FuncionarioRepository;
 @Service
 public class FuncionarioService {
   private final FuncionarioRepository funcionarioRepository;
-  private final UsuarioService usuarioService;
   private final PessoaService pessoaService;
 
   public FuncionarioService(
       FuncionarioRepository funcionarioRepository,
-      PessoaService pessoaService,
-      UsuarioService usuarioService) {
+      PessoaService pessoaService) {
     this.funcionarioRepository = funcionarioRepository;
     this.pessoaService = pessoaService;
-    this.usuarioService = usuarioService;
   }
 
   @Transactional
