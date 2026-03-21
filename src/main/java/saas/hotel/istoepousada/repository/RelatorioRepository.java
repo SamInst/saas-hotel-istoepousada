@@ -36,8 +36,8 @@ public class RelatorioRepository {
             relatorio.valor_historico_dinheiro         AS relatorio_valor_historico_dinheiro,
             relatorio.despesa_pessoal                  AS relatorio_despesa_pessoal,
 
-            q.id                                  AS quarto_id,
-            q.descricao                           AS quarto_descricao,
+            q.id                                       AS quarto_id,
+            q.descricao                                AS quarto_descricao,
 
             funcionario_relatorio.id                   AS relatorio_funcionario_id,
             pessoa_funcionario_relatorio.nome          AS relatorio_funcionario_nome,
@@ -69,19 +69,28 @@ public class RelatorioRepository {
         LEFT JOIN quarto q  ON q.id = relatorio.quarto_id
 
         LEFT JOIN funcionario funcionario_relatorio ON funcionario_relatorio.id = relatorio.fk_funcionario
-        LEFT JOIN pessoa pessoa_funcionario_relatorio ON pessoa_funcionario_relatorio.id = relatorio.fk_funcionario
+        LEFT JOIN pessoa pessoa_funcionario_relatorio ON pessoa_funcionario_relatorio.id = funcionario_relatorio.fk_pessoa
 
         LEFT JOIN funcionario funcionario_pagamento ON funcionario_pagamento.id = pagamento.fk_funcionario
-        LEFT JOIN pessoa pessoa_funcionario_pagamento ON pessoa_funcionario_pagamento.id = pagamento.fk_funcionario
+        LEFT JOIN pessoa pessoa_funcionario_pagamento ON pessoa_funcionario_pagamento.id = funcionario_pagamento.fk_pessoa
 
         LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
         LEFT JOIN funcionario funcionario_pagamento_desconto ON funcionario_pagamento_desconto.id = pagamento_desconto.fk_funcionario
-        LEFT JOIN pessoa pessoa_funcionario_pagamento_desconto ON pessoa_funcionario_pagamento_desconto.id = pagamento_desconto.fk_funcionario
+        LEFT JOIN pessoa pessoa_funcionario_pagamento_desconto ON pessoa_funcionario_pagamento_desconto.id = funcionario_pagamento_desconto.fk_pessoa
         """;
 
-  public Relatorio.Extrato buscar(Relatorio.Buscar relatorio) {
-    System.out.println(relatorio);
-    Pageable pageable = PageRequest.of(relatorio.page(), relatorio.size());
+  public Relatorio.Extrato buscar(
+      Long id,
+      LocalDate data_inicio,
+      LocalDate data_fim,
+      Long funcionario_id,
+      Long quarto_id,
+      Long tipo_pagamento_id,
+      Relatorio.Registro registro,
+      Boolean despesa_pessoal,
+      int page,
+      int size) {
+    Pageable pageable = PageRequest.of(page, size);
 
     String baseFrom =
         """
@@ -95,45 +104,45 @@ public class RelatorioRepository {
     StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
     List<Object> params = new ArrayList<>();
 
-    if (relatorio.id() != null) {
+    if (id != null) {
       where.append(" AND relatorio.id = ? ");
-      params.add(relatorio.id());
+      params.add(id);
     }
-    if (relatorio.data_inicio() != null) {
+    if (data_inicio != null) {
       where.append(" AND relatorio.data_hora >= ? ");
-      params.add(Timestamp.valueOf(relatorio.data_inicio().atStartOfDay()));
-    } else {
+      params.add(Timestamp.valueOf(data_inicio.atStartOfDay()));
+    } else if (id == null) {
       where.append(" AND relatorio.data_hora >= ? ");
       params.add(Timestamp.valueOf(LocalDate.now().minusDays(1).atStartOfDay()));
     }
-    if (relatorio.data_fim() != null) {
+    if (data_fim != null) {
       where.append(" AND relatorio.data_hora < ? ");
-      params.add(Timestamp.valueOf(relatorio.data_fim().plusDays(1).atStartOfDay()));
-    } else {
+      params.add(Timestamp.valueOf(data_fim.plusDays(1).atStartOfDay()));
+    } else if (id == null) {
       where.append(" AND relatorio.data_hora < ? ");
       params.add(Timestamp.valueOf(LocalDate.now().plusDays(1).atStartOfDay()));
     }
-    if (relatorio.funcionario() != null && relatorio.funcionario().id() != null) {
+    if (funcionario_id != null) {
       where.append(" AND relatorio.fk_funcionario = ? ");
-      params.add(relatorio.funcionario().id());
+      params.add(funcionario_id);
     }
-    if (relatorio.quarto() != null && relatorio.quarto().id() != null) {
+    if (quarto_id != null) {
       where.append(" AND relatorio.quarto_id = ? ");
-      params.add(relatorio.quarto().id());
+      params.add(quarto_id);
     }
-    if (relatorio.tipo_pagamento() != null && relatorio.tipo_pagamento().id() != null) {
+    if (tipo_pagamento_id != null) {
       where.append(" AND tipo_pagamento.id = ? ");
-      params.add(relatorio.tipo_pagamento().id());
+      params.add(tipo_pagamento_id);
     }
-    if (relatorio.despesa_pessoal() != null) {
+    if (despesa_pessoal != null) {
       where.append(" AND relatorio.despesa_pessoal = ? ");
-      params.add(relatorio.despesa_pessoal());
+      params.add(despesa_pessoal);
     }
 
-    if (relatorio.registro() != null) {
-      if (relatorio.registro() == Relatorio.Registro.ENTRADA) {
+    if (registro != null) {
+      if (registro == Relatorio.Registro.ENTRADA) {
         where.append(" AND pagamento.valor > 0 ");
-      } else if (relatorio.registro() == Relatorio.Registro.SAIDA) {
+      } else if (registro == Relatorio.Registro.SAIDA) {
         where.append(" AND pagamento.valor < 0 ");
       }
     }
@@ -249,27 +258,29 @@ public class RelatorioRepository {
     boolean despesaPessoal = Boolean.TRUE.equals(request.despesa_pessoal());
     var pagamento = pagamentoRepository.create(request.pagamento());
 
-    return getByIdOrThrow(
-        new Relatorio.Id(
-            jdbcTemplate.queryForObject(
-                """
-                            INSERT INTO relatorio (
-                                data_hora,
-                                relatorio,
-                                fk_funcionario,
-                                quarto_id,
-                                valor_historico_dinheiro,
-                                despesa_pessoal,
-                                fk_pagamento
-                            ) VALUES (now(), ?, ?, ?, ?, ?, ?) returning id
-                            """,
-                Long.class,
-                request.relatorio(),
-                getFuncionarioId(),
-                request.quarto() != null ? request.quarto().id() : null,
-                valorHistoricoDinheiro,
-                despesaPessoal,
-                pagamento.uuid())));
+    Long id =
+        jdbcTemplate.queryForObject(
+            """
+            INSERT INTO relatorio (
+                data_hora,
+                relatorio,
+                fk_funcionario,
+                quarto_id,
+                valor_historico_dinheiro,
+                despesa_pessoal,
+                fk_pagamento
+            ) VALUES (now(), ?, ?, ?, ?, ?, ?)
+            RETURNING id
+            """,
+            Long.class,
+            request.relatorio(),
+            getFuncionarioId(),
+            request.quarto() != null ? request.quarto().id() : null,
+            valorHistoricoDinheiro,
+            despesaPessoal,
+            pagamento.uuid());
+    
+    return getByIdOrThrow(new Relatorio.Id(id));
   }
 
   public Relatorio update(Relatorio.Update relatorio) {
@@ -383,17 +394,7 @@ public class RelatorioRepository {
     }
 
     Relatorio.Extrato resp =
-        buscar(
-            new Relatorio.Buscar(relatorio.id(),
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    0,
-                    1));
+        buscar(relatorio.id(), null, null, null, null, null, null, null, 0, 1);
 
     if (resp == null || resp.page() == null || resp.page().isEmpty()) {
       throw new NotFoundException("Relatório não encontrado para o id: " + relatorio.id());

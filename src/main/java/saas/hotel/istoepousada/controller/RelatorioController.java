@@ -6,6 +6,8 @@ import saas.hotel.istoepousada.dto.Relatorio;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.RelatorioService;
 
+import java.time.LocalDate;
+
 @RestController
 @RequestMapping("/relatorio")
 @RequireTela("FINANCEIRO")
@@ -18,8 +20,18 @@ public class RelatorioController {
   }
 
   @GetMapping
-  public Relatorio.Extrato listar(@RequestBody Relatorio.Buscar relatorio) {
-    return relatorioService.buscar(relatorio);
+  public Relatorio.Extrato listar(
+       @RequestParam(required = false) Long id,
+       @RequestParam(required = false) LocalDate data_inicio,
+       @RequestParam(required = false) LocalDate data_fim,
+       @RequestParam(required = false) Long funcionario_id,
+       @RequestParam(required = false) Long quarto_id,
+       @RequestParam(required = false) Long tipo_pagamento_id,
+       @RequestParam(required = false) Relatorio.Registro registro,
+       @RequestParam(required = false) Boolean despesa_pessoal,
+       @RequestParam(defaultValue = "0") int page,
+       @RequestParam(defaultValue = "10") int size) {
+    return relatorioService.buscar(id, data_inicio, data_fim, funcionario_id, quarto_id, tipo_pagamento_id, registro, despesa_pessoal, page, size);
   }
 
   @PostMapping
