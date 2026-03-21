@@ -1,22 +1,12 @@
 package saas.hotel.istoepousada.dto;
 
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public record HistoricoHospedagem(
-    String tipoHospedagem,
-    Integer quantidadeHospedagens,
-    Integer totalDiasHospedado,
-    Float valorTotal,
-    List<DadosPernoite> pernoites) {
-
-  public record DadosPernoite(
-      Pernoite pernoite, List<DadosDiaria> dadosDiariaList, Float valorTotalHospedagem) {
-    public record DadosDiaria(
-        Diaria diaria,
-        Pessoa representante,
-        List<Pessoa> acompanhantes,
-        List<DiariaPagamento> pagamentos,
-        List<DiariaConsumo> consumos,
-        Float subTotal) {}
-  }
-}
+    @NotNull Long id,
+    @NotNull String tipo_hospedagem,
+    @NotNull Integer quantidade_hospedagem,
+    @NotNull Integer total_dias_hospedado,
+    @NotNull Float valor_total,
+    List<Pernoite> pernoites) {}

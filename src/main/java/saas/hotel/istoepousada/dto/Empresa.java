@@ -1,116 +1,115 @@
 package saas.hotel.istoepousada.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.validation.constraints.NotNull;
+import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.jdbc.core.RowMapper;
 
 public record Empresa(
-    Long id,
-    @JsonProperty("razao_social") String razaoSocial,
-    @JsonProperty("nome_fantasia") String nomeFantasia,
-    String cnpj,
-    String telefone,
-    String email,
+    @NotNull Long id,
+    @NotNull LocalDateTime data_hora_registro,
+    @NotNull String razao_social,
+    String nome_fantasia,
+    @NotNull String cnpj,
+    @NotNull String telefone,
+    @NotNull String email,
     String endereco,
-    String cep,
+    @NotNull String cep,
     String numero,
     String complemento,
     String pais,
     String estado,
     String municipio,
     String bairro,
-    @JsonProperty("tipo_empresa") String tipoEmpresa,
+    String tipo_empresa,
     Status status,
-    @JsonProperty("pessoasVinculadas") List<Pessoa> pessoas) {
-  public Empresa withId(Long newId) {
-    return new Empresa(
-        newId,
-        razaoSocial,
-        nomeFantasia,
-        cnpj,
-        telefone,
-        email,
-        endereco,
-        cep,
-        numero,
-        complemento,
-        pais,
-        estado,
-        municipio,
-        bairro,
-        tipoEmpresa,
-        status,
-        pessoas);
-  }
+    Funcionario.Nome funcionario,
+    List<Pessoa> pessoas_vinculadas) {
+  public record Id(@NotNull Long id) {}
 
-  public Empresa withPessoas(List<Pessoa> newPessoas) {
-    return new Empresa(
-        id,
-        razaoSocial,
-        nomeFantasia,
-        cnpj,
-        telefone,
-        email,
-        endereco,
-        cep,
-        numero,
-        complemento,
-        pais,
-        estado,
-        municipio,
-        bairro,
-        tipoEmpresa,
-        status,
-        newPessoas);
-  }
+  public record Request(
+      @NotNull String razao_social,
+      String tipo_empresa,
+      String nome_fantasia,
+      @NotNull String cnpj,
+      @NotNull String telefone,
+      @NotNull String email,
+      String endereco,
+      @NotNull String cep,
+      String numero,
+      String complemento,
+      String pais,
+      String estado,
+      String municipio,
+      String bairro) {}
 
-  public static Empresa mapEmpresa(ResultSet rs) throws SQLException {
-    return mapEmpresa(rs, "empresa_");
-  }
+  public record Update(
+      @NotNull Long id,
+      @NotNull String cnpj,
+      @NotNull String telefone,
+      @NotNull String email,
+      String endereco,
+      @NotNull String cep,
+      String numero,
+      String complemento,
+      String pais,
+      String estado,
+      String municipio,
+      String bairro,
+      @NotNull Status status,
+      @NotNull String razao_social,
+      String nome_fantasia,
+      String tipo_empresa) {}
 
-  public static Empresa mapEmpresa(ResultSet rs, String prefix) throws SQLException {
-    String statusDb = rs.getString(prefix + "status");
-    Empresa.Status status = statusDb != null ? Empresa.Status.valueOf(statusDb) : null;
-    return new Empresa(
-        rs.getLong(prefix + "id"),
-        rs.getString(prefix + "razao_social"),
-        rs.getString(prefix + "nome_fantasia"),
-        rs.getString(prefix + "cnpj"),
-        rs.getString(prefix + "telefone"),
-        rs.getString(prefix + "email"),
-        rs.getString(prefix + "endereco"),
-        rs.getString(prefix + "cep"),
-        rs.getString(prefix + "numero"),
-        rs.getString(prefix + "complemento"),
-        rs.getString(prefix + "pais"),
-        rs.getString(prefix + "estado"),
-        rs.getString(prefix + "municipio"),
-        rs.getString(prefix + "bairro"),
-        rs.getString(prefix + "tipo_empresa"),
-        status,
-        List.of());
-  }
+  public record Vincular(@NotNull Empresa.Id empresa, @NotNull Pessoa.Id pessoa, Boolean ativo) {}
 
-  @Schema(description = "Status da Empresa no sistema")
   public enum Status {
-    @Schema(description = "Empresa ativa (padrão)")
     ATIVO,
-
-    @Schema(description = "Empresa atualmente hospedada")
     HOSPEDADO,
-
-    @Schema(description = "Empresa bloqueada para novas hospedagens")
     BLOQUEADO;
 
-    public static Pessoa.Status fromDb(String value) {
-      if (value == null || value.isBlank()) return null;
-      return Pessoa.Status.valueOf(value.trim().toUpperCase());
-    }
-
-    public String toDb() {
-      return name();
+    public static Status map(String status) {
+      if (status == null || status.isBlank()) return ATIVO;
+      try {
+        return Status.valueOf(status.trim().toUpperCase());
+      } catch (IllegalArgumentException ex) {
+        return ATIVO;
+      }
     }
   }
+
+  public static final RowMapper<Empresa> ROW_MAPPER =
+      (rs, row_num) ->
+          new Empresa(
+              rs.getLong("id"),
+              rs.getObject("data_hora_registro", LocalDateTime.class),
+              rs.getString("razao_social"),
+              rs.getString("nome_fantasia"),
+              rs.getString("cnpj"),
+              rs.getString("telefone"),
+              rs.getString("email"),
+              rs.getString("endereco"),
+              rs.getString("cep"),
+              rs.getString("numero"),
+              rs.getString("complemento"),
+              rs.getString("pais"),
+              rs.getString("estado"),
+              rs.getString("municipio"),
+              rs.getString("bairro"),
+              rs.getString("tipo_empresa"),
+              Status.map(rs.getString("status")),
+              new Funcionario.Nome(
+                  rs.getObject("funcionario_id", Long.class), rs.getString("funcionario_nome")),
+              List.of());
+
+  public record EmpresaResponse(
+      String cnpj,
+      String razaoSocial,
+      String nomeFantasia,
+      String tipoEmpresa,
+      Empresa.Status status,
+      String dataAbertura,
+      Endereco endereco,
+      String telefone,
+      String email) {}
 }

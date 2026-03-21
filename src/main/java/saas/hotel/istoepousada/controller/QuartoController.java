@@ -35,8 +35,8 @@ public class QuartoController {
       description =
           """
                     Lista quartos paginados. Filtros opcionais:
-                    - id: busca específica por ID
-                    - termo: busca global (descricao ILIKE e também id quando numérico)
+                    - uuid: busca específica por ID
+                    - termo: busca global (descricao ILIKE e também uuid quando numérico)
                     - status: filtra pelo status do quarto
 
                     Se nenhum filtro for informado, retorna todos os quartos paginados.
@@ -53,14 +53,14 @@ public class QuartoController {
   @GetMapping
   public Page<Quarto> listar(
       @Parameter(description = "ID do quarto") @RequestParam(required = false) Long id,
-      @Parameter(description = "Busca global (descricao ILIKE ou id se numérico)")
+      @Parameter(description = "Busca global (descricao ILIKE ou uuid se numérico)")
           @RequestParam(required = false)
           String termo,
       @Parameter(
               description =
                   "Status do quarto (OCUPADO, DISPONIVEL, RESERVADO, LIMPEZA, DIARIA_ENCERRADA, MANUTENCAO)")
           @RequestParam(required = false)
-          Quarto.StatusQuarto status,
+          Quarto.Status status,
       @Parameter(description = "Número da página (0-based)", example = "0")
           @RequestParam(defaultValue = "0")
           int page,
@@ -108,7 +108,7 @@ public class QuartoController {
                                             }
                                             """)))
           @RequestBody
-          Quarto quarto) {
+          Quarto.Request quarto) {
     return quartoService.criar(quarto);
   }
 
@@ -152,20 +152,7 @@ public class QuartoController {
                                             }
                                             """)))
           @RequestBody
-          Quarto quarto) {
-    return quartoService.atualizar(id, quarto);
-  }
-
-  @Operation(summary = "Remover quarto", description = "Remove um quarto pelo ID.")
-  @ApiResponses({
-    @ApiResponse(responseCode = "204", description = "Quarto removido com sucesso"),
-    @ApiResponse(responseCode = "404", description = "Quarto não encontrado")
-  })
-  @DeleteMapping("/{id}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void remover(
-      @Parameter(description = "ID do quarto", required = true, example = "1") @PathVariable
-          Long id) {
-    quartoService.remover(id);
+          Quarto.Update quarto) {
+    return quartoService.atualizar(quarto);
   }
 }

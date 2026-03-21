@@ -18,18 +18,6 @@ public class EnderecoService {
     this.localidadeRepository = localidadeRepository;
   }
 
-  public List<Objeto> listarPaises() {
-    return localidadeRepository.listarPaises();
-  }
-
-  public List<Objeto> listarEstados(Long pais) {
-    return localidadeRepository.listarEstadosPorPais(pais);
-  }
-
-  public List<Objeto> listarMunicipios(Long estado) {
-    return localidadeRepository.listarMunicipiosPorEstado(estado);
-  }
-
   public Endereco buscarEnderecoPorCep(String cep) {
     try {
       ViaCep viaCep = localidadeRepository.buscarPorCep(cep);
@@ -76,7 +64,7 @@ public class EnderecoService {
     }
   }
 
-  public EmpresaResponse buscarEmpresaPorCnpj(String cnpj) {
+  public Empresa.EmpresaResponse buscarEmpresaPorCnpj(String cnpj) {
     try {
       CnpjaResponse cnpjaData = localidadeRepository.buscarPorCnpj(cnpj);
 
@@ -97,7 +85,7 @@ public class EnderecoService {
               ? Empresa.Status.ATIVO
               : Empresa.Status.BLOQUEADO;
 
-      return new EmpresaResponse(
+      return new Empresa.EmpresaResponse(
           formatarCnpj(cnpjaData.taxId()),
           cnpjaData.company().name(),
           cnpjaData.alias(),

@@ -1,72 +1,112 @@
 package saas.hotel.istoepousada.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.web.multipart.MultipartFile;
 
-@Schema(description = "Funcionário do sistema")
 public record Funcionario(
-    @Schema(description = "ID do funcionário") Long id,
-    @Schema(description = "Dados da pessoa vinculada") Pessoa pessoa,
-    @Schema(description = "Data de admissão") @JsonFormat(pattern = "dd/MM/yyyy")
-        LocalDate dataAdmissao,
-    @Schema(description = "Salario do funcionário") Float salario,
-    @Schema(description = "Cargo do funcionário") Cargo cargo,
-    @Schema(description = "Usuário do sistema vinculado") Usuario.UsuarioResponse usuario) {
+    @NotNull Long id,
+    @NotNull Pessoa pessoa,
+    @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_admissao,
+    @NotNull Float salario,
+    @NotNull Cargo cargo,
+    Usuario usuario) {
+  public record Id(@NotNull Long id) {}
 
-  public Funcionario(Pessoa pessoa, LocalDate dataAdmissao, Float salario, Cargo cargo) {
-    this(null, pessoa, dataAdmissao, salario, cargo, null);
+  public record Request(
+      @NotNull Pessoa.Id pessoa,
+      @NotNull LocalDate data_admissao,
+      @NotNull Cargo.Id cargo,
+      Usuario.Request usuario,
+      @NotNull Float salario) {}
+
+  public record Update(
+      @NotNull Long id,
+      @NotNull LocalDate data_admissao,
+      @NotNull Cargo.Id cargo,
+      @NotNull Float salario) {}
+
+  public record Nome(@NotNull Long id, @NotNull String nome) {
+
+    public static final RowMapper<Funcionario.Nome> ROW_MAPPER =
+        (rs, row_num) -> {
+          Long funcionarioId = rs.getObject("funcionario_id", Long.class);
+          return funcionarioId == null
+              ? null
+              : new Funcionario.Nome(funcionarioId, rs.getString("funcionario_nome"));
+        };
+
+    public static final RowMapper<Funcionario.Nome> ROW_MAPPER_PAGAMENTO =
+        (rs, row_num) -> {
+          Long funcionarioId = rs.getObject("pagamento_funcionario_id", Long.class);
+          return funcionarioId == null
+              ? null
+              : new Funcionario.Nome(funcionarioId, rs.getString("pagamento_funcionario_nome"));
+        };
+    public static final RowMapper<Funcionario.Nome> ROW_MAPPER_PAGAMENTO_DESCONTO =
+        (rs, row_num) -> {
+          Long funcionarioId = rs.getObject("pagamento_desconto_funcionario_id", Long.class);
+          return funcionarioId == null
+              ? null
+              : new Funcionario.Nome(
+                  funcionarioId, rs.getString("pagamento_desconto_funcionario_nome"));
+        };
+
+    public static final RowMapper<Funcionario.Nome> ROW_MAPPER_RELATORIO =
+        (rs, row_num) -> {
+          Long funcionarioId = rs.getObject("relatorio_funcionario_id", Long.class);
+          return funcionarioId == null
+              ? null
+              : new Funcionario.Nome(funcionarioId, rs.getString("relatorio_funcionario_nome"));
+        };
   }
 
-  public Funcionario withId(Long id) {
-    return new Funcionario(
-        id, this.pessoa, this.dataAdmissao, this.salario, this.cargo, this.usuario);
-  }
+  public record Authorization(
+      @NotNull Long id,
+      @NotNull Usuario usuario,
+      @NotNull Pessoa.DadosPrincipais pessoa,
+      @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_admissao,
+      @NotNull Cargo cargo) {}
 
-  public Funcionario withUsuario(Usuario.UsuarioResponse usuario) {
-    return new Funcionario(
-        this.id, this.pessoa, this.dataAdmissao, this.salario, this.cargo, usuario);
-  }
+  public record Historico(
+      @NotNull Long id,
+      @NotNull Cargo.Descricao cargo,
+      @NotNull Funcionario.Nome funcionario,
+      @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_admissao,
+      @NotNull Float salario) {
+    public record Id(@NotNull Long id) {}
 
-  public static Funcionario mapFuncionario(ResultSet rs) throws SQLException {
-    return mapFuncionario(rs, "");
-  }
+    public record Request(
+        @NotNull Cargo.Id cargo, @NotNull Funcionario.Id funcionario, @NotNull Float salario) {}
 
-  public static Funcionario mapFuncionario(ResultSet rs, String prefix) throws SQLException {
-    Pessoa pessoa = Pessoa.mapPessoa(rs, prefix + "pessoa_");
-    Cargo cargo = Cargo.mapCargo(rs, prefix + "cargo_");
+    public record Update(@NotNull Long id, @NotNull Cargo.Id cargo, @NotNull Float salario) {}
 
-    Usuario.UsuarioResponse usuario = null;
-    Long usuarioId = rs.getObject(prefix + "usuario_id", Long.class);
-    if (usuarioId != null && usuarioId > 0) {
-      usuario =
-          new Usuario.UsuarioResponse(
-              usuarioId,
-              rs.getString(prefix + "usuario_username"),
-              rs.getBoolean(prefix + "usuario_bloqueado"));
+    public record Recebido(
+        @NotNull Long id,
+        @NotNull Funcionario.Nome funcionario,
+        @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
+        @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim,
+        @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_pagamento,
+        @NotNull Pagamento pagamento,
+        String path_arquivo) {
+      public record Request(
+          @NotNull Funcionario.Id funcionario,
+          @NotNull Historico.Id historico,
+          @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
+          @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim,
+          @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_pagamento,
+          @NotNull Pagamento.Request pagamento,
+          String path_arquivo) {}
+
+      public record Update(
+          @NotNull Long id,
+          @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
+          @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim,
+          @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_pagamento,
+          MultipartFile arquivo) {}
     }
-    Float salario = rs.getFloat(prefix + "salario");
-
-    return new Funcionario(
-        rs.getLong(prefix + "id"),
-        pessoa,
-        rs.getObject(prefix + "data_admissao", LocalDate.class),
-        salario,
-        cargo,
-        usuario);
-  }
-
-  @Schema(description = "Request para criar funcionário")
-  public record FuncionarioRequest(
-      @Schema(description = "Id da pessoa existente") Long pessoaId,
-      @Schema(description = "Data de admissão", example = "2026-01-19") LocalDate dataAdmissao,
-      @Schema(description = "ID do cargo", example = "1") Long cargoId,
-      @Schema(description = "Dados do usuário (opcional)") UsuarioData usuario,
-      @Schema(description = "Salario do funcionario") Float salario) {
-    public record UsuarioData(
-        @Schema(description = "Username", example = "joao.silva") String username,
-        @Schema(description = "Senha", example = "senha123") String senha) {}
   }
 }

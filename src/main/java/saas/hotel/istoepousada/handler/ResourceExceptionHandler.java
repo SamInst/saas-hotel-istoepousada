@@ -37,7 +37,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.NOT_FOUND.value(),
             NOT_FOUND,
-                "",
+            "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -52,7 +52,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.UNAUTHORIZED.value(),
             UNAUTHORIZED,
-                "",
+            "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -67,7 +67,7 @@ public class ResourceExceptionHandler {
             Instant.now(),
             HttpStatus.CONFLICT.value(),
             CONFLICT,
-                "",
+            "",
             e.getMessage(),
             request.getRequestURI());
     e.printStackTrace();
@@ -151,24 +151,22 @@ public class ResourceExceptionHandler {
 
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ResponseEntity<Object> errorInternalServerErrorKeyException(
-          DataIntegrityViolationException e, HttpServletRequest request) {
+      DataIntegrityViolationException e, HttpServletRequest request) {
     String fullMessage = e.getMessage();
     Throwable root = e.getRootCause() != null ? e.getRootCause() : e;
     String sqlError = root.getMessage();
 
     var error =
-            new StandardError(
-                    Instant.now(),
-                    HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                    SQL_VIOLATION,
-                    fullMessage,
-                    sqlError,
-                    request.getRequestURI());
+        new StandardError(
+            Instant.now(),
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            SQL_VIOLATION,
+            fullMessage,
+            sqlError,
+            request.getRequestURI());
 
     e.printStackTrace();
-    return ResponseEntity
-            .status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(error);
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
   }
 
   @ExceptionHandler(HttpMediaTypeNotSupportedException.class)

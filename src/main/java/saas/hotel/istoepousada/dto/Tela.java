@@ -1,45 +1,20 @@
 package saas.hotel.istoepousada.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import java.util.Objects;
+import org.springframework.jdbc.core.RowMapper;
 
-@Schema(description = "Tela do sistema")
 public record Tela(
-    @Schema(description = "ID da tela") Long id,
-    @Schema(description = "Nome da tela", example = "DASHBOARD") String nome,
-    @Schema(description = "Descrição da tela") String descricao,
-    @Schema(description = "Permissões granulares dentro da tela") List<Permissao> permissoes) {
+    @NotNull Long id, @NotNull String nome, @NotNull String descricao, List<Permissao> permissoes) {
+  public record Id(@NotNull Long id) {}
 
-  public Tela(Long id, String nome, String descricao) {
-    this(id, nome, descricao, List.of());
-  }
+  public record Request(@NotNull String nome, @NotNull String descricao) {}
 
-  public Tela withPermissoes(List<Permissao> permissoes) {
-    return new Tela(
-        this.id, this.nome, this.descricao, permissoes == null ? List.of() : permissoes);
-  }
-
-  public static Tela mapTela(ResultSet rs, String prefix) throws SQLException {
-    return new Tela(
-        rs.getLong(prefix + "id"),
-        rs.getString(prefix + "nome"),
-        rs.getString(prefix + "descricao"));
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) return true;
-    if (!(obj instanceof Tela other)) return false;
-    return Objects.equals(id, other.id);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(id);
-  }
-
-  public record Request(Long id) {}
+  public static final RowMapper<Tela> ROW_MAPPER =
+      (rs, rowNum) -> {
+        Long telaId = rs.getObject("tela_id", Long.class);
+        if (telaId == null) return null;
+        return new Tela(
+            telaId, rs.getString("tela_nome"), rs.getString("tela_descricao"), List.of());
+      };
 }

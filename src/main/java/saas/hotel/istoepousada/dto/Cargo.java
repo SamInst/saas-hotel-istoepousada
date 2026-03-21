@@ -1,31 +1,37 @@
 package saas.hotel.istoepousada.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.web.bind.annotation.RequestParam;
 
-@Schema(description = "Cargo do funcionário")
-public record Cargo(
-    @Schema(description = "ID do cargo") Long id,
-    @Schema(description = "Nome do cargo") String cargo,
-    @Schema(description = "Telas/permissões associadas") List<Tela> telas) {
+public record Cargo(@NotNull Long id, @NotNull String descricao, List<Tela> telas) {
+  public record Id(@NotNull Long id) {}
 
-  public Cargo(Long id, String cargo) {
-    this(id, cargo, List.of());
-  }
+  public record Request(
+      @NotNull String descricao, List<Tela.Id> telas, List<Permissao.Id> permissoes) {}
 
-  public Cargo withTelas(List<Tela> telas) {
-    return new Cargo(this.id, this.cargo, telas);
-  }
+  public record Update(
+      @NotNull Long id,
+      @NotNull String descricao,
+      List<Tela.Id> telas,
+      List<Permissao.Id> permissoes) {}
 
-  public static Cargo mapCargo(ResultSet rs) throws SQLException {
-    return mapCargo(rs, "");
-  }
+  public record Descricao(Long id, String descricao) {}
 
-  public static Cargo mapCargo(ResultSet rs, String prefix) throws SQLException {
-    return new Cargo(rs.getLong(prefix + "id"), rs.getString(prefix + "cargo"));
-  }
+  public static final RowMapper<Cargo> ROW_MAPPER =
+      (rs, rowNum) -> {
+        Long cargoId = rs.getObject("cargo_id", Long.class);
+        if (cargoId == null) return null;
+        return new Cargo(cargoId, rs.getString("cargo_cargo"), List.of());
+      };
 
-  public record Request(Long id, String descricao, List<Long> telasIds, List<Long> permissoesIds) {}
+  public record Buscar(
+      Long id,
+      String termo,
+      Pessoa.Id pessoa,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int size) {}
+
+  public record Vincular(Cargo.Id cargo, List<Tela.Id> telas, Boolean ativo) {}
 }

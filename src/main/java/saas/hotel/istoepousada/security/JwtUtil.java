@@ -12,7 +12,7 @@ import java.util.Map;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import saas.hotel.istoepousada.dto.FuncionarioAuth;
+import saas.hotel.istoepousada.dto.Funcionario;
 
 @Component
 public class JwtUtil {
@@ -33,17 +33,17 @@ public class JwtUtil {
     return Keys.hmacShaKeyFor(keyBytes);
   }
 
-  public String generateToken(FuncionarioAuth funcionario) {
+  public String generateToken(Funcionario.Authorization funcionario) {
     try {
       String funcionarioJson = objectMapper.writeValueAsString(funcionario);
       @SuppressWarnings("unchecked")
       Map<String, Object> funcionarioMap = objectMapper.readValue(funcionarioJson, Map.class);
       return Jwts.builder()
-          .subject(funcionario.username())
+          .subject(funcionario.usuario().username())
           .claim("funcionario", funcionarioMap)
-          .claim("usuarioId", funcionario.usuarioId())
+          .claim("usuarioId", funcionario.usuario().id())
           .claim("funcionarioId", funcionario.id())
-          .claim("pessoaId", funcionario.pessoaId())
+          .claim("pessoaId", funcionario.pessoa().id())
           .issuedAt(new Date())
           .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
           .signWith(getSigningKey())
@@ -53,23 +53,22 @@ public class JwtUtil {
     }
   }
 
-  public String getUsernameFromToken(String token) {
-    return Jwts.parser()
-        .verifyWith(getSigningKey())
-        .build()
-        .parseSignedClaims(token)
-        .getPayload()
-        .getSubject();
-  }
-
-  public FuncionarioAuth getFuncionarioFromToken(String token) {
+  public Funcionario.Authorization getFuncionarioFromToken(String token) {
     try {
+      String resolvedToken = resolveToken(token);
+
       Claims claims =
-          Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+          Jwts.parser()
+              .verifyWith(getSigningKey())
+              .build()
+              .parseSignedClaims(resolvedToken)
+              .getPayload();
+
       @SuppressWarnings("unchecked")
       Map<String, Object> funcionarioMap = (Map<String, Object>) claims.get("funcionario");
+
       String funcionarioJson = objectMapper.writeValueAsString(funcionarioMap);
-      return objectMapper.readValue(funcionarioJson, FuncionarioAuth.class);
+      return objectMapper.readValue(funcionarioJson, Funcionario.Authorization.class);
     } catch (Exception e) {
       throw new RuntimeException("Erro ao extrair funcionário do token", e);
     }
@@ -77,28 +76,23 @@ public class JwtUtil {
 
   public boolean validateToken(String token) {
     try {
-      Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token);
+      String resolvedToken = resolveToken(token);
+      if (resolvedToken == null || resolvedToken.isBlank()) return false;
+
+      Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(resolvedToken);
+
       return true;
     } catch (JwtException | IllegalArgumentException e) {
       return false;
     }
   }
 
-  public Long getFuncionarioIdFromToken(String token) {
-    Claims claims =
-        Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
-    return claims.get("funcionarioId", Long.class);
-  }
-
-  public Long getUsuarioIdFromToken(String token) {
-    Claims claims =
-        Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
-    return claims.get("usuarioId", Long.class);
-  }
-
-  public Long getPessoaIdFromToken(String token) {
-    Claims claims =
-        Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
-    return claims.get("pessoaId", Long.class);
+  private String resolveToken(String token) {
+    if (token == null || token.isBlank()) return null;
+    token = token.trim();
+    if (token.startsWith("Bearer ")) {
+      token = token.substring(7).trim();
+    }
+    return token;
   }
 }

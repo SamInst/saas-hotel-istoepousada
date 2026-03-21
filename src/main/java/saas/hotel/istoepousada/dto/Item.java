@@ -1,31 +1,74 @@
 package saas.hotel.istoepousada.dto;
 
-import static saas.hotel.istoepousada.dto.Categoria.mapCategoria;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
+import org.springframework.jdbc.core.RowMapper;
 
-public record Item(
-    Long id, String descricao, Categoria categoria, LocalDateTime data_hora_registro) {
+public record Item(@NotNull Long id, String descricao) {
 
-  public static Item mapItem(ResultSet rs) throws SQLException {
-    return mapItem(rs, "item_");
+  public record Id(@NotNull Long id) {}
+
+  public record Request(CategoriaItem.Id categoria_item, String descricao) {}
+
+  public record Update(
+      @NotNull Long id, @NotNull CategoriaItem.Id categoria_item, @NotNull String descricao) {}
+
+  public record HistoricoPreco(
+      @NotNull Long id,
+      @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
+      @NotNull Double valor_compra_unidade,
+      @NotNull Double valor_venda_unidade,
+      @NotNull Funcionario funcionario) {
+    public record Request(
+        @NotNull Item.Id item,
+        @NotNull Double valor_compra_unidade,
+        @NotNull Double valor_venda_unidade,
+        @NotNull Funcionario.Id funcionario) {}
+
+    public static final RowMapper<Item.HistoricoPreco> ROW_MAPPER =
+        (rs, rowNum) ->
+            new Item.HistoricoPreco(
+                rs.getLong("historico_preco_id"),
+                rs.getObject("historico_preco_data_hora_registro", LocalDateTime.class),
+                rs.getObject("historico_preco_valor_compra_unidade", Double.class),
+                rs.getObject("historico_preco_valor_venda_unidade", Double.class),
+                new Funcionario(
+                    rs.getObject("funcionario_id", Long.class), null, null, null, null, null));
   }
 
-  public static Item mapItem(ResultSet rs, String prefix) throws SQLException {
-    Long id = rs.getObject(prefix + "id", Long.class);
-    if (id == null) return null;
+  public record HistoricoReposicao(
+      @NotNull Long id,
+      @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
+      String fornecedor,
+      @NotNull Funcionario.Nome funcionario,
+      Integer quantidade_unidades) {
+    public record Request(
+        @NotNull Item.Id item,
+        @NotNull Funcionario.Id funcionario,
+        String fornecedor,
+        @NotNull Integer quantidade_unidades) {}
 
-    String descricao = rs.getString(prefix + "descricao");
+    public record Update(
+        @NotNull Long id,
+        @NotNull Integer quantidade_unidades,
+        @NotNull Funcionario.Id funcionario,
+        String fornecedor) {}
 
-    LocalDateTime dh =
-        rs.getTimestamp(prefix + "data_hora_registro") != null
-            ? rs.getTimestamp(prefix + "data_hora_registro").toLocalDateTime()
-            : null;
-
-    Categoria categoria = mapCategoria(rs, "categoria_item_");
-
-    return new Item(id, descricao, categoria, dh);
+    public static final RowMapper<Item.HistoricoReposicao> ROW_MAPPER =
+        (rs, rowNum) ->
+            new Item.HistoricoReposicao(
+                rs.getLong("historico_reposicao_id"),
+                rs.getObject("historico_reposicao_data_hora_registro", LocalDateTime.class),
+                rs.getString("historico_reposicao_fornecedor"),
+                rs.getObject("funcionario_id", Long.class) == null
+                    ? null
+                    : new Funcionario.Nome(
+                        rs.getObject("funcionario_id", Long.class),
+                        rs.getString("funcionario_nome")),
+                rs.getObject("historico_reposicao_quantidade_unidades", Integer.class));
   }
+
+  public static final RowMapper<Item> ROW_MAPPER =
+      (rs, rowNum) -> new Item(rs.getLong("item_id"), rs.getString("item_descricao"));
 }

@@ -1,66 +1,79 @@
 package saas.hotel.istoepousada.dto;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import lombok.Getter;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.NotNull;
+import java.time.LocalDateTime;
+import java.util.List;
 
 public record Pernoite(
-    Long id,
-    LocalDate data_entrada,
-    LocalDate data_saida,
-    Status status,
-    LocalTime hora_chegada,
-    LocalTime hora_saida,
-    Float valot_total,
-    Boolean ativo) {
+    @NotNull Long id,
+    @NotNull Funcionario.Nome funcionario,
+    @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
+    @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime check_in,
+    @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime check_out,
+    @NotNull Status status,
+    @NotNull Integer quantidade_diarias,
+    @NotNull Integer numero_diaria_atual,
+    @NotNull List<Diaria> diarias,
+    @NotNull List<PernoitePessoa> pessoas) {
 
-  public static Pernoite mapPernoite(ResultSet rs) throws SQLException {
-    return mapPernoite(rs, "pernoite_");
+  public record Id(Long id) {}
+
+  public record PernoitePessoa(@NotNull Long id, @NotNull Pessoa.DadosPrincipais pessoa) {
+    public record Request(@NotNull Pernoite.Id pernoite, @NotNull List<Pessoa.Id> pessoas) {}
   }
 
-  public static Pernoite mapPernoite(ResultSet rs, String prefix) throws SQLException {
-    Long id = rs.getObject(prefix + "id", Long.class);
-
-    LocalDate dataEntrada =
-        rs.getDate(prefix + "data_entrada") != null
-            ? rs.getDate(prefix + "data_entrada").toLocalDate()
-            : null;
-
-    LocalDate dataSaida =
-        rs.getDate(prefix + "data_saida") != null
-            ? rs.getDate(prefix + "data_saida").toLocalDate()
-            : null;
-
-    String statusStr = rs.getString(prefix + "status");
-    Pernoite.Status status = (statusStr == null) ? null : Pernoite.Status.valueOf(statusStr);
-
-    LocalTime horaChegada =
-        rs.getTime(prefix + "hora_chegada") != null
-            ? rs.getTime(prefix + "hora_chegada").toLocalTime()
-            : null;
-
-    LocalTime horaSaida =
-        rs.getTime(prefix + "hora_saida") != null
-            ? rs.getTime(prefix + "hora_saida").toLocalTime()
-            : null;
-
-    Double valorTotalDb = rs.getObject(prefix + "valor_total", Double.class);
-    Float valorTotal = valorTotalDb != null ? valorTotalDb.floatValue() : null;
-
-    Boolean ativo = rs.getObject(prefix + "ativo", Boolean.class);
-
-    return new Pernoite(
-        id, dataEntrada, dataSaida, status, horaChegada, horaSaida, valorTotal, ativo);
+  public record PernoitePagamento(@NotNull Long id, @NotNull Pagamento pagamento) {
+    public record Request(@NotNull Long id, @NotNull Pagamento.Request pagamento) {}
   }
 
-  @Getter
+  public record PernoiteConsumo(Long id, Consumo consumo) {
+    public record Request(Long id, Consumo.Request consumo) {}
+  }
+
+  public record Request(
+      Quarto.Id quarto,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim,
+      List<PernoitePessoa.Request> pessoas,
+      List<PernoiteConsumo.Request> diariaConsumos,
+      List<PernoitePagamento.Request> diariaPagamentos) {}
+
+  public record Update(
+      Long id,
+      Quarto.Id quarto,
+      List<PernoitePessoa.Request> pessoas,
+      List<PernoiteConsumo.Request> consumos,
+      List<PernoitePagamento.Request> pagamentos) {}
+
+  public record Diaria(
+      @NotNull Long id,
+      @NotNull Integer numero,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim,
+      @NotNull Float valor,
+      @NotNull Status status,
+      String observacao) {
+    public record Request(
+        @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
+        @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim,
+        @NotNull Float valor,
+        String observacao) {}
+
+    public record Update(@NotNull Long id, @NotNull Float valor, String observacao) {}
+
+    public enum Status {
+      ATIVO,
+      FINALIZADO
+    }
+  }
+
   public enum Status {
     ATIVO,
-    DIARIA_ENCERRADA,
-    FINALIZADO,
     CANCELADO,
-    FINALIZADO_PAGAMENTO_PENDENTE
+    PAGAMENTO_PENDENTE,
+    FINALIZADO,
+    FINALIZADO_PAGAMENTO_PENDENTE,
+    AUSENTE
   }
 }

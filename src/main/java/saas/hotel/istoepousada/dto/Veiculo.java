@@ -1,30 +1,32 @@
 package saas.hotel.istoepousada.dto;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.jdbc.core.RowMapper;
 
-public record Veiculo(Long id, String modelo, String marca, Integer ano, String placa, String cor) {
-  public Veiculo withId(Long id) {
-    return new Veiculo(id, modelo, marca, ano, placa, cor);
-  }
+public record Veiculo(
+    @NotNull Long id, String modelo, String marca, Integer ano, @NotNull String placa, String cor) {
+  public record Id(@NotNull Long id) {}
 
-  public static Veiculo mapVeiculo(java.sql.ResultSet rs) throws java.sql.SQLException {
-    return new Veiculo(
-        rs.getLong("id"),
-        rs.getString("modelo"),
-        rs.getString("marca"),
-        rs.getObject("ano", Integer.class),
-        rs.getString("placa"),
-        rs.getString("cor"));
-  }
+  public record Request(
+      String modelo, String marca, Integer ano, @NotNull String placa, String cor) {}
 
-  public static Veiculo mapVeiculo(ResultSet rs, String prefix) throws SQLException {
-    return new Veiculo(
-        rs.getLong(prefix + "id"),
-        rs.getString(prefix + "modelo"),
-        rs.getString(prefix + "marca"),
-        rs.getObject(prefix + "ano", Integer.class),
-        rs.getString(prefix + "placa"),
-        rs.getString(prefix + "cor"));
-  }
+  public record Update(
+      @NotNull Long id,
+      String modelo,
+      String marca,
+      Integer ano,
+      @NotNull String placa,
+      String cor) {}
+
+  public record Vincular(@NotNull Veiculo.Id veiculo, @NotNull Pessoa.Id pessoa, Boolean ativo) {}
+
+  public static final RowMapper<Veiculo> ROW_MAPPER =
+      (rs, rowNum) ->
+          new Veiculo(
+              rs.getLong("id"),
+              rs.getString("modelo"),
+              rs.getString("marca"),
+              rs.getObject("ano", Integer.class),
+              rs.getString("placa"),
+              rs.getString("cor"));
 }

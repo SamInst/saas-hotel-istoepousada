@@ -1,10 +1,11 @@
 package saas.hotel.istoepousada.service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,197 +13,205 @@ import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Empresa;
 import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.dto.Veiculo;
-import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
-import saas.hotel.istoepousada.repository.EmpresaRepository;
 import saas.hotel.istoepousada.repository.PessoaRepository;
-import saas.hotel.istoepousada.repository.VeiculoRepository;
 
 @Service
 public class PessoaService {
-  Logger log = LoggerFactory.getLogger(PessoaService.class);
+
+  private static final Logger log = LoggerFactory.getLogger(PessoaService.class);
+
   private final PessoaRepository pessoaRepository;
-  private final VeiculoRepository veiculoRepository;
-  private final EmpresaRepository empresaRepository;
-  private final NotificacaoService notificacaoService;
+  private final EmpresaService empresaService;
+  private final VeiculoService veiculoService;
 
   public PessoaService(
       PessoaRepository pessoaRepository,
-      VeiculoRepository veiculoRepository,
-      EmpresaRepository empresaRepository,
-      NotificacaoService notificacaoService) {
+      EmpresaService empresaService,
+      VeiculoService veiculoService) {
     this.pessoaRepository = pessoaRepository;
-    this.veiculoRepository = veiculoRepository;
-    this.empresaRepository = empresaRepository;
-    this.notificacaoService = notificacaoService;
+    this.empresaService = empresaService;
+    this.veiculoService = veiculoService;
   }
 
   public Page<Pessoa> buscar(
-      Long id, String termo, String placaVeiculo, Pessoa.Status status, Pageable pageable) {
+      Long id, String termo, String placa, Pessoa.Status status, Pageable pageable) {
     String termoNormalizado = StringUtils.hasText(termo) ? termo.trim() : null;
-    return pessoaRepository.buscar(id, termoNormalizado, placaVeiculo, status, pageable);
+    String placaNormalizada = StringUtils.hasText(placa) ? placa.trim() : null;
+    return pessoaRepository.buscar(id, termoNormalizado, placaNormalizada, status, pageable);
   }
 
   public Pessoa findById(Long id) {
-    Page<Pessoa> page = pessoaRepository.buscar(id, null, null, null, PageRequest.ofSize(1));
-
-    if (page.isEmpty()) {
-      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
+    if (id == null) {
+      throw new IllegalArgumentException("Id é obrigatório.");
     }
-
-    return page.getContent().getFirst();
+    return pessoaRepository.findById(id);
   }
 
   @Transactional
-  public Pessoa salvarPessoaIndividual(Pessoa pessoa) {
-    validarPessoa(pessoa);
-    Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
-    var funcionario = pessoaRepository.findById(funcionarioIdLogado);
-
-    Pessoa salva = pessoaRepository.save(pessoa, funcionarioIdLogado);
-
-    if (pessoa.empresasVinculadas() != null && !pessoa.empresasVinculadas().isEmpty()) {
-      Pessoa finalSalva = salva;
-      pessoa.empresasVinculadas().stream()
-          .map(Empresa::id)
-          .filter(Objects::nonNull)
-          .distinct()
-          .forEach(empresaId -> empresaRepository.vincularPessoa(empresaId, finalSalva.id(), true));
+  public Pessoa atualizarPessoa(Pessoa.Update pessoa) {
+    if (pessoa.veiculos_vinculados() != null) {
+      pessoa
+          .veiculos_vinculados()
+          .forEach(
+              veiculo -> {
+                if (veiculo.id() != null) {
+                  veiculoService.update(veiculo);
+                } else {
+                  var new_veiculo =
+                      veiculoService.create(
+                          new Veiculo.Request(
+                              veiculo.modelo(),
+                              veiculo.marca(),
+                              veiculo.ano(),
+                              veiculo.placa(),
+                              veiculo.cor()));
+                  veiculoService.setVinculoAtivo(
+                      new Veiculo.Vincular(
+                          new Veiculo.Id(new_veiculo.id()), new Pessoa.Id(pessoa.id()), true));
+                }
+              });
     }
 
-    var veiculos = veiculoRepository.findAllByPessoaId(pessoa.id());
-
-    if (veiculos.isEmpty()) {
-      if (pessoa.veiculos() != null) {
-        List<Veiculo> veiculosSalvos = new ArrayList<>(pessoa.veiculos().size());
-        for (Veiculo veiculo : pessoa.veiculos()) {
-          Veiculo veiculoSalvo = veiculoRepository.save(pessoa.id(), veiculo);
-          if (veiculoSalvo.id() == null)
-            throw new IllegalStateException("Veículo salvo sem ID (verifique o RETURNING id).");
-          veiculoRepository.setVinculoAtivo(salva.id(), veiculoSalvo.id(), true);
-          veiculosSalvos.add(veiculoSalvo);
-        }
-        salva = salva.withVeiculos(veiculosSalvos);
-      }
-
-    } else {
-      if (pessoa.veiculos() != null) {
-        if (!pessoa.veiculos().isEmpty()) {
-          var oldVeiculo = veiculos.getFirst();
-          var newVeiculo = pessoa.veiculos().getFirst();
-          Veiculo veiculo =
-              new Veiculo(
-                  oldVeiculo.id(),
-                  newVeiculo.modelo(),
-                  newVeiculo.marca(),
-                  newVeiculo.ano(),
-                  newVeiculo.placa(),
-                  newVeiculo.cor());
-          veiculoRepository.save(pessoa.id(), veiculo);
-        }
-      }
+    if (pessoa.empresas() != null) {
+      pessoa
+          .empresas()
+          .forEach(
+              empresa ->
+                  empresaService.vincularPessoa(
+                      new Empresa.Vincular(empresa, new Pessoa.Id(pessoa.id()), true)));
     }
-    notificacaoService.criar(funcionario, "ATUALIZOU OS DADOS DO CLIENTE: " + pessoa.nome());
-    log.info(
-        "Funcionário [{} - {}] cadastrou/atualizou o cliente [{}]",
-        funcionario.id(),
-        funcionario.nome(),
-        pessoa.nome());
-    return salva;
+    return pessoaRepository.update(pessoa);
   }
 
   @Transactional
-  public List<Pessoa> salvarListaPessoas(List<Pessoa> pessoas, List<Long> empresasIds) {
-    if (pessoas == null || pessoas.isEmpty()) {
+  public List<Pessoa> salvarListaPessoas(Pessoa.BatchRequest request) {
+    if (request.pessoas() == null || request.pessoas().isEmpty()) {
       throw new IllegalArgumentException("Lista de pessoas é obrigatória.");
     }
 
-    List<Pessoa> titulares = pessoas.stream().filter(p -> p.titularId() == null).toList();
+    Pessoa.Request titular_requisicao = request.pessoas().getFirst();
+    Pessoa titular_salvo = salvarInternoSemVinculoEmpresa(titular_requisicao, null);
 
-    Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
-    Pessoa funcionario =
-        funcionarioIdLogado != null ? pessoaRepository.findById(funcionarioIdLogado) : null;
+    List<Pessoa> acompanhantes_salvos = new ArrayList<>();
 
-    Pessoa titularReq = titulares.getFirst();
-    Pessoa titularSalvo = salvarInternoSemVinculoEmpresa(titularReq, funcionarioIdLogado);
+    for (Pessoa.Request pessoa : request.pessoas()) {
+      if (pessoa == titular_requisicao) {
+        continue;
+      }
 
-    List<Pessoa> acompanhantesSalvos = new ArrayList<>();
-    for (Pessoa p : pessoas) {
-      if (p == titularReq) continue;
-
-      Pessoa acompanhanteReq = p.withTitular(titularSalvo.id());
-      Pessoa acompanhanteSalvo =
-          salvarInternoSemVinculoEmpresa(acompanhanteReq, funcionarioIdLogado);
-      acompanhantesSalvos.add(acompanhanteSalvo);
+      Pessoa acompanhante_salvo = salvarInternoSemVinculoEmpresa(pessoa, titular_salvo.id());
+      acompanhantes_salvos.add(acompanhante_salvo);
     }
 
-    if (!empresasIds.isEmpty()) {
+    if (request.empresas() != null && !request.empresas().isEmpty()) {
       List<Pessoa> todos = new ArrayList<>();
-      todos.add(titularSalvo);
-      todos.addAll(acompanhantesSalvos);
+      todos.add(titular_salvo);
+      todos.addAll(acompanhantes_salvos);
 
-      for (Long empresaId : empresasIds) {
-        for (Pessoa p : todos) {
-          empresaRepository.vincularPessoa(empresaId, p.id(), true);
+      for (Empresa.Id empresa :
+          request.empresas().stream().filter(Objects::nonNull).distinct().toList()) {
+        for (Pessoa pessoa : todos) {
+          empresaService.vincularPessoa(
+              new Empresa.Vincular(new Empresa.Id(empresa.id()), new Pessoa.Id(pessoa.id()), true));
         }
       }
     }
 
-    Pessoa titularComAcompanhantes = titularSalvo.withAcompanhantes(acompanhantesSalvos);
-
-    if (funcionario != null) {
-      notificacaoService.criar(
-          funcionario,
-          "CADASTROU/ATUALIZOU CLIENTE: "
-              + titularComAcompanhantes.nome()
-              + " + "
-              + acompanhantesSalvos.size()
-              + " acompanhante(s)");
-      log.info(
-          "Funcionário [{} - {}] cadastrou/atualizou o cliente [{}] + {} acompanhante(s)",
-          funcionario.id(),
-          funcionario.nome(),
-          titularComAcompanhantes.nome(),
-          acompanhantesSalvos.size());
-    }
+    Pessoa titularComAcompanhantes =
+        new Pessoa(
+            titular_salvo.id(),
+            titular_salvo.data_hora_registro(),
+            titular_salvo.data_nascimento(),
+            titular_salvo.nome(),
+            titular_salvo.cpf(),
+            titular_salvo.rg(),
+            titular_salvo.email(),
+            titular_salvo.telefone(),
+            titular_salvo.pais(),
+            titular_salvo.estado(),
+            titular_salvo.municipio(),
+            titular_salvo.endereco(),
+            titular_salvo.complemento(),
+            titular_salvo.vezes_hospedado(),
+            titular_salvo.cep(),
+            titular_salvo.idade(),
+            titular_salvo.bairro(),
+            titular_salvo.sexo(),
+            titular_salvo.numero(),
+            titular_salvo.status(),
+            titular_salvo.empresas_vinculadas(),
+            titular_salvo.veiculos_vinculados(),
+            titular_salvo.funcionario(),
+            titular_salvo.titular(),
+            acompanhantes_salvos);
 
     List<Pessoa> retorno = new ArrayList<>();
     retorno.add(titularComAcompanhantes);
-    retorno.addAll(acompanhantesSalvos);
+    retorno.addAll(acompanhantes_salvos);
     return retorno;
   }
 
-  private Pessoa salvarInternoSemVinculoEmpresa(Pessoa pessoa, Long funcionarioIdLogado) {
+  private Pessoa salvarInternoSemVinculoEmpresa(Pessoa.Request pessoa, Long titular_id) {
     validarPessoa(pessoa);
 
-    Pessoa salva = pessoaRepository.save(pessoa, funcionarioIdLogado);
-    salva = salvarOuAtualizarVeiculos(salva, pessoa.veiculos());
-
-    return salva;
+    Pessoa new_pessoa = pessoaRepository.insert(pessoa);
+    pessoaRepository.vincularTitular(new_pessoa.id(), titular_id, true);
+    return salvarOuAtualizarVeiculos(new_pessoa, pessoa.veiculos());
   }
 
-  private Pessoa salvarOuAtualizarVeiculos(Pessoa salva, List<Veiculo> veiculosRequest) {
-    if (veiculosRequest == null) return salva;
-
-    var veiculosExistentes = veiculoRepository.findAllByPessoaId(salva.id());
-
-    if (veiculosExistentes.isEmpty()) {
-      if (!veiculosRequest.isEmpty()) {
-        List<Veiculo> veiculosSalvos = new ArrayList<>(veiculosRequest.size());
-        for (Veiculo veiculo : veiculosRequest) {
-          Veiculo veiculoSalvo = veiculoRepository.save(salva.id(), veiculo);
-          if (veiculoSalvo.id() == null) {
-            throw new IllegalStateException("Veículo salvo sem ID (verifique o RETURNING id).");
-          }
-          veiculoRepository.setVinculoAtivo(salva.id(), veiculoSalvo.id(), true);
-          veiculosSalvos.add(veiculoSalvo);
-        }
-        return salva.withVeiculos(veiculosSalvos);
-      }
+  private Pessoa salvarOuAtualizarVeiculos(Pessoa salva, List<Veiculo> veiculos) {
+    if (veiculos == null) {
       return salva;
     }
-    if (!veiculosRequest.isEmpty()) {
-      var oldVeiculo = veiculosExistentes.getFirst();
-      var newVeiculo = veiculosRequest.getFirst();
+
+    List<Veiculo> veiculosExistentes = veiculoService.findAllByPessoaId(salva.id());
+
+    if (veiculosExistentes.isEmpty()) {
+      if (veiculos.isEmpty()) {
+        return salva;
+      }
+
+      List<Veiculo> veiculosSalvos = new ArrayList<>(veiculos.size());
+
+      for (Veiculo veiculo : veiculos) {
+        Veiculo veiculoSalvo;
+
+        if (veiculo.id() == null) {
+          veiculoSalvo =
+              veiculoService.create(
+                  new Veiculo.Request(
+                      veiculo.modelo(),
+                      veiculo.marca(),
+                      veiculo.ano(),
+                      veiculo.placa(),
+                      veiculo.cor()));
+        } else {
+          veiculoSalvo =
+              veiculoService.update(
+                  new Veiculo.Update(
+                      veiculo.id(),
+                      veiculo.modelo(),
+                      veiculo.marca(),
+                      veiculo.ano(),
+                      veiculo.placa(),
+                      veiculo.cor()));
+        }
+        veiculoService.setVinculoAtivo(
+            new Veiculo.Vincular(
+                new Veiculo.Id(veiculoSalvo.id()), new Pessoa.Id(salva.id()), true));
+
+        if (veiculoSalvo.id() == null) {
+          throw new IllegalStateException("Veículo salvo sem ID.");
+        }
+        veiculosSalvos.add(veiculoSalvo);
+      }
+
+      return pessoaRepository.findById(salva.id());
+    }
+
+    if (!veiculos.isEmpty()) {
+      Veiculo oldVeiculo = veiculosExistentes.getFirst();
+      Veiculo newVeiculo = veiculos.getFirst();
 
       Veiculo veiculoAtualizado =
           new Veiculo(
@@ -213,29 +222,56 @@ public class PessoaService {
               newVeiculo.placa(),
               newVeiculo.cor());
 
-      veiculoRepository.save(salva.id(), veiculoAtualizado);
-      veiculoRepository.setVinculoAtivo(salva.id(), oldVeiculo.id(), true);
-      return salva.withVeiculos(List.of(veiculoAtualizado));
+      veiculoService.update(
+          new Veiculo.Update(
+              veiculoAtualizado.id(),
+              veiculoAtualizado.modelo(),
+              veiculoAtualizado.marca(),
+              veiculoAtualizado.ano(),
+              veiculoAtualizado.placa(),
+              veiculoAtualizado.cor()));
+      veiculoService.setVinculoAtivo(
+          new Veiculo.Vincular(new Veiculo.Id(oldVeiculo.id()), new Pessoa.Id(salva.id()), true));
     }
-    return salva;
+
+    return pessoaRepository.findById(salva.id());
   }
 
+  @Transactional
   public void alterarStatus(Long id, Pessoa.Status status) {
-    if (id == null) throw new IllegalArgumentException("id é obrigatório.");
-    if (status == null) throw new IllegalArgumentException("status é obrigatório.");
+    if (id == null) {
+      throw new IllegalArgumentException("Id é obrigatório.");
+    }
+    if (status == null) {
+      throw new IllegalArgumentException("Status é obrigatório.");
+    }
     pessoaRepository.alterarStatus(id, status);
   }
 
+  @Transactional
   public void incrementarHospedagem(Long id) {
-    if (id == null) throw new IllegalArgumentException("id é obrigatório.");
+    if (id == null) {
+      throw new IllegalArgumentException("Id é obrigatório.");
+    }
     pessoaRepository.incrementarHospedagem(id);
   }
 
-  private void validarPessoa(Pessoa pessoa) {
-    if (pessoa == null) throw new IllegalArgumentException("Pessoa é obrigatória.");
-    if (!StringUtils.hasText(pessoa.nome()))
+  private void validarPessoa(Pessoa.Request pessoa) {
+    if (pessoa == null) {
+      throw new IllegalArgumentException("Pessoa é obrigatória.");
+    }
+    if (!StringUtils.hasText(pessoa.nome())) {
       throw new IllegalArgumentException("Nome é obrigatório.");
-    if (!StringUtils.hasText(pessoa.cpf()))
+    }
+    if (!StringUtils.hasText(pessoa.cpf())) {
       throw new IllegalArgumentException("CPF é obrigatório.");
+    }
+  }
+
+  public void vincularTitular(Pessoa.VinculoVeiculo vinculo) {
+    pessoaRepository.findById(vinculo.pessoa().id());
+    pessoaRepository.findById(vinculo.veiculo().id());
+    pessoaRepository.vincularTitular(
+        vinculo.pessoa().id(), vinculo.veiculo().id(), vinculo.vinculo());
   }
 }

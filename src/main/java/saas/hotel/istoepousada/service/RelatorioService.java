@@ -1,86 +1,133 @@
 package saas.hotel.istoepousada.service;
 
-import java.time.LocalDate;
-import org.springframework.data.domain.Pageable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+import saas.hotel.istoepousada.dto.Pagamento;
+import saas.hotel.istoepousada.dto.Quarto;
 import saas.hotel.istoepousada.dto.Relatorio;
-import saas.hotel.istoepousada.dto.RelatorioExtratoResponse;
-import saas.hotel.istoepousada.repository.PessoaRepository;
+import saas.hotel.istoepousada.repository.PagamentoRepository;
 import saas.hotel.istoepousada.repository.RelatorioRepository;
+
+import java.io.IOException;
+import java.time.LocalDate;
 
 @Service
 public class RelatorioService {
-
+  private static final Logger log = LoggerFactory.getLogger(RelatorioService.class);
   private final RelatorioRepository relatorioRepository;
-  private final PessoaRepository pessoaRepository;
-  private final NotificacaoService notificacaoService;
+  private final ArquivoService arquivoService;
+  private final PagamentoRepository pagamentoRepository;
 
   public RelatorioService(
       RelatorioRepository relatorioRepository,
-      PessoaRepository pessoaRepository,
-      NotificacaoService notificacaoService) {
+      ArquivoService arquivoService,
+      PagamentoRepository pagamentoRepository) {
     this.relatorioRepository = relatorioRepository;
-    this.pessoaRepository = pessoaRepository;
-    this.notificacaoService = notificacaoService;
+    this.arquivoService = arquivoService;
+    this.pagamentoRepository = pagamentoRepository;
   }
 
-  public RelatorioExtratoResponse buscar(
+  public Relatorio.Extrato buscar(
       Long id,
-      LocalDate dataInicio,
-      LocalDate dataFim,
-      Long funcionarioId,
-      Long quartoId,
-      Long tipoPagamentoId,
-      Relatorio.Valores valores,
-      Boolean despesaPessoal,
-      Pageable pageable) {
-    if (dataInicio == null && dataFim == null) {
-      LocalDate hoje = LocalDate.now();
-      dataInicio = hoje.minusDays(1);
-      dataFim = hoje;
-    }
+      LocalDate data_inicio,
+      LocalDate data_fim,
+      Long funcionario_id,
+      Long quarto_id,
+      Long tipo_pagamento_id,
+      Relatorio.Registro registro,
+      Boolean despesa_pessoal,
+      int page,
+      int size) {
     return relatorioRepository.buscar(
         id,
-        dataInicio,
-        dataFim,
-        funcionarioId,
-        quartoId,
-        tipoPagamentoId,
-        valores,
-        despesaPessoal,
-        pageable);
+        data_inicio,
+        data_fim,
+        funcionario_id,
+        quarto_id,
+        tipo_pagamento_id,
+        registro,
+        despesa_pessoal,
+        page,
+        size);
   }
 
   @Transactional
-  public Relatorio criar(Relatorio.RelatorioRequest request) {
-    validarRequest(request);
-    Long funcionarioPessoaId = pessoaRepository.getFuncionarioPessoaIdFromRequest();
-    var funcionario = pessoaRepository.findById(funcionarioPessoaId);
-    Relatorio salvo = relatorioRepository.insert(request, funcionarioPessoaId);
-    notificacaoService.criar(funcionario, "LANÇOU UM RELATÓRIO: " + request.relatorio());
-    return salvo;
+  public Relatorio criar(Relatorio.Request relatorio, MultipartFile arquivo) throws IOException {
+    validarRequest(relatorio);
+    var novoRelatorio = relatorioRepository.insert(relatorio);
+    log.info("Relatório criado com sucesso: {}", novoRelatorio.id());
+
+    if (arquivo != null) {
+      String path = arquivoService.salvarComprovante(arquivo);
+      arquivoService.setPath(path, novoRelatorio.pagamento().uuid());
+      log.info(
+          "Arquivo de comprovante salvo com sucesso para o pagamento {}",
+          novoRelatorio.pagamento().uuid());
+    }
+    if (relatorio.pagamento().desconto() != null) {
+      pagamentoRepository.registrarDesconto(new Pagamento.Desconto.Request(
+              new Pagamento.Uuid(
+                      novoRelatorio.pagamento().uuid()),
+              relatorio.pagamento().desconto().porcentagem(),
+              relatorio.pagamento().desconto().valor())
+      );
+    }
+    return novoRelatorio;
   }
 
   @Transactional
-  public Relatorio atualizar(Long id, Relatorio.RelatorioRequest request) {
-    if (id == null) throw new IllegalArgumentException("id é obrigatório.");
-    validarRequest(request);
-    Long funcionarioPessoaId = pessoaRepository.getFuncionarioPessoaIdFromRequest();
-    var funcionario = pessoaRepository.findById(funcionarioPessoaId);
-    Relatorio salvo = relatorioRepository.update(id, request, funcionarioPessoaId);
-    notificacaoService.criar(
-        funcionario, "ATUALIZOU O RELATÓRIO #" + id + ": " + request.relatorio());
-    return salvo;
+  public Relatorio atualizar(Relatorio.Update relatorio, MultipartFile arquivo) throws IOException {
+    validarUpdate(relatorio);
+    String novoPath;
+
+    if (arquivo != null) {
+      var pathAntigo = arquivoService.buscaPathArquivoByPagamentoUUID(relatorio.pagamento().uuid());
+      arquivoService.deletarArquivo(pathAntigo);
+
+      novoPath = arquivoService.salvarComprovante(arquivo);
+      arquivoService.setPath(novoPath, relatorio.pagamento().uuid());
+    }
+    return relatorioRepository.update(
+        new Relatorio.Update(
+            relatorio.id(),
+            relatorio.descricao(),
+            new Pagamento.Update(
+                relatorio.pagamento().uuid(),
+                new Pagamento.TipoPagamento.Id(relatorio.pagamento().tipo_pagamento().id()),
+                relatorio.pagamento().nome_pagador(),
+                relatorio.pagamento().descricao(),
+                relatorio.pagamento().valor(),
+                relatorio.pagamento().desconto() == null
+                    ? null
+                    : new Pagamento.Desconto.Update(
+                        relatorio.pagamento().desconto().uuid(),
+                        relatorio.pagamento().desconto().porcentagem(),
+                        relatorio.pagamento().desconto().valor()),
+                relatorio.pagamento().arquivo()),
+            relatorio.quarto() == null ? null : new Quarto.Id(relatorio.quarto().id()),
+            relatorio.despesa_pessoal()));
   }
 
-  private void validarRequest(Relatorio.RelatorioRequest request) {
+  private void validarRequest(Relatorio.Request request) {
     if (request == null) throw new IllegalArgumentException("Request é obrigatória.");
     if (!StringUtils.hasText(request.relatorio()))
       throw new IllegalArgumentException("Descrição do relatório é obrigatória.");
-    if (request.valor() == null) throw new IllegalArgumentException("valor é obrigatório.");
-    if (request.tipoPagamentoId() == null)
-      throw new IllegalArgumentException("tipoPagamentoId é obrigatório.");
+    if (request.pagamento() == null)
+      throw new IllegalArgumentException("E Necessário adicionar um pagamento");
+  }
+
+  private void validarUpdate(Relatorio.Update relatorio) {
+    if (relatorio == null) throw new IllegalArgumentException("Request é obrigatória.");
+
+    if (relatorio.id() == null) throw new IllegalArgumentException("uuid é obrigatório.");
+
+    if (!StringUtils.hasText(relatorio.descricao()))
+      throw new IllegalArgumentException("Descrição do relatório é obrigatória.");
+    if (relatorio.pagamento() == null)
+      throw new IllegalArgumentException("E Necessário adicionar um pagamento");
   }
 }

@@ -5,69 +5,57 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Empresa;
-import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.repository.EmpresaRepository;
-import saas.hotel.istoepousada.repository.PessoaRepository;
 
 @Service
 public class EmpresaService {
   private final EmpresaRepository empresaRepository;
-  private final NotificacaoService notificacaoService;
-  private final PessoaRepository pessoaRepository;
 
-  public EmpresaService(
-      EmpresaRepository empresaRepository,
-      NotificacaoService notificacaoService,
-      PessoaRepository pessoaRepository) {
+  public EmpresaService(EmpresaRepository empresaRepository) {
     this.empresaRepository = empresaRepository;
-    this.notificacaoService = notificacaoService;
-    this.pessoaRepository = pessoaRepository;
   }
 
   public Page<Empresa> buscarPorIdNomeOuCnpj(Long id, String termo, Pageable pageable) {
     String termoNormalizado = StringUtils.hasText(termo) ? termo.trim() : null;
-    return empresaRepository.buscarPorIdNomeOuCnpj(id, termoNormalizado, pageable);
+    return empresaRepository.findByIdNomeOuCnpj(id, termoNormalizado, pageable);
   }
 
-  public Empresa salvar(Empresa empresa) {
-    validarEmpresa(empresa);
-    var novaEmpresa = empresaRepository.save(empresa);
-    Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
-    var funcionario = pessoaRepository.findById(funcionarioIdLogado);
-    notificacaoService.criar(
-        funcionario, "ATUALIZOU OS DADOS DA EMPRESA: " + novaEmpresa.razaoSocial());
-    return novaEmpresa;
+  public Empresa salvar(Empresa.Request empresa) {
+    validarEmpresaRequest(empresa);
+    return empresaRepository.create(empresa);
   }
 
-  public void vincularPessoa(Long empresaId, Long pessoaId, Boolean vinculo) {
-    if (empresaId == null) {
+  public Empresa update(Empresa.Update empresa) {
+    validarEmpresaUpdate(empresa);
+    return empresaRepository.update(empresa);
+  }
+
+  public void vincularPessoa(Empresa.Vincular vinculo) {
+    if (vinculo.empresa().id() == null)
       throw new IllegalArgumentException("empresaId é obrigatório.");
-    }
-    if (pessoaId == null) {
+    if (vinculo.pessoa().id() == null)
       throw new IllegalArgumentException("pessoaIds é obrigatório.");
-    }
-    Long funcionarioIdLogado = pessoaRepository.getFuncionarioPessoaIdFromRequest();
-    var funcionario = pessoaRepository.findById(funcionarioIdLogado);
 
-    var pessoa = pessoaRepository.findById(pessoaId);
-    var empresa =
-        empresaRepository
-            .findById(empresaId)
-            .orElseThrow(
-                () -> new NotFoundException("Empresa não encontrada para o id: " + empresaId));
-
-    empresaRepository.vincularPessoa(empresaId, pessoaId, vinculo);
-
-    notificacaoService.criar(
-        funcionario,
-        "VINCULOU O HOSPEDE [" + pessoa.nome() + "] À EMPRESA [" + empresa.razaoSocial() + "]");
+    empresaRepository.vincularPessoa(vinculo);
   }
 
-  private void validarEmpresa(Empresa empresa) {
+  private void validarEmpresaUpdate(Empresa.Update empresa) {
     if (empresa == null) {
       throw new IllegalArgumentException("Empresa é obrigatória.");
     }
-    if (!StringUtils.hasText(empresa.razaoSocial())) {
+    if (!StringUtils.hasText(empresa.razao_social())) {
+      throw new IllegalArgumentException("Razão social é obrigatória.");
+    }
+    if (!StringUtils.hasText(empresa.cnpj())) {
+      throw new IllegalArgumentException("CNPJ é obrigatório.");
+    }
+  }
+
+  private void validarEmpresaRequest(Empresa.Request empresa) {
+    if (empresa == null) {
+      throw new IllegalArgumentException("Empresa é obrigatória.");
+    }
+    if (!StringUtils.hasText(empresa.razao_social())) {
       throw new IllegalArgumentException("Razão social é obrigatória.");
     }
     if (!StringUtils.hasText(empresa.cnpj())) {
