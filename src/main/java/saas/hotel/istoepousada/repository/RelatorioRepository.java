@@ -254,7 +254,12 @@ public class RelatorioRepository {
   }
 
   public Relatorio insert(Relatorio.Request request) {
-    Float valorHistoricoDinheiro = calcularNovoHistoricoDinheiro(request.pagamento().valor());
+    Long tipoPagamentoId = request.pagamento().tipo_pagamento().id();
+    Float valorHistoricoDinheiro =
+            calcularNovoHistoricoDinheiro(
+                    request.pagamento().valor(),
+                    tipoPagamentoId
+            );
     boolean despesaPessoal = Boolean.TRUE.equals(request.despesa_pessoal());
     var pagamento = pagamentoRepository.create(request.pagamento());
 
@@ -317,9 +322,14 @@ public class RelatorioRepository {
     return getByIdOrThrow(id);
   }
 
-  private Float calcularNovoHistoricoDinheiro(Float valorPagamento) {
+  private Float calcularNovoHistoricoDinheiro(Float valor, Long tipoPagamentoId) {
     Float ultimoHistorico = buscarUltimoHistoricoDinheiro();
-    return ultimoHistorico + (valorPagamento != null ? valorPagamento : 0F);
+
+    if (tipoPagamentoId == null || tipoPagamentoId != 1) {
+      return ultimoHistorico; // NÃO altera caixa
+    }
+
+    return ultimoHistorico + (valor != null ? valor : 0F);
   }
 
   private Float recalcularHistoricoDinheiro(Relatorio relatorioAntigo, Float novoValorPagamento) {
@@ -346,14 +356,14 @@ public class RelatorioRepository {
 
   private Float buscarHistoricoAnteriorAoRegistro(Long relatorioId) {
     String sql =
-        """
-        SELECT COALESCE(valor_historico_dinheiro, 0)
-        FROM relatorio
-        WHERE relatorio.data_hora < (SELECT data_hora FROM relatorio WHERE id = ?)
-           OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id < ?)
-        ORDER BY relatorio.data_hora DESC, relatorio.id DESC
-        LIMIT 1
-        """;
+            """
+            SELECT COALESCE(valor_historico_dinheiro, 0)
+            FROM relatorio
+            WHERE relatorio.data_hora < (SELECT data_hora FROM relatorio WHERE id = ?)
+               OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id < ?)
+            ORDER BY relatorio.data_hora DESC, relatorio.id DESC
+            LIMIT 1
+            """;
 
     try {
       return jdbcTemplate.queryForObject(sql, Float.class, relatorioId, relatorioId, relatorioId);
@@ -365,12 +375,14 @@ public class RelatorioRepository {
   private void recalcularHistoricoPosteriores(Long relatorioId, Float novoHistorico) {
     String sqlBuscar =
         """
-        SELECT relatorio.id, COALESCE(pagamento.valor, 0) AS valor
-        FROM relatorio
-        LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
-        WHERE relatorio.data_hora > (SELECT data_hora FROM relatorio WHERE id = ?)
-           OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id > ?)
-        ORDER BY relatorio.data_hora, relatorio.id
+       
+        SELECT
+           relatorio.id,
+           COALESCE(pagamento.valor, 0) AS valor,
+           tipo_pagamento.id AS tipo_id
+       FROM relatorio
+       LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
+       LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
         """;
 
     List<Map<String, Object>> posteriores =
@@ -381,10 +393,17 @@ public class RelatorioRepository {
     for (Map<String, Object> registro : posteriores) {
       Long id = ((Number) registro.get("id")).longValue();
       Number valor = (Number) registro.get("valor");
-      historicoAcumulado += valor != null ? valor.floatValue() : 0F;
+      Number tipoId = (Number) registro.get("tipo_id");
+
+      if (tipoId != null && tipoId.longValue() == 1) {
+        historicoAcumulado += valor != null ? valor.floatValue() : 0F;
+      }
 
       jdbcTemplate.update(
-          "UPDATE relatorio SET valor_historico_dinheiro = ? WHERE id = ?", historicoAcumulado, id);
+              "UPDATE relatorio SET valor_historico_dinheiro = ? WHERE id = ?",
+              historicoAcumulado,
+              id
+      );
     }
   }
 
