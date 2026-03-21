@@ -145,7 +145,7 @@ public class CargoRepository {
     List<Object> params = new ArrayList<>();
 
     if (has_id) {
-      where.append(" AND c.id = ? ");
+      where.append(" AND c.uuid = ? ");
       params.add(cargo.id());
     }
 
@@ -156,7 +156,7 @@ public class CargoRepository {
 
     if (has_pessoa_id) {
       where.append(
-          " AND EXISTS (SELECT 1 FROM funcionario f WHERE f.fk_pessoa = ? AND f.fk_cargo = c.id) ");
+          " AND EXISTS (SELECT 1 FROM funcionario f WHERE f.fk_pessoa = ? AND f.fk_cargo = c.uuid) ");
       params.add(cargo.pessoa().id());
     }
 
@@ -199,7 +199,7 @@ public class CargoRepository {
     String page_sql =
         (SELECT_WITH_TELAS_PERMISSOES
                 + """
-                        WHERE c.id IN (%s)
+                        WHERE c.uuid IN (%s)
                         ORDER BY c.cargo, t.nome, p.permissao
                         """)
             .formatted(in_place_holders);
@@ -213,7 +213,7 @@ public class CargoRepository {
   public Cargo findByIdOrThrow(Cargo.Id cargo) {
     Page<Cargo> page = buscarCargoPorIdOuNome(new Cargo.Buscar(cargo.id(), null, null, 0, 1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Cargo não cadastrado para o id: " + cargo.id());
+      throw new NotFoundException("Cargo não cadastrado para o uuid: " + cargo.id());
     }
     return page.getContent().getFirst();
   }

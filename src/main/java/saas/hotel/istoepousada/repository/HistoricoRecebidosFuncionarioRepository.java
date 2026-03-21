@@ -16,9 +16,12 @@ import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 public class HistoricoRecebidosFuncionarioRepository {
 
   private final JdbcTemplate jdbcTemplate;
+  private final PessoaRepository pessoaRepository;
 
-  public HistoricoRecebidosFuncionarioRepository(JdbcTemplate jdbcTemplate) {
+  public HistoricoRecebidosFuncionarioRepository(
+      JdbcTemplate jdbcTemplate, PessoaRepository pessoaRepository) {
     this.jdbcTemplate = jdbcTemplate;
+    this.pessoaRepository = pessoaRepository;
   }
 
   private static final RowMapper<Funcionario.Historico.Recebido> RECEBIDOS_ROW_MAPPER =
@@ -154,7 +157,7 @@ public class HistoricoRecebidosFuncionarioRepository {
                         """,
             UUID.class,
             recebido.pagamento().tipo_pagamento().id(),
-            recebido.pagamento().funcionario().id(),
+            getFuncionarioIdFromRequest(),
             recebido.pagamento().nome_pagador(),
             recebido.pagamento().descricao(),
             recebido.pagamento().valor());
@@ -205,5 +208,9 @@ public class HistoricoRecebidosFuncionarioRepository {
         request.id());
 
     return findById(request.id());
+  }
+
+  public Long getFuncionarioIdFromRequest() {
+    return pessoaRepository.getFuncionarioIdFromRequest();
   }
 }

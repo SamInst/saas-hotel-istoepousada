@@ -279,7 +279,7 @@ public class RelatorioRepository {
             valorHistoricoDinheiro,
             despesaPessoal,
             pagamento.uuid());
-    
+
     return getByIdOrThrow(new Relatorio.Id(id));
   }
 
@@ -393,16 +393,15 @@ public class RelatorioRepository {
       throw new IllegalStateException("Registro salvo sem ID.");
     }
 
-    Relatorio.Extrato resp =
-        buscar(relatorio.id(), null, null, null, null, null, null, null, 0, 1);
+    Relatorio.Extrato resp = buscar(relatorio.id(), null, null, null, null, null, null, null, 0, 1);
 
     if (resp == null || resp.page() == null || resp.page().isEmpty()) {
-      throw new NotFoundException("Relatório não encontrado para o id: " + relatorio.id());
+      throw new NotFoundException("Relatório não encontrado para o uuid: " + relatorio.id());
     }
 
     Relatorio.Extrato.Diaria diaria = resp.page().getContent().getFirst();
     if (diaria.relatorios() == null || diaria.relatorios().isEmpty()) {
-      throw new NotFoundException("Relatório não encontrado para o id: " + relatorio.id());
+      throw new NotFoundException("Relatório não encontrado para o uuid: " + relatorio.id());
     }
 
     return diaria.relatorios().getFirst();

@@ -57,7 +57,7 @@ public class CargoService {
       throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
     if (!cargoRepository.existsById(vinculo.cargo()))
-      throw new NotFoundException("Cargo não cadastrado para o id: " + vinculo.cargo().id());
+      throw new NotFoundException("Cargo não cadastrado para o uuid: " + vinculo.cargo().id());
 
     if (vinculo.telas() == null || vinculo.telas().isEmpty()) return;
 
@@ -76,7 +76,7 @@ public class CargoService {
       throw new IllegalArgumentException("ID do descricao é obrigatório.");
 
     if (!cargoRepository.existsById(vinculo.cargo()))
-      throw new NotFoundException("Cargo não cadastrado para o id: " + vinculo.cargo().id());
+      throw new NotFoundException("Cargo não cadastrado para o uuid: " + vinculo.cargo().id());
 
     if (vinculo.permissoes() == null || vinculo.permissoes().isEmpty()) return;
 

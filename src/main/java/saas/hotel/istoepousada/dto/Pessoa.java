@@ -147,13 +147,16 @@ public record Pessoa(
               List.of(),
               List.of(),
               new Funcionario.Nome(
-                  rs.getObject("pessoa_funcionario_id", Long.class), rs.getString("pessoa_funcionario_nome")),
+                  rs.getObject("pessoa_funcionario_id", Long.class),
+                  rs.getString("pessoa_funcionario_nome")),
               rs.getObject("pessoa_titular_id", Long.class) == null
                   ? null
                   : new Pessoa.Nome(
-                      rs.getObject("pessoa_titular_id", Long.class), rs.getString("pessoa_titular_nome")),
+                      rs.getObject("pessoa_titular_id", Long.class),
+                      rs.getString("pessoa_titular_nome")),
               List.of());
 
   public record BatchRequest(List<Pessoa.Request> pessoas, List<Empresa.Id> empresas) {}
+
   public record VinculoVeiculo(Pessoa.Id pessoa, Veiculo.Id veiculo, Boolean vinculo) {}
 }

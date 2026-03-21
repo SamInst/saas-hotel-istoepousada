@@ -18,11 +18,10 @@ public record Pagamento(
     Boolean cancelado,
     Desconto desconto,
     String path_arquivo) {
-  public record Id(@NotNull UUID id) {}
+  public record Uuid(@NotNull UUID uuid) {}
 
   public record Request(
       @NotNull TipoPagamento.Id tipo_pagamento,
-      @NotNull Funcionario.Id funcionario,
       @NotNull String nome_pagador,
       String descricao,
       @NotNull Float valor,
@@ -32,7 +31,6 @@ public record Pagamento(
   public record Update(
       @NotNull UUID uuid,
       @NotNull TipoPagamento.Id tipo_pagamento,
-      @NotNull Funcionario.Id funcionario,
       @NotNull String nome_pagador,
       String descricao,
       @NotNull Float valor,
@@ -45,14 +43,9 @@ public record Pagamento(
       Integer porcentagem,
       Float valor,
       @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime data_hora_registro) {
-    public record Request(
-        @NotNull Pagamento.Id pagamento,
-        @NotNull Funcionario.Id funcionario,
-        Integer porcentagem,
-        Float valor) {}
+    public record Request(@NotNull Pagamento.Uuid pagamento, Integer porcentagem, Float valor) {}
 
-    public record Update(
-        @NotNull UUID id, @NotNull Funcionario.Id funcionario, Integer porcentagem, Float valor) {}
+    public record Update(@NotNull UUID uuid, Integer porcentagem, Float valor) {}
 
     public static final RowMapper<Desconto> ROW_MAPPER =
         (rs, row_num) -> {

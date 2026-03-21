@@ -33,7 +33,7 @@ public class EmpresaRepository {
     List<Object> params = new ArrayList<>();
 
     if (has_id) {
-      where.append(" AND e.id = ? ");
+      where.append(" AND e.uuid = ? ");
       params.add(id);
     }
 
@@ -95,7 +95,8 @@ public class EmpresaRepository {
         empresas.stream()
             .map(
                 empresa -> {
-                  List<Pessoa> pessoas_vinculadas = pessoaRepository.findPessoasByEmpresaId(empresa.id());
+                  List<Pessoa> pessoas_vinculadas =
+                      pessoaRepository.findPessoasByEmpresaId(empresa.id());
                   return new Empresa(
                       empresa.id(),
                       empresa.data_hora_registro(),
@@ -223,8 +224,6 @@ public class EmpresaRepository {
 
     return findByIdNomeOuCnpj(empresa.id(), null, Pageable.ofSize(1)).getContent().getFirst();
   }
-
-
 
   public void vincularPessoa(Empresa.Vincular vinculo) {
     String sql =

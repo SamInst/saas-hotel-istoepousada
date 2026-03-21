@@ -1,15 +1,12 @@
 package saas.hotel.istoepousada.service;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
-import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 import saas.hotel.istoepousada.dto.Funcionario;
+import saas.hotel.istoepousada.repository.ArquivoRepository;
 import saas.hotel.istoepousada.repository.HistoricoRecebidosFuncionarioRepository;
 
 @Service
@@ -19,10 +16,13 @@ public class HistoricoRecebidosFuncionarioService {
       Path.of("storage", "comprovantes", "recebidos-funcionario");
 
   private final HistoricoRecebidosFuncionarioRepository historicoRecebidosFuncionarioRepository;
+  private final ArquivoRepository arquivoRepository;
 
   public HistoricoRecebidosFuncionarioService(
-      HistoricoRecebidosFuncionarioRepository historicoRecebidosFuncionarioRepository) {
+      HistoricoRecebidosFuncionarioRepository historicoRecebidosFuncionarioRepository,
+      ArquivoRepository arquivoRepository) {
     this.historicoRecebidosFuncionarioRepository = historicoRecebidosFuncionarioRepository;
+    this.arquivoRepository = arquivoRepository;
   }
 
   public List<Funcionario.Historico.Recebido> buscar(Long historicoFuncionarioId) {
@@ -41,7 +41,7 @@ public class HistoricoRecebidosFuncionarioService {
 
     validarInsert(recebido);
 
-    String pathArquivo = salvarArquivo(recebido.pagamento().arquivo());
+    String pathArquivo = arquivoRepository.salvarComprovante(recebido.pagamento().arquivo());
 
     Funcionario.Historico.Recebido.Request requestComArquivo =
         new Funcionario.Historico.Recebido.Request(
@@ -69,32 +69,9 @@ public class HistoricoRecebidosFuncionarioService {
     if (recebido.data_hora_pagamento() == null)
       throw new IllegalArgumentException("Data/hora de pagamento é obrigatória.");
 
-    salvarArquivo(recebido.arquivo());
+    arquivoRepository.salvarComprovante(recebido.arquivo());
 
     return historicoRecebidosFuncionarioRepository.update(recebido);
-  }
-
-  public String salvarArquivo(MultipartFile arquivo) throws IOException {
-    if (arquivo == null || arquivo.isEmpty()) {
-      return null;
-    }
-
-    Files.createDirectories(UPLOAD_DIR);
-
-    String original = arquivo.getOriginalFilename();
-    String ext = "";
-    if (original != null) {
-      int dot = original.lastIndexOf('.');
-      if (dot >= 0 && dot < original.length() - 1) {
-        ext = original.substring(dot);
-      }
-    }
-
-    String nomeGerado = UUID.randomUUID() + ext;
-    Path destino = UPLOAD_DIR.resolve(nomeGerado).normalize();
-
-    Files.copy(arquivo.getInputStream(), destino, StandardCopyOption.REPLACE_EXISTING);
-    return destino.toString();
   }
 
   private void validarInsert(Funcionario.Historico.Recebido.Request request) {
@@ -116,10 +93,6 @@ public class HistoricoRecebidosFuncionarioService {
     if (request.pagamento().tipo_pagamento() == null
         || request.pagamento().tipo_pagamento().id() == null) {
       throw new IllegalArgumentException("Tipo de pagamento é obrigatório.");
-    }
-    if (request.pagamento().funcionario() == null
-        || request.pagamento().funcionario().id() == null) {
-      throw new IllegalArgumentException("Funcionário do pagamento é obrigatório.");
     }
     if (request.pagamento().nome_pagador() == null
         || request.pagamento().nome_pagador().isBlank()) {

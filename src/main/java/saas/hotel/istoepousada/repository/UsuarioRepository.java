@@ -121,11 +121,16 @@ public class UsuarioRepository {
   public Usuario create(String username, String senha) {
     String senhaMd5 = gerarMD5(senha);
 
-    Long id = jdbcTemplate.queryForObject("""
+    Long id =
+        jdbcTemplate.queryForObject(
+            """
         INSERT INTO usuario (username, senha, bloqueado)
         VALUES (?, ?, false)
         RETURNING id
-        """, Long.class, username, senhaMd5);
+        """,
+            Long.class,
+            username,
+            senhaMd5);
 
     return findById(id);
   }

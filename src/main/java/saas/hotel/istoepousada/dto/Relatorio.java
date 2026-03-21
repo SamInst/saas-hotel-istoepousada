@@ -23,7 +23,6 @@ public record Relatorio(
   public record Id(@NotNull Long id) {}
 
   public record Request(
-      @NotNull Funcionario.Id funcionario,
       @NotNull String relatorio,
       @NotNull Registro tipo_registro,
       @NotNull Boolean despesa_pessoal,
@@ -83,16 +82,4 @@ public record Relatorio(
               rs.getObject("relatorio_despesa_pessoal", Boolean.class));
         };
   }
-
-  public record Buscar(
-      Long id,
-      LocalDate data_inicio,
-      LocalDate data_fim,
-      Funcionario.Id funcionario,
-      Quarto.Id quarto,
-      Pagamento.TipoPagamento.Id tipo_pagamento,
-      Relatorio.Registro registro,
-      Boolean despesa_pessoal,
-      @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "10") int size) {}
 }

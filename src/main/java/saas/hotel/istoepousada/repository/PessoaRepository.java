@@ -394,7 +394,7 @@ public class PessoaRepository {
   public Pessoa findById(Long id) {
     Page<Pessoa> page = buscar(id, null, null, null, Pageable.ofSize(1));
     if (page.isEmpty()) {
-      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
+      throw new NotFoundException("Pessoa não encontrada para o uuid: " + id);
     }
     return page.getContent().getFirst();
   }
@@ -626,7 +626,7 @@ public class PessoaRepository {
 
   public List<Pessoa> findPessoasByEmpresaId(Long empresa_id) {
     String sql =
-            """
+        """
                     SELECT DISTINCT
                         p.id                 AS pessoa_id,
                         p.data_hora_registro AS pessoa_data_hora_registro,

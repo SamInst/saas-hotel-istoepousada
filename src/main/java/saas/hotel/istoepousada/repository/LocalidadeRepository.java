@@ -32,7 +32,7 @@ public class LocalidadeRepository {
   //  public List<Objeto> listarPaises() {
   //    String sql =
   //        """
-  //                SELECT id, descricao
+  //                SELECT uuid, descricao
   //                FROM public.pais
   //                ORDER BY descricao
   //            """;
@@ -43,7 +43,7 @@ public class LocalidadeRepository {
   //  public List<Objeto> listarEstadosPorPais(Long pais) {
   //    String sql =
   //        """
-  //                SELECT id, descricao
+  //                SELECT uuid, descricao
   //                FROM public.estado
   //                WHERE fk_pais = ?
   //                ORDER BY descricao
@@ -55,7 +55,7 @@ public class LocalidadeRepository {
   //  public List<Objeto> listarMunicipiosPorEstado(Long estado) {
   //    String sql =
   //        """
-  //                SELECT id, descricao
+  //                SELECT uuid, descricao
   //                FROM public.municipio
   //                WHERE municipio.fk_estado = ?
   //                ORDER BY descricao

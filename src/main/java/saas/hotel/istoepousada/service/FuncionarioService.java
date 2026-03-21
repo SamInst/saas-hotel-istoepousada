@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Cargo;
 import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Pessoa;
-import saas.hotel.istoepousada.dto.Usuario;
 import saas.hotel.istoepousada.repository.FuncionarioRepository;
 
 @Service
@@ -16,8 +15,7 @@ public class FuncionarioService {
   private final PessoaService pessoaService;
 
   public FuncionarioService(
-      FuncionarioRepository funcionarioRepository,
-      PessoaService pessoaService) {
+      FuncionarioRepository funcionarioRepository, PessoaService pessoaService) {
     this.funcionarioRepository = funcionarioRepository;
     this.pessoaService = pessoaService;
   }

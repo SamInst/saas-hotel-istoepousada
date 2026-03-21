@@ -40,7 +40,6 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
     Funcionario.Authorization funcionario =
         (Funcionario.Authorization) request.getAttribute("funcionario");
-    log.info("FuncionarioAuth no request: {}", funcionario);
 
     if (funcionario == null) {
       writeJson(
@@ -51,7 +50,6 @@ public class PermissionInterceptor implements HandlerInterceptor {
     /* ====== ADMIN BYPASS ====== */
     String cargoNome = funcionario.cargo() != null ? funcionario.cargo().descricao() : null;
     if ("ADMINISTRADOR".equalsIgnoreCase(safe(cargoNome).trim())) {
-      log.info("Usuário ADMINISTRADOR liberado para acesso total");
       return true;
     }
 
