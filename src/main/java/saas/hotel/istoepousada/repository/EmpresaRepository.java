@@ -33,7 +33,7 @@ public class EmpresaRepository {
     List<Object> params = new ArrayList<>();
 
     if (has_id) {
-      where.append(" AND e.uuid = ? ");
+      where.append(" AND e.id = ? ");
       params.add(id);
     }
 
@@ -126,7 +126,7 @@ public class EmpresaRepository {
 
   public Optional<Empresa> findById(Long id) {
     Page<Empresa> page = findByIdNomeOuCnpj(id, null, Pageable.ofSize(1));
-    if (page.isEmpty()) throw new NotFoundException("Empresa não cadastrada para o uuid: " + id);
+    if (page.isEmpty()) throw new NotFoundException("Empresa não cadastrada para o id: " + id);
 
     return Optional.of(page.getContent().getFirst());
   }
