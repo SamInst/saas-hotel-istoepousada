@@ -375,7 +375,6 @@ public class RelatorioRepository {
   private void recalcularHistoricoPosteriores(Long relatorioId, Float novoHistorico) {
     String sqlBuscar =
         """
-       
         SELECT
            relatorio.id,
            COALESCE(pagamento.valor, 0) AS valor,
@@ -383,7 +382,10 @@ public class RelatorioRepository {
        FROM relatorio
        LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
        LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-        """;
+       WHERE relatorio.data_hora > (SELECT data_hora FROM relatorio WHERE id = ?)
+          OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id > ?)
+       ORDER BY relatorio.data_hora ASC, relatorio.id ASC
+       """;
 
     List<Map<String, Object>> posteriores =
         jdbcTemplate.queryForList(sqlBuscar, relatorioId, relatorioId, relatorioId);
