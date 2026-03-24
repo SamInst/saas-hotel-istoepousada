@@ -19,7 +19,13 @@ public class VeiculoRepository {
   public Veiculo findById(Long id) {
     String sql =
         """
-            SELECT id, modelo, marca, ano, placa, cor
+            SELECT 
+                id     as veiculo_id, 
+                modelo as veiculo_modelo, 
+                marca  as veiculo_marca, 
+                ano    as veiculo_ano, 
+                placa  as veiculo_placa, 
+                cor    as veiculo_cor
             FROM veiculo
             WHERE id = ?
             """;
@@ -34,7 +40,13 @@ public class VeiculoRepository {
   public Veiculo findByPlaca(String placa) {
     String sql =
         """
-                SELECT id, modelo, marca, ano, placa, cor
+                SELECT
+                    id     as veiculo_id,
+                    modelo as veiculo_modelo,
+                    marca  as veiculo_marca,
+                    ano    as veiculo_ano,
+                    placa  as veiculo_placa,
+                    cor    as veiculo_cor
                 FROM veiculo
                 WHERE placa = ?
                 """;
@@ -46,27 +58,16 @@ public class VeiculoRepository {
     }
   }
 
-  public List<Veiculo> findAll() {
-    String sql =
-        """
-            SELECT id, modelo, marca, ano, placa, cor
-            FROM veiculo
-            ORDER BY marca, modelo, placa
-            """;
-
-    return jdbcTemplate.query(sql, Veiculo.ROW_MAPPER);
-  }
-
   public List<Veiculo> findAllByPessoaId(Long pessoa_id) {
     String sql =
         """
             SELECT
-                v.id,
-                v.modelo,
-                v.marca,
-                v.ano,
-                v.placa,
-                v.cor
+                v.id     as veiculo_id,
+                v.modelo as veiculo_modelo,
+                v.marca  as veiculo_marca,
+                v.ano    as veiculo_ano,
+                v.placa  as veiculo_placa,
+                v.cor    as veiculo_cor
             FROM pessoa_veiculo pv
             JOIN veiculo v ON v.id = pv.veiculo_id
             WHERE pv.pessoa_id = ?
@@ -127,9 +128,5 @@ public class VeiculoRepository {
             """;
 
     jdbcTemplate.update(sql, vinculo.pessoa().id(), vinculo.veiculo().id(), vinculo.ativo());
-  }
-
-  public void deleteById(Long id) {
-    jdbcTemplate.update("DELETE FROM veiculo WHERE id = ?", id);
   }
 }

@@ -79,28 +79,34 @@ public record Empresa(
   }
 
   public static final RowMapper<Empresa> ROW_MAPPER =
-      (rs, row_num) ->
-          new Empresa(
-              rs.getLong("id"),
-              rs.getObject("data_hora_registro", LocalDateTime.class),
-              rs.getString("razao_social"),
-              rs.getString("nome_fantasia"),
-              rs.getString("cnpj"),
-              rs.getString("telefone"),
-              rs.getString("email"),
-              rs.getString("endereco"),
-              rs.getString("cep"),
-              rs.getString("numero"),
-              rs.getString("complemento"),
-              rs.getString("pais"),
-              rs.getString("estado"),
-              rs.getString("municipio"),
-              rs.getString("bairro"),
-              rs.getString("tipo_empresa"),
-              Status.map(rs.getString("status")),
-              new Funcionario.Nome(
-                  rs.getObject("funcionario_id", Long.class), rs.getString("funcionario_nome")),
-              List.of());
+          (rs, rowNum) -> {
+            Long empresaId = rs.getObject("empresa_id", Long.class);
+            if (empresaId == null) return null;
+
+            return new Empresa(
+                    empresaId,
+                    rs.getObject("empresa_data_hora_registro", LocalDateTime.class),
+                    rs.getString("empresa_razao_social"),
+                    rs.getString("empresa_nome_fantasia"),
+                    rs.getString("empresa_cnpj"),
+                    rs.getString("empresa_telefone"),
+                    rs.getString("empresa_email"),
+                    rs.getString("empresa_endereco"),
+                    rs.getString("empresa_cep"),
+                    rs.getString("empresa_numero"),
+                    rs.getString("empresa_complemento"),
+                    rs.getString("empresa_pais"),
+                    rs.getString("empresa_estado"),
+                    rs.getString("empresa_municipio"),
+                    rs.getString("empresa_bairro"),
+                    rs.getString("empresa_tipo_empresa"),
+                    Empresa.Status.map(rs.getString("empresa_status")),
+                    new Funcionario.Nome(
+                            rs.getLong("empresa_funcionario_id"),
+                            rs.getString("empresa_funcionario_nome")
+                    ),
+                    List.of());
+          };
 
   public record EmpresaResponse(
       String cnpj,

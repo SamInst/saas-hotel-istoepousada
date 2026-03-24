@@ -59,25 +59,25 @@ public class EmpresaRepository {
     String sql =
         """
                         SELECT
-                            e.id,
-                            e.data_hora_registro,
-                            e.razao_social,
-                            e.nome_fantasia,
-                            e.cnpj,
-                            e.telefone,
-                            e.email,
-                            e.endereco,
-                            e.cep,
-                            e.numero,
-                            e.complemento,
-                            e.pais,
-                            e.estado,
-                            e.municipio,
-                            e.bairro,
-                            e.tipo_empresa,
-                            e.status,
-                            f.id    AS funcionario_id,
-                            pf.nome AS funcionario_nome
+                            e.id as empresa_id,
+                            e.data_hora_registro as empresa_data_hora_registro,
+                            e.razao_social AS empresa_razao_social,
+                            e.nome_fantasia AS empresa_nome_fantasia,
+                            e.cnpj AS empresa_cnpj,
+                            e.telefone AS empresa_telefone,
+                            e.email AS empresa_email,
+                            e.endereco AS empresa_endereco,
+                            e.cep AS empresa_cep,
+                            e.numero AS empresa_numero,
+                            e.complemento AS empresa_complemento,
+                            e.pais AS empresa_pais,
+                            e.estado AS empresa_estado,
+                            e.municipio AS empresa_municipio,
+                            e.bairro AS empresa_bairro,
+                            e.tipo_empresa AS empresa_tipo_empresa,
+                            e.status AS empresa_status,
+                            f.id    AS empresa_funcionario_id,
+                            pf.nome AS empresa_funcionario_nome
                         FROM empresa e
                         LEFT JOIN funcionario f ON f.fk_pessoa = e.fk_funcionario
                         LEFT JOIN pessoa pf ON pf.id = f.fk_pessoa

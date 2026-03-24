@@ -3,7 +3,6 @@ package saas.hotel.istoepousada.repository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.sql.Date;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.*;
 import org.slf4j.Logger;
@@ -14,7 +13,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -34,85 +32,7 @@ public class PessoaRepository {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  private static final RowMapper<Pessoa> PESSOA_ROW_MAPPER =
-      (rs, rowNum) ->
-          new Pessoa(
-              rs.getLong("pessoa_id"),
-              rs.getObject("pessoa_data_hora_registro", LocalDateTime.class),
-              rs.getObject("pessoa_data_nascimento", LocalDate.class),
-              rs.getString("pessoa_nome"),
-              rs.getString("pessoa_cpf"),
-              rs.getString("pessoa_rg"),
-              rs.getString("pessoa_email"),
-              rs.getString("pessoa_telefone"),
-              rs.getString("pessoa_pais"),
-              rs.getString("pessoa_estado"),
-              rs.getString("pessoa_municipio"),
-              rs.getString("pessoa_endereco"),
-              rs.getString("pessoa_complemento"),
-              rs.getObject("pessoa_vezes_hospedado", Integer.class),
-              rs.getString("pessoa_cep"),
-              rs.getObject("pessoa_idade", Integer.class),
-              rs.getString("pessoa_bairro"),
-              rs.getObject("pessoa_sexo", Integer.class),
-              rs.getString("pessoa_numero"),
-              Pessoa.Status.map(rs.getString("pessoa_status")),
-              List.of(),
-              List.of(),
-              rs.getObject("pessoa_fk_funcionario", Long.class) == null
-                  ? null
-                  : new Funcionario.Nome(
-                      rs.getObject("pessoa_fk_funcionario", Long.class),
-                      rs.getString("pessoa_funcionario_nome")),
-              rs.getObject("pessoa_fk_titular", Long.class) == null
-                  ? null
-                  : new Pessoa.Nome(
-                      rs.getObject("pessoa_fk_titular", Long.class),
-                      rs.getString("pessoa_titular_nome")),
-              List.of());
-
-  private static final RowMapper<Empresa> EMPRESA_ROW_MAPPER =
-      (rs, rowNum) -> {
-        Long empresaId = rs.getObject("empresa_id", Long.class);
-        if (empresaId == null) return null;
-
-        return new Empresa(
-            empresaId,
-            rs.getObject("empresa_data_hora_registro", LocalDateTime.class),
-            rs.getString("empresa_razao_social"),
-            rs.getString("empresa_nome_fantasia"),
-            rs.getString("empresa_cnpj"),
-            rs.getString("empresa_telefone"),
-            rs.getString("empresa_email"),
-            rs.getString("empresa_endereco"),
-            rs.getString("empresa_cep"),
-            rs.getString("empresa_numero"),
-            rs.getString("empresa_complemento"),
-            rs.getString("empresa_pais"),
-            rs.getString("empresa_estado"),
-            rs.getString("empresa_municipio"),
-            rs.getString("empresa_bairro"),
-            rs.getString("empresa_tipo_empresa"),
-            Empresa.Status.map(rs.getString("empresa_status")),
-            null,
-            List.of());
-      };
-
-  private static final RowMapper<Veiculo> VEICULO_ROW_MAPPER =
-      (rs, rowNum) -> {
-        Long veiculoId = rs.getObject("veiculo_id", Long.class);
-        if (veiculoId == null) return null;
-
-        return new Veiculo(
-            veiculoId,
-            rs.getString("veiculo_modelo"),
-            rs.getString("veiculo_marca"),
-            rs.getObject("veiculo_ano", Integer.class),
-            rs.getString("veiculo_placa"),
-            rs.getString("veiculo_cor"));
-      };
-
-  private static final ResultSetExtractor<List<Pessoa>> PESSOA_COM_EMPRESAS_E_VEICULOS_EXTRACTOR =
+  private static final ResultSetExtractor<List<Pessoa>> PESSOA_EXTRACTOR =
       rs -> {
         Map<Long, Pessoa> pessoaMap = new LinkedHashMap<>();
         Map<Long, Map<Long, Empresa>> empresasPorPessoa = new HashMap<>();
@@ -123,17 +43,17 @@ public class PessoaRepository {
           Long pessoaId = rs.getLong("pessoa_id");
 
           if (!pessoaMap.containsKey(pessoaId)) {
-            pessoaMap.put(pessoaId, PESSOA_ROW_MAPPER.mapRow(rs, rowNum));
+            pessoaMap.put(pessoaId, Pessoa.ROW_MAPPER.mapRow(rs, rowNum));
             empresasPorPessoa.put(pessoaId, new LinkedHashMap<>());
             veiculosPorPessoa.put(pessoaId, new LinkedHashMap<>());
           }
 
-          Empresa empresa = EMPRESA_ROW_MAPPER.mapRow(rs, rowNum);
+          Empresa empresa = Empresa.ROW_MAPPER.mapRow(rs, rowNum);
           if (empresa != null) {
             empresasPorPessoa.get(pessoaId).putIfAbsent(empresa.id(), empresa);
           }
 
-          Veiculo veiculo = VEICULO_ROW_MAPPER.mapRow(rs, rowNum);
+          Veiculo veiculo = Veiculo.ROW_MAPPER.mapRow(rs, rowNum);
           if (veiculo != null) {
             veiculosPorPessoa.get(pessoaId).putIfAbsent(veiculo.id(), veiculo);
           }
@@ -173,21 +93,22 @@ public class PessoaRepository {
                   new ArrayList<>(veiculosPorPessoa.getOrDefault(pessoaId, Map.of()).values()),
                   base.funcionario(),
                   base.titular(),
-                  List.of()));
+                  List.of(),
+                  base.profissao()));
         }
 
         return pessoas;
       };
 
   public Page<Pessoa> buscar(
-      Long id, String termo, String placaVeiculo, Pessoa.Status status, Pageable pageable) {
+      Long id, String termo, String placa, Pessoa.Status status, Pageable pageable) {
 
     boolean hasId = id != null;
     boolean hasTermo = termo != null && !termo.isEmpty();
-    boolean hasPlaca = placaVeiculo != null && !placaVeiculo.trim().isEmpty();
+    boolean hasPlaca = placa != null && !placa.trim().isEmpty();
 
     String search = hasTermo ? "%" + termo + "%" : null;
-    String placaTrim = hasPlaca ? placaVeiculo.trim().toUpperCase() : null;
+    String placaTrim = hasPlaca ? placa.trim().toUpperCase() : null;
 
     String veiculoJoinCondition = hasPlaca ? " AND UPPER(v.placa) = ?" : "";
 
@@ -215,8 +136,9 @@ public class PessoaRepository {
                             p.sexo                 AS pessoa_sexo,
                             p.numero               AS pessoa_numero,
                             p.status               AS pessoa_status,
-                            p.fk_funcionario       AS pessoa_fk_funcionario,
-                            p.fk_titular           AS pessoa_fk_titular,
+                            p.fk_funcionario       AS pessoa_funcionario_id,
+                            p.fk_titular           AS pessoa_titular_id,
+                            p.profissao            AS pessoa_profissao,
                             pessoa_funcionario.nome AS pessoa_funcionario_nome,
                             titular.nome           AS pessoa_titular_nome,
                             e.id                   AS empresa_id,
@@ -236,6 +158,8 @@ public class PessoaRepository {
                             e.bairro               AS empresa_bairro,
                             e.tipo_empresa         AS empresa_tipo_empresa,
                             e.status               AS empresa_status,
+                            fe.id                  AS empresa_funcionario_id,
+                            pfe.nome               AS empresa_funcionario_nome,
                             v.id                   AS veiculo_id,
                             v.modelo               AS veiculo_modelo,
                             v.marca                AS veiculo_marca,
@@ -248,12 +172,16 @@ public class PessoaRepository {
                         LEFT JOIN pessoa titular ON titular.id = p.fk_titular
                         LEFT JOIN empresa_pessoa ep ON ep.fk_pessoa = p.id
                         LEFT JOIN empresa e ON e.id = ep.fk_empresa
+                        
+                        LEFT JOIN funcionario fe on fe.id = e.fk_funcionario
+                        LEFT JOIN pessoa pfe ON pfe.id = fe.fk_pessoa
+                        
                         LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id AND pv.vinculo_ativo = true
                         LEFT JOIN veiculo v ON v.id = pv.veiculo_id%s
                         """,
             veiculoJoinCondition);
 
-    StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
+    StringBuilder where = new StringBuilder(" WHERE p.status NOT IN ('CONTRATADO'::public.pessoa_status, 'DEMITIDO'::public.pessoa_status) ");
     List<Object> params = new ArrayList<>();
 
     if (hasId) {
@@ -336,7 +264,7 @@ public class PessoaRepository {
     }
 
     List<Pessoa> content =
-        jdbcTemplate.query(pageSql, PESSOA_COM_EMPRESAS_E_VEICULOS_EXTRACTOR, pageParams.toArray());
+        jdbcTemplate.query(pageSql, PESSOA_EXTRACTOR, pageParams.toArray());
 
     List<Pessoa> enriched = adicionarAcompanhantesParaTitulares(content);
 
@@ -387,7 +315,11 @@ public class PessoaRepository {
                         p.veiculos_vinculados(),
                         p.funcionario(),
                         p.titular(),
-                        acompanhantesPorTitular.getOrDefault(p.id(), List.of())))
+                        acompanhantesPorTitular.getOrDefault(
+                                p.id(),
+                                List.of()
+                        ),
+                        p.profissao()))
         .toList();
   }
 
@@ -424,8 +356,9 @@ public class PessoaRepository {
                             numero,
                             status,
                             fk_funcionario,
-                            fk_titular
-                        ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?::pessoa_status, ?, ?) returning id
+                            fk_titular,
+                            profissao
+                        ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?::pessoa_status, ?, ?, ?) returning id
                         """,
             Long.class,
             pessoa.nome(),
@@ -448,7 +381,9 @@ public class PessoaRepository {
             pessoa.numero(),
             pessoa.status() == null ? Pessoa.Status.ATIVO.name() : pessoa.status().name(),
             getFuncionarioIdFromRequest(),
-            pessoa.titular() != null ? pessoa.titular().id() : null);
+            pessoa.titular() != null ? pessoa.titular().id() : null,
+            pessoa.profissao()
+        );
     return findById(pessoa_id);
   }
 
@@ -477,7 +412,8 @@ public class PessoaRepository {
                     numero = ?,
                     status = ?::pessoa_status,
                     fk_funcionario = ?,
-                    fk_titular = ?
+                    fk_titular = ?,
+                    profissao = ?
                 WHERE id = ?
                 RETURNING id
                 """;
@@ -510,6 +446,7 @@ public class PessoaRepository {
             pessoa.status() == null ? Pessoa.Status.ATIVO.name() : pessoa.status().name(),
             getFuncionarioIdFromRequest(),
             pessoa.titular() != null ? pessoa.titular().id() : null,
+            pessoa.profissao(),
             pessoa.id());
     return findById(pessoa_id);
   }
@@ -526,10 +463,10 @@ public class PessoaRepository {
   public void incrementarHospedagem(Long id) {
     jdbcTemplate.update(
         """
-                        UPDATE pessoa
-                        SET vezes_hospedado = COALESCE(vezes_hospedado, 0) + 1
-                        WHERE id = ?
-                        """,
+        UPDATE pessoa
+        SET vezes_hospedado = COALESCE(vezes_hospedado, 0) + 1
+        WHERE id = ?
+        """,
         id);
   }
 
@@ -556,11 +493,6 @@ public class PessoaRepository {
     }
 
     return funcionario;
-  }
-
-  public Long getFuncionarioPessoaIdFromRequest() {
-    Funcionario.Authorization funcionario = getFuncionarioAuthorizationFromRequest();
-    return funcionario == null ? null : funcionario.pessoa().id();
   }
 
   public Long getFuncionarioIdFromRequest() {
@@ -596,10 +528,11 @@ public class PessoaRepository {
                             p.sexo                 AS pessoa_sexo,
                             p.numero               AS pessoa_numero,
                             p.status               AS pessoa_status,
-                            p.fk_funcionario       AS pessoa_fk_funcionario,
-                            p.fk_titular           AS pessoa_fk_titular,
+                            p.fk_funcionario       AS pessoa_funcionario_id,
+                            p.fk_titular           AS pessoa_titular_id,
                             func.nome              AS pessoa_funcionario_nome,
-                            titular.nome           AS pessoa_titular_nome
+                            titular.nome           AS pessoa_titular_nome,
+                            p.profissao            AS pessoa_profissao
                         FROM pessoa p
                         LEFT JOIN pessoa func ON func.id = p.fk_funcionario
                         LEFT JOIN pessoa titular ON titular.id = p.fk_titular
@@ -613,7 +546,7 @@ public class PessoaRepository {
           Map<Long, List<Pessoa>> map = new LinkedHashMap<>();
           int rowNum = 0;
           while (rs.next()) {
-            Pessoa acompanhante = PESSOA_ROW_MAPPER.mapRow(rs, rowNum++);
+            Pessoa acompanhante = Pessoa.ROW_MAPPER.mapRow(rs, rowNum++);
             Long titularId = acompanhante.titular() == null ? null : acompanhante.titular().id();
             if (titularId != null) {
               map.computeIfAbsent(titularId, k -> new ArrayList<>()).add(acompanhante);
@@ -648,10 +581,12 @@ public class PessoaRepository {
                         p.sexo               AS pessoa_sexo,
                         p.numero             AS pessoa_numero,
                         p.status             AS pessoa_status,
+                        p.profissao          AS pessoa_profissao,
                         f.id                 AS pessoa_funcionario_id,
                         pf.nome              AS pessoa_funcionario_nome,
                         t.id                 AS pessoa_titular_id,
-                        t.nome               AS pessoa_titular_nome
+                        t.nome               AS pessoa_titular_nome,
+                        p.profissao          AS pessoa_profissao
                     FROM empresa_pessoa ep
                     JOIN pessoa p ON p.id = ep.fk_pessoa
                     LEFT JOIN funcionario f ON f.id = p.fk_funcionario
@@ -670,5 +605,49 @@ public class PessoaRepository {
     } else {
       jdbcTemplate.update("UPDATE pessoa SET fk_titular = NULL WHERE id = ?", pessoaId);
     }
+  }
+
+  public Boolean cpfJaExiste(String cpf) {
+    return jdbcTemplate.queryForObject(
+            """
+                    SELECT COUNT(*) > 0
+                    FROM pessoa
+                    WHERE cpf = ?
+                    """,
+            Boolean.class,
+            cpf);
+  }
+
+  public Boolean emailJaExiste(String email) {
+    return jdbcTemplate.queryForObject(
+            """
+                    SELECT COUNT(*) > 0
+                    FROM pessoa
+                    WHERE email = ?
+                    """,
+            Boolean.class,
+            email);
+  }
+
+  public Boolean telefoneJaExiste(String telefone) {
+    return jdbcTemplate.queryForObject(
+            """
+                    SELECT COUNT(*) > 0
+                    FROM pessoa
+                    WHERE telefone = ?
+                    """,
+            Boolean.class,
+            telefone);
+  }
+
+  public Boolean placaJaExiste(String placa) {
+    return jdbcTemplate.queryForObject(
+            """
+                    SELECT COUNT(*) > 0
+                    FROM veiculo
+                    WHERE placa = ?
+                    """,
+            Boolean.class,
+            placa);
   }
 }

@@ -21,12 +21,16 @@ public record Veiculo(
   public record Vincular(@NotNull Veiculo.Id veiculo, @NotNull Pessoa.Id pessoa, Boolean ativo) {}
 
   public static final RowMapper<Veiculo> ROW_MAPPER =
-      (rs, rowNum) ->
-          new Veiculo(
-              rs.getLong("id"),
-              rs.getString("modelo"),
-              rs.getString("marca"),
-              rs.getObject("ano", Integer.class),
-              rs.getString("placa"),
-              rs.getString("cor"));
+          (rs, rowNum) -> {
+            Long veiculoId = rs.getObject("veiculo_id", Long.class);
+            if (veiculoId == null) return null;
+
+            return new Veiculo(
+                    veiculoId,
+                    rs.getString("veiculo_modelo"),
+                    rs.getString("veiculo_marca"),
+                    rs.getObject("veiculo_ano", Integer.class),
+                    rs.getString("veiculo_placa"),
+                    rs.getString("veiculo_cor"));
+          };
 }

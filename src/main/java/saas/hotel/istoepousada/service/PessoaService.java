@@ -90,7 +90,7 @@ public class PessoaService {
     }
 
     Pessoa.Request titular_requisicao = request.pessoas().getFirst();
-    Pessoa titular_salvo = salvarInternoSemVinculoEmpresa(titular_requisicao, null);
+    Pessoa titular_salvo = salvarPessoa(titular_requisicao, null);
 
     List<Pessoa> acompanhantes_salvos = new ArrayList<>();
 
@@ -99,7 +99,7 @@ public class PessoaService {
         continue;
       }
 
-      Pessoa acompanhante_salvo = salvarInternoSemVinculoEmpresa(pessoa, titular_salvo.id());
+      Pessoa acompanhante_salvo = salvarPessoa(pessoa, titular_salvo.id());
       acompanhantes_salvos.add(acompanhante_salvo);
     }
 
@@ -143,7 +143,9 @@ public class PessoaService {
             titular_salvo.veiculos_vinculados(),
             titular_salvo.funcionario(),
             titular_salvo.titular(),
-            acompanhantes_salvos);
+            acompanhantes_salvos,
+            titular_salvo.profissao()
+        );
 
     List<Pessoa> retorno = new ArrayList<>();
     retorno.add(titularComAcompanhantes);
@@ -151,8 +153,8 @@ public class PessoaService {
     return retorno;
   }
 
-  private Pessoa salvarInternoSemVinculoEmpresa(Pessoa.Request pessoa, Long titular_id) {
-    validarPessoa(pessoa);
+  private Pessoa salvarPessoa(Pessoa.Request pessoa, Long titular_id) {
+    validarCampos(pessoa);
 
     Pessoa new_pessoa = pessoaRepository.insert(pessoa);
     pessoaRepository.vincularTitular(new_pessoa.id(), titular_id, true);
@@ -167,9 +169,7 @@ public class PessoaService {
     List<Veiculo> veiculosExistentes = veiculoService.findAllByPessoaId(salva.id());
 
     if (veiculosExistentes.isEmpty()) {
-      if (veiculos.isEmpty()) {
-        return salva;
-      }
+      if (veiculos.isEmpty()) {return salva;}
 
       List<Veiculo> veiculosSalvos = new ArrayList<>(veiculos.size());
 
@@ -256,15 +256,55 @@ public class PessoaService {
     pessoaRepository.incrementarHospedagem(id);
   }
 
-  private void validarPessoa(Pessoa.Request pessoa) {
+  private void validarCampos(Pessoa.Request pessoa) {
     if (pessoa == null) {
       throw new IllegalArgumentException("Pessoa é obrigatória.");
     }
     if (!StringUtils.hasText(pessoa.nome())) {
       throw new IllegalArgumentException("Nome é obrigatório.");
     }
+    if (pessoa.data_nascimento() == null) {
+      throw new IllegalArgumentException("Data de nascimento é obrigatória.");
+    }
+    if (pessoa.telefone() == null) {
+      throw new IllegalArgumentException("Telefone é obrigatório.");
+    }
+    if (!StringUtils.hasText(pessoa.email())) {
+      throw new IllegalArgumentException("Email é obrigatório.");
+    }
+    if (pessoa.cep() == null) {
+      throw new IllegalArgumentException("CEP é obrigatório.");
+    }
     if (!StringUtils.hasText(pessoa.cpf())) {
       throw new IllegalArgumentException("CPF é obrigatório.");
+    }
+    if (pessoaRepository.cpfJaExiste(pessoa.cpf())) {
+      throw new IllegalArgumentException("CPF já cadastrado.");
+    }
+    if (pessoaRepository.emailJaExiste(pessoa.email())) {
+      throw new IllegalArgumentException("Email já cadastrado.");
+    }
+    if (pessoaRepository.telefoneJaExiste(pessoa.telefone())) {
+      throw new IllegalArgumentException("Número já cadastrado.");
+    }
+    if (pessoa.veiculos() != null && !pessoa.veiculos().isEmpty()) {
+      pessoa.veiculos().forEach(veiculo -> {
+        if (veiculo.modelo() == null) {
+          throw new IllegalArgumentException("Modelo do veículo é obrigatório.");
+        }
+        if (veiculo.marca() == null) {
+          throw new IllegalArgumentException("Marca do veículo é obrigatória.");
+        }
+        if (veiculo.placa() == null) {
+          throw new IllegalArgumentException("Placa do veículo é obrigatória.");
+        }
+        if (veiculo.placa().isEmpty()) {
+          throw new IllegalArgumentException("Placa do veículo não pode ser vazia.");
+        }
+        if (pessoaRepository.placaJaExiste(veiculo.placa())) {
+          throw new IllegalArgumentException("Placa do veículo já cadastrada.");
+        }
+      });
     }
   }
 
