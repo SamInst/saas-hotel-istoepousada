@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.springframework.stereotype.Component;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 @Component
@@ -21,6 +22,14 @@ public class JwtInterceptor implements HandlerInterceptor {
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
       throws Exception {
     if ("OPTIONS".equals(request.getMethod())) return true;
+
+    // ← Verifica se o endpoint é público
+    if (handler instanceof HandlerMethod handlerMethod) {
+      boolean isPublic = handlerMethod.hasMethodAnnotation(PublicEndpoint.class)
+              || handlerMethod.getBeanType().isAnnotationPresent(PublicEndpoint.class);
+      if (isPublic) return true;
+    }
+
     String authHeader = request.getHeader("Authorization");
     if (authHeader == null || !authHeader.startsWith("Bearer ")) {
       response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

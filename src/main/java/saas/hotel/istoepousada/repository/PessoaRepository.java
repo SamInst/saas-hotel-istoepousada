@@ -100,6 +100,104 @@ public class PessoaRepository {
         return pessoas;
       };
 
+  public static String SELECT_PESSOA = """
+          SELECT
+          p.id                   AS pessoa_id,
+          p.data_hora_registro   AS pessoa_data_hora_registro,
+          p.nome                 AS pessoa_nome,
+          p.data_nascimento      AS pessoa_data_nascimento,
+          p.cpf                  AS pessoa_cpf,
+          p.rg                   AS pessoa_rg,
+          p.email                AS pessoa_email,
+          p.telefone             AS pessoa_telefone,
+          p.pais                 AS pessoa_pais,
+          p.estado               AS pessoa_estado,
+          p.municipio            AS pessoa_municipio,
+          p.endereco             AS pessoa_endereco,
+          p.complemento          AS pessoa_complemento,
+          p.vezes_hospedado      AS pessoa_vezes_hospedado,
+          p.cep                  AS pessoa_cep,
+          p.idade                AS pessoa_idade,
+          p.bairro               AS pessoa_bairro,
+          p.sexo                 AS pessoa_sexo,
+          p.numero               AS pessoa_numero,
+          p.status               AS pessoa_status,
+          p.fk_funcionario       AS pessoa_funcionario_id,
+          p.fk_titular           AS pessoa_titular_id,
+          func.nome              AS pessoa_funcionario_nome,
+          titular.nome           AS pessoa_titular_nome,
+          p.profissao            AS pessoa_profissao
+  """;
+
+  public static String SELECT_PESSOA_COMPLETO = """
+          SELECT
+          p.id                    AS pessoa_id,
+          p.data_hora_registro    AS pessoa_data_hora_registro,
+          p.nome                  AS pessoa_nome,
+          p.data_nascimento       AS pessoa_data_nascimento,
+          p.cpf                   AS pessoa_cpf,
+          p.rg                    AS pessoa_rg,
+          p.email                 AS pessoa_email,
+          p.telefone              AS pessoa_telefone,
+          p.pais                  AS pessoa_pais,
+          p.estado                AS pessoa_estado,
+          p.municipio             AS pessoa_municipio,
+          p.endereco              AS pessoa_endereco,
+          p.complemento           AS pessoa_complemento,
+          p.vezes_hospedado       AS pessoa_vezes_hospedado,
+          p.cep                   AS pessoa_cep,
+          p.idade                 AS pessoa_idade,
+          p.bairro                AS pessoa_bairro,
+          p.sexo                  AS pessoa_sexo,
+          p.numero                AS pessoa_numero,
+          p.status                AS pessoa_status,
+          p.fk_funcionario        AS pessoa_funcionario_id,
+          p.fk_titular            AS pessoa_titular_id,
+          p.profissao             AS pessoa_profissao,
+          pessoa_funcionario.nome AS pessoa_funcionario_nome,
+          titular.nome            AS pessoa_titular_nome,
+          e.id                    AS empresa_id,
+          e.data_hora_registro    AS empresa_data_hora_registro,
+          e.razao_social          AS empresa_razao_social,
+          e.nome_fantasia         AS empresa_nome_fantasia,
+          e.cnpj                  AS empresa_cnpj,
+          e.telefone              AS empresa_telefone,
+          e.email                 AS empresa_email,
+          e.endereco              AS empresa_endereco,
+          e.cep                   AS empresa_cep,
+          e.numero                AS empresa_numero,
+          e.complemento           AS empresa_complemento,
+          e.pais                  AS empresa_pais,
+          e.estado                AS empresa_estado,
+          e.municipio             AS empresa_municipio,
+          e.bairro                AS empresa_bairro,
+          e.tipo_empresa          AS empresa_tipo_empresa,
+          e.status                AS empresa_status,
+          fe.id                   AS empresa_funcionario_id,
+          pfe.nome                AS empresa_funcionario_nome,
+          v.id                    AS veiculo_id,
+          v.modelo                AS veiculo_modelo,
+          v.marca                 AS veiculo_marca,
+          v.ano                   AS veiculo_ano,
+          v.placa                 AS veiculo_placa,
+          v.cor                   AS veiculo_cor
+          """;
+
+  public static String FROM_BASE = """
+          FROM pessoa p
+            LEFT JOIN funcionario func ON func.id = p.fk_funcionario
+            LEFT JOIN pessoa pessoa_funcionario ON pessoa_funcionario.id = func.fk_pessoa
+            LEFT JOIN pessoa titular ON titular.id = p.fk_titular
+            LEFT JOIN empresa_pessoa ep ON ep.fk_pessoa = p.id
+            LEFT JOIN empresa e ON e.id = ep.fk_empresa
+
+            LEFT JOIN funcionario fe on fe.id = e.fk_funcionario
+            LEFT JOIN pessoa pfe ON pfe.id = fe.fk_pessoa
+
+            LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id AND pv.vinculo_ativo = true
+            LEFT JOIN veiculo v ON v.id = pv.veiculo_id
+          """;
+
   public Page<Pessoa> buscar(
       Long id, String termo, String placa, Pessoa.Status status, Pageable pageable) {
 
@@ -112,74 +210,7 @@ public class PessoaRepository {
 
     String veiculoJoinCondition = hasPlaca ? " AND UPPER(v.placa) = ?" : "";
 
-    String baseSelect =
-        String.format(
-            """
-                        SELECT
-                            p.id                   AS pessoa_id,
-                            p.data_hora_registro   AS pessoa_data_hora_registro,
-                            p.nome                 AS pessoa_nome,
-                            p.data_nascimento      AS pessoa_data_nascimento,
-                            p.cpf                  AS pessoa_cpf,
-                            p.rg                   AS pessoa_rg,
-                            p.email                AS pessoa_email,
-                            p.telefone             AS pessoa_telefone,
-                            p.pais                 AS pessoa_pais,
-                            p.estado               AS pessoa_estado,
-                            p.municipio            AS pessoa_municipio,
-                            p.endereco             AS pessoa_endereco,
-                            p.complemento          AS pessoa_complemento,
-                            p.vezes_hospedado      AS pessoa_vezes_hospedado,
-                            p.cep                  AS pessoa_cep,
-                            p.idade                AS pessoa_idade,
-                            p.bairro               AS pessoa_bairro,
-                            p.sexo                 AS pessoa_sexo,
-                            p.numero               AS pessoa_numero,
-                            p.status               AS pessoa_status,
-                            p.fk_funcionario       AS pessoa_funcionario_id,
-                            p.fk_titular           AS pessoa_titular_id,
-                            p.profissao            AS pessoa_profissao,
-                            pessoa_funcionario.nome AS pessoa_funcionario_nome,
-                            titular.nome           AS pessoa_titular_nome,
-                            e.id                   AS empresa_id,
-                            e.data_hora_registro   AS empresa_data_hora_registro,
-                            e.razao_social         AS empresa_razao_social,
-                            e.nome_fantasia        AS empresa_nome_fantasia,
-                            e.cnpj                 AS empresa_cnpj,
-                            e.telefone             AS empresa_telefone,
-                            e.email                AS empresa_email,
-                            e.endereco             AS empresa_endereco,
-                            e.cep                  AS empresa_cep,
-                            e.numero               AS empresa_numero,
-                            e.complemento          AS empresa_complemento,
-                            e.pais                 AS empresa_pais,
-                            e.estado               AS empresa_estado,
-                            e.municipio            AS empresa_municipio,
-                            e.bairro               AS empresa_bairro,
-                            e.tipo_empresa         AS empresa_tipo_empresa,
-                            e.status               AS empresa_status,
-                            fe.id                  AS empresa_funcionario_id,
-                            pfe.nome               AS empresa_funcionario_nome,
-                            v.id                   AS veiculo_id,
-                            v.modelo               AS veiculo_modelo,
-                            v.marca                AS veiculo_marca,
-                            v.ano                  AS veiculo_ano,
-                            v.placa                AS veiculo_placa,
-                            v.cor                  AS veiculo_cor
-                        FROM pessoa p
-                        LEFT JOIN funcionario func ON func.id = p.fk_funcionario
-                        LEFT JOIN pessoa pessoa_funcionario ON pessoa_funcionario.id = func.fk_pessoa
-                        LEFT JOIN pessoa titular ON titular.id = p.fk_titular
-                        LEFT JOIN empresa_pessoa ep ON ep.fk_pessoa = p.id
-                        LEFT JOIN empresa e ON e.id = ep.fk_empresa
-                        
-                        LEFT JOIN funcionario fe on fe.id = e.fk_funcionario
-                        LEFT JOIN pessoa pfe ON pfe.id = fe.fk_pessoa
-                        
-                        LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id AND pv.vinculo_ativo = true
-                        LEFT JOIN veiculo v ON v.id = pv.veiculo_id%s
-                        """,
-            veiculoJoinCondition);
+    String baseSelect = String.format(SELECT_PESSOA_COMPLETO + FROM_BASE, veiculoJoinCondition);
 
     StringBuilder where = new StringBuilder(" WHERE p.status NOT IN ('CONTRATADO'::public.pessoa_status, 'DEMITIDO'::public.pessoa_status) ");
     List<Object> params = new ArrayList<>();
@@ -324,11 +355,11 @@ public class PessoaRepository {
   }
 
   public Pessoa findById(Long id) {
-    Page<Pessoa> page = buscar(id, null, null, null, Pageable.ofSize(1));
-    if (page.isEmpty()) {
-      throw new NotFoundException("Pessoa não encontrada para o uuid: " + id);
+    try {
+      return jdbcTemplate.queryForObject(SELECT_PESSOA_COMPLETO + FROM_BASE + " WHERE p.id = ?", Pessoa.ROW_MAPPER, id);
+    } catch (EmptyResultDataAccessException ex) {
+      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
     }
-    return page.getContent().getFirst();
   }
 
   public Pessoa insert(Pessoa.Request pessoa) {
@@ -505,40 +536,14 @@ public class PessoaRepository {
 
     String inPlaceholders = String.join(",", Collections.nCopies(titularIds.size(), "?"));
 
-    String sql =
-        """
-                        SELECT
-                            p.id                   AS pessoa_id,
-                            p.data_hora_registro   AS pessoa_data_hora_registro,
-                            p.nome                 AS pessoa_nome,
-                            p.data_nascimento      AS pessoa_data_nascimento,
-                            p.cpf                  AS pessoa_cpf,
-                            p.rg                   AS pessoa_rg,
-                            p.email                AS pessoa_email,
-                            p.telefone             AS pessoa_telefone,
-                            p.pais                 AS pessoa_pais,
-                            p.estado               AS pessoa_estado,
-                            p.municipio            AS pessoa_municipio,
-                            p.endereco             AS pessoa_endereco,
-                            p.complemento          AS pessoa_complemento,
-                            p.vezes_hospedado      AS pessoa_vezes_hospedado,
-                            p.cep                  AS pessoa_cep,
-                            p.idade                AS pessoa_idade,
-                            p.bairro               AS pessoa_bairro,
-                            p.sexo                 AS pessoa_sexo,
-                            p.numero               AS pessoa_numero,
-                            p.status               AS pessoa_status,
-                            p.fk_funcionario       AS pessoa_funcionario_id,
-                            p.fk_titular           AS pessoa_titular_id,
-                            func.nome              AS pessoa_funcionario_nome,
-                            titular.nome           AS pessoa_titular_nome,
-                            p.profissao            AS pessoa_profissao
-                        FROM pessoa p
-                        LEFT JOIN pessoa func ON func.id = p.fk_funcionario
-                        LEFT JOIN pessoa titular ON titular.id = p.fk_titular
-                        WHERE p.fk_titular IN ("""
-            + inPlaceholders
-            + ") ORDER BY p.fk_titular, p.nome ";
+    String sql = SELECT_PESSOA +
+        """           
+        FROM pessoa p
+        LEFT JOIN pessoa func ON func.id = p.fk_funcionario
+        LEFT JOIN pessoa titular ON titular.id = p.fk_titular
+        WHERE p.fk_titular IN ("""
+        + inPlaceholders
+        + ") ORDER BY p.fk_titular, p.nome ";
 
     return jdbcTemplate.query(
         sql,
@@ -558,43 +563,16 @@ public class PessoaRepository {
   }
 
   public List<Pessoa> findPessoasByEmpresaId(Long empresa_id) {
-    String sql =
+    String sql = SELECT_PESSOA +
         """
-                    SELECT DISTINCT
-                        p.id                 AS pessoa_id,
-                        p.data_hora_registro AS pessoa_data_hora_registro,
-                        p.data_nascimento    AS pessoa_data_nascimento,
-                        p.nome               AS pessoa_nome,
-                        p.cpf                AS pessoa_cpf,
-                        p.rg                 AS pessoa_rg,
-                        p.email              AS pessoa_email,
-                        p.telefone           AS pessoa_telefone,
-                        p.pais               AS pessoa_pais,
-                        p.estado             AS pessoa_estado,
-                        p.municipio          AS pessoa_municipio,
-                        p.endereco           AS pessoa_endereco,
-                        p.complemento        AS pessoa_complemento,
-                        p.vezes_hospedado    AS pessoa_vezes_hospedado,
-                        p.cep                AS pessoa_cep,
-                        p.idade              AS pessoa_idade,
-                        p.bairro             AS pessoa_bairro,
-                        p.sexo               AS pessoa_sexo,
-                        p.numero             AS pessoa_numero,
-                        p.status             AS pessoa_status,
-                        p.profissao          AS pessoa_profissao,
-                        f.id                 AS pessoa_funcionario_id,
-                        pf.nome              AS pessoa_funcionario_nome,
-                        t.id                 AS pessoa_titular_id,
-                        t.nome               AS pessoa_titular_nome,
-                        p.profissao          AS pessoa_profissao
-                    FROM empresa_pessoa ep
-                    JOIN pessoa p ON p.id = ep.fk_pessoa
-                    LEFT JOIN funcionario f ON f.id = p.fk_funcionario
-                    LEFT JOIN pessoa pf ON pf.id = f.fk_pessoa
-                    LEFT JOIN pessoa t ON t.id = p.fk_titular
-                    WHERE ep.fk_empresa = ?
-                    ORDER BY p.nome
-                    """;
+        FROM empresa_pessoa ep
+        JOIN pessoa p ON p.id = ep.fk_pessoa
+        LEFT JOIN funcionario f ON f.id = p.fk_funcionario
+        LEFT JOIN pessoa pf ON pf.id = f.fk_pessoa
+        LEFT JOIN pessoa t ON t.id = p.fk_titular
+        WHERE ep.fk_empresa = ?
+        ORDER BY p.nome
+        """;
 
     return jdbcTemplate.query(sql, Pessoa.ROW_MAPPER, empresa_id);
   }

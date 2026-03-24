@@ -29,7 +29,7 @@ public class UsuarioController {
   @PatchMapping("/{id}/bloqueio")
   public Usuario alterarStatusBloqueio(
       @PathVariable Long id,
-      @RequestBody Boolean bloqueado) {
+      @RequestParam Boolean bloqueado) {
     return usuarioService.bloquear(id, bloqueado);
   }
 

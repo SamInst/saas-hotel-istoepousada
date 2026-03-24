@@ -28,6 +28,11 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
     if (!(handler instanceof HandlerMethod handlerMethod)) return true;
 
+    if (handlerMethod.hasMethodAnnotation(PublicEndpoint.class)
+            || handlerMethod.getBeanType().isAnnotationPresent(PublicEndpoint.class)) {
+      return true;
+    }
+
     RequireTela requireTela = handlerMethod.getMethodAnnotation(RequireTela.class);
     if (requireTela == null)
       requireTela = handlerMethod.getBeanType().getAnnotation(RequireTela.class);
