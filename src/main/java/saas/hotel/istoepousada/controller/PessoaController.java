@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Pessoa;
+import saas.hotel.istoepousada.security.PublicEndpoint;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.PessoaService;
 
@@ -21,6 +22,7 @@ public class PessoaController {
   }
 
   @GetMapping
+  @PublicEndpoint
   public Page<Pessoa> listar(
       @RequestParam(required = false) Long id,
       @RequestParam(required = false) String termo,
@@ -34,6 +36,7 @@ public class PessoaController {
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @PublicEndpoint
   public List<Pessoa> criar(@RequestBody Pessoa.BatchRequest request) {
     return pessoaService.salvarListaPessoas(request);
   }

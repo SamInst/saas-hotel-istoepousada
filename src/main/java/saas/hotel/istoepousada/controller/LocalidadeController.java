@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Empresa;
 import saas.hotel.istoepousada.dto.Endereco;
+import saas.hotel.istoepousada.security.PublicEndpoint;
 import saas.hotel.istoepousada.service.EnderecoService;
 
 @RestController
@@ -25,6 +26,7 @@ public class LocalidadeController {
   }
 
   @GetMapping("/cep/{cep}")
+  @PublicEndpoint
   public ResponseEntity<Endereco> buscarPorCep(
       @Parameter(
               description = "CEP a ser consultado (com ou sem formatação)",
