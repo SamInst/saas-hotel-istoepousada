@@ -40,12 +40,12 @@ public record Pagamento(
   public record Desconto(
       @NotNull UUID uuid,
       @NotNull Funcionario.Nome funcionario,
-      Integer porcentagem,
+      Float porcentagem,
       Float valor,
       @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime data_hora_registro) {
-    public record Request(@NotNull Pagamento.Uuid pagamento, Integer porcentagem, Float valor) {}
+    public record Request(@NotNull Pagamento.Uuid pagamento, Float porcentagem, Float valor) {}
 
-    public record Update(@NotNull UUID uuid, Integer porcentagem, Float valor) {}
+    public record Update(@NotNull UUID uuid, Float porcentagem, Float valor) {}
 
     public static final RowMapper<Desconto> ROW_MAPPER =
         (rs, row_num) -> {
@@ -55,8 +55,8 @@ public record Pagamento(
               : new Desconto(
                   rs.getObject("pagamento_desconto_id", UUID.class),
                   Funcionario.Nome.ROW_MAPPER_PAGAMENTO_DESCONTO.mapRow(rs, row_num),
-                  rs.getObject("pagamento_desconto_porcentagem", Integer.class),
-                  rs.getObject("pagamento_desconto_valor", Float.class),
+                  rs.getFloat("pagamento_desconto_porcentagem"),
+                  rs.getFloat("pagamento_desconto_valor"),
                   rs.getObject("pagamento_desconto_data_hora_registro", LocalDateTime.class));
         };
   }

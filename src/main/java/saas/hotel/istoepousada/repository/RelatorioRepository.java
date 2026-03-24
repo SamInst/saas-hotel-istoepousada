@@ -255,9 +255,15 @@ public class RelatorioRepository {
 
   public Relatorio insert(Relatorio.Request request) {
     Long tipoPagamentoId = request.pagamento().tipo_pagamento().id();
+
+    Float valorOriginal = request.pagamento().valor();
+    Float descontoPorcentagem = request.pagamento().desconto() != null ? request.pagamento().desconto().porcentagem() : null;
+    Float descontoValor = request.pagamento().desconto() != null ? request.pagamento().desconto().valor() : null;
+    Float valorComDesconto = calcularValorComDesconto(valorOriginal, descontoPorcentagem, descontoValor);
+    
     Float valorHistoricoDinheiro =
             calcularNovoHistoricoDinheiro(
-                    request.pagamento().valor(),
+                    valorComDesconto,
                     tipoPagamentoId
             );
     boolean despesaPessoal = Boolean.TRUE.equals(request.despesa_pessoal());
@@ -290,8 +296,21 @@ public class RelatorioRepository {
 
   public Relatorio update(Relatorio.Update relatorio) {
     Relatorio relatorioAntigo = getByIdOrThrow(new Relatorio.Id(relatorio.id()));
+    
+    // Atualiza o pagamento primeiro para ter o desconto atualizado
+    if (relatorio.pagamento().valor() != null) {
+      pagamentoRepository.update(relatorio.pagamento());
+    }
+    
+    // Busca o pagamento atualizado com desconto
+    Relatorio relatorioAtualizado = getByIdOrThrow(new Relatorio.Id(relatorio.id()));
+    Float valorComDesconto = relatorioAtualizado.valor();
+    Long novoTipoPagamentoId = relatorioAtualizado.pagamento() != null && relatorioAtualizado.pagamento().tipo_pagamento() != null
+        ? relatorioAtualizado.pagamento().tipo_pagamento().id()
+        : null;
+
     Float valorHistoricoDinheiro =
-        recalcularHistoricoDinheiro(relatorioAntigo, relatorio.pagamento().valor());
+        recalcularHistoricoDinheiro(relatorioAntigo, valorComDesconto, novoTipoPagamentoId);
     boolean despesaPessoal = Boolean.TRUE.equals(relatorio.despesa_pessoal());
 
     Long quartoId = relatorio.quarto() != null ? relatorio.quarto().id() : null;
@@ -314,12 +333,24 @@ public class RelatorioRepository {
                 despesaPessoal,
                 relatorio.id()));
 
-    if (relatorio.pagamento().valor() != null) {
-      pagamentoRepository.update(relatorio.pagamento());
-    }
-
     recalcularHistoricoPosteriores(relatorio.id(), valorHistoricoDinheiro);
     return getByIdOrThrow(id);
+  }
+
+  private Float calcularValorComDesconto(Float valorOriginal, Float descontoPorcentagem, Float descontoValor) {
+    if (valorOriginal == null) {
+      return 0F;
+    }
+    
+    Float valorFinal = valorOriginal;
+    
+    if (descontoPorcentagem != null && descontoPorcentagem > 0) {
+      valorFinal = valorOriginal - (valorOriginal * descontoPorcentagem / 100);
+    } else if (descontoValor != null && descontoValor > 0) {
+      valorFinal = valorOriginal - descontoValor;
+    }
+    
+    return valorFinal;
   }
 
   private Float calcularNovoHistoricoDinheiro(Float valor, Long tipoPagamentoId) {
@@ -332,10 +363,12 @@ public class RelatorioRepository {
     return ultimoHistorico + (valor != null ? valor : 0F);
   }
 
-  private Float recalcularHistoricoDinheiro(Relatorio relatorioAntigo, Float novoValorPagamento) {
+  private Float recalcularHistoricoDinheiro(Relatorio relatorioAntigo, Float novoValorPagamento, Long novoTipoPagamentoId) {
     Float historicoAnterior = buscarHistoricoAnteriorAoRegistro(relatorioAntigo.id());
-    Float valorAntigo = relatorioAntigo.valor() != null ? relatorioAntigo.valor() : 0F;
-    return historicoAnterior - valorAntigo + (novoValorPagamento != null ? novoValorPagamento : 0F);
+    if (novoTipoPagamentoId != null && novoTipoPagamentoId == 1L) {
+      return historicoAnterior + (novoValorPagamento != null ? novoValorPagamento : 0F);
+    }
+    return historicoAnterior;
   }
 
   private Float buscarUltimoHistoricoDinheiro() {
@@ -375,15 +408,20 @@ public class RelatorioRepository {
   private void recalcularHistoricoPosteriores(Long relatorioId, Float novoHistorico) {
     String sqlBuscar =
         """
-       
         SELECT
            relatorio.id,
            COALESCE(pagamento.valor, 0) AS valor,
-           tipo_pagamento.id AS tipo_id
+           tipo_pagamento.id AS tipo_id,
+           pagamento_desconto.porcentagem AS desconto_porcentagem,
+           pagamento_desconto.valor AS desconto_valor
        FROM relatorio
        LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
        LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-        """;
+       LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
+       WHERE relatorio.data_hora > (SELECT data_hora FROM relatorio WHERE id = ?)
+          OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id > ?)
+       ORDER BY relatorio.data_hora ASC, relatorio.id ASC
+       """;
 
     List<Map<String, Object>> posteriores =
         jdbcTemplate.queryForList(sqlBuscar, relatorioId, relatorioId, relatorioId);
@@ -394,9 +432,19 @@ public class RelatorioRepository {
       Long id = ((Number) registro.get("id")).longValue();
       Number valor = (Number) registro.get("valor");
       Number tipoId = (Number) registro.get("tipo_id");
+      Number descontoPorcentagem = (Number) registro.get("desconto_porcentagem");
+      Number descontoValor = (Number) registro.get("desconto_valor");
+
+      // Calcula o valor com desconto
+      Float valorOriginal = valor != null ? valor.floatValue() : 0F;
+      Float valorComDesconto = calcularValorComDesconto(
+          valorOriginal,
+          descontoPorcentagem != null ? descontoPorcentagem.floatValue() : null,
+          descontoValor != null ? descontoValor.floatValue() : null
+      );
 
       if (tipoId != null && tipoId.longValue() == 1) {
-        historicoAcumulado += valor != null ? valor.floatValue() : 0F;
+        historicoAcumulado += valorComDesconto;
       }
 
       jdbcTemplate.update(
@@ -446,8 +494,34 @@ public class RelatorioRepository {
 
     String soma =
         entradas
-            ? "COALESCE(SUM(CASE WHEN pagamento.valor > 0 THEN pagamento.valor ELSE 0 END), 0)"
-            : "COALESCE(SUM(CASE WHEN pagamento.valor < 0 THEN ABS(pagamento.valor) ELSE 0 END), 0)";
+            ? """
+              COALESCE(SUM(
+                CASE WHEN pagamento.valor > 0 THEN 
+                  CASE 
+                    WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN 
+                      pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
+                    WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN 
+                      pagamento.valor - pagamento_desconto.valor
+                    ELSE pagamento.valor
+                  END
+                ELSE 0 
+                END
+              ), 0)
+              """
+            : """
+              COALESCE(SUM(
+                CASE WHEN pagamento.valor < 0 THEN 
+                  ABS(CASE 
+                    WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN 
+                      pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
+                    WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN 
+                      pagamento.valor - pagamento_desconto.valor
+                    ELSE pagamento.valor
+                  END)
+                ELSE 0 
+                END
+              ), 0)
+              """;
 
     String sql =
         """
@@ -460,6 +534,7 @@ public class RelatorioRepository {
                         FROM relatorio
                         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
                         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
+                        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
                         WHERE 1 = 1
                         """
             + where.replaceFirst(" WHERE 1 = 1 ", "")
@@ -490,11 +565,34 @@ public class RelatorioRepository {
                         SELECT
                           tipo_pagamento.id        AS tipo_id,
                           tipo_pagamento.descricao AS descricao,
-                          COALESCE(SUM(CASE WHEN pagamento.valor > 0 THEN pagamento.valor ELSE 0 END), 0) AS receitas,
-                          COALESCE(SUM(CASE WHEN pagamento.valor < 0 THEN ABS(pagamento.valor) ELSE 0 END), 0) AS despesas
+                          COALESCE(SUM(
+                            CASE WHEN pagamento.valor > 0 THEN 
+                              CASE 
+                                WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN 
+                                  pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
+                                WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN 
+                                  pagamento.valor - pagamento_desconto.valor
+                                ELSE pagamento.valor
+                              END
+                            ELSE 0 
+                            END
+                          ), 0) AS receitas,
+                          COALESCE(SUM(
+                            CASE WHEN pagamento.valor < 0 THEN 
+                              ABS(CASE 
+                                WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN 
+                                  pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
+                                WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN 
+                                  pagamento.valor - pagamento_desconto.valor
+                                ELSE pagamento.valor
+                              END)
+                            ELSE 0 
+                            END
+                          ), 0) AS despesas
                         FROM relatorio
                         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
                         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
+                        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
                         """
             + where
             + """
@@ -506,9 +604,9 @@ public class RelatorioRepository {
     jdbcTemplate.query(
         sqlAgregado,
         rs -> {
-          Long tipoId = rs.getObject("tipo_id", Long.class);
-          Float receitas = rs.getObject("receitas", Float.class);
-          Float despesas = rs.getObject("despesas", Float.class);
+          Long tipoId = rs.getLong("tipo_id");
+          Float receitas = rs.getFloat("receitas");
+          Float despesas = rs.getFloat("despesas");
           agregadosPorId.put(tipoId, Relatorio.Extrato.Resumo.of(receitas, despesas));
         },
         params.toArray());
