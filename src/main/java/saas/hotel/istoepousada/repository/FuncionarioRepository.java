@@ -163,9 +163,11 @@ public class FuncionarioRepository {
                             p.sexo                              AS pessoa_sexo,
                             p.numero                            AS pessoa_numero,
                             p.status                            AS pessoa_status,
+                            p.profissao                         AS pessoa_profissao,
                             p.fk_titular                        AS pessoa_titular_id,
                             p.fk_funcionario                    AS pessoa_funcionario_id,
                             p.nome                              AS pessoa_funcionario_nome,
+                            
                             CASE WHEN p.fk_titular IS NOT NULL THEN TRUE ELSE FALSE END AS pessoa_titular,
 
                             c.id                                AS cargo_id,
