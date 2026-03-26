@@ -9,6 +9,10 @@ spring:
   jackson:
     time-zone: America/Sao_Paulo
 
+  datasource:
+    hikari:
+      connection-init-sql: SET TIME ZONE 'America/Sao_Paulo'
+
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 

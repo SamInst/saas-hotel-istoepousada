@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import saas.hotel.istoepousada.dto.Relatorio;
+import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
@@ -266,6 +267,16 @@ public class RelatorioRepository {
                     valorComDesconto,
                     tipoPagamentoId
             );
+
+    if (tipoPagamentoId != null && tipoPagamentoId == 1L && valorHistoricoDinheiro < 0) {
+      Float saldoAtual = buscarUltimoHistoricoDinheiro();
+      throw new BusinessException(
+          String.format(
+              "Saldo insuficiente no caixa. Saldo atual: R$ %.2f, valor a retirar: R$ %.2f.",
+              saldoAtual,
+              Math.abs(valorComDesconto != null ? valorComDesconto : 0F)));
+    }
+
     boolean despesaPessoal = Boolean.TRUE.equals(request.despesa_pessoal());
     var pagamento = pagamentoRepository.create(request.pagamento());
 
@@ -341,15 +352,18 @@ public class RelatorioRepository {
     if (valorOriginal == null) {
       return 0F;
     }
-    
+    if (valorOriginal <= 0) {
+      return valorOriginal; // desconto só se aplica a valores positivos (entradas)
+    }
+
     Float valorFinal = valorOriginal;
-    
+
     if (descontoPorcentagem != null && descontoPorcentagem > 0) {
       valorFinal = valorOriginal - (valorOriginal * descontoPorcentagem / 100);
     } else if (descontoValor != null && descontoValor > 0) {
       valorFinal = valorOriginal - descontoValor;
     }
-    
+
     return valorFinal;
   }
 
@@ -510,15 +524,8 @@ public class RelatorioRepository {
               """
             : """
               COALESCE(SUM(
-                CASE WHEN pagamento.valor < 0 THEN 
-                  ABS(CASE 
-                    WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN 
-                      pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
-                    WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN 
-                      pagamento.valor - pagamento_desconto.valor
-                    ELSE pagamento.valor
-                  END)
-                ELSE 0 
+                CASE WHEN pagamento.valor < 0 THEN ABS(pagamento.valor)
+                ELSE 0
                 END
               ), 0)
               """;
@@ -578,15 +585,8 @@ public class RelatorioRepository {
                             END
                           ), 0) AS receitas,
                           COALESCE(SUM(
-                            CASE WHEN pagamento.valor < 0 THEN 
-                              ABS(CASE 
-                                WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN 
-                                  pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
-                                WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN 
-                                  pagamento.valor - pagamento_desconto.valor
-                                ELSE pagamento.valor
-                              END)
-                            ELSE 0 
+                            CASE WHEN pagamento.valor < 0 THEN ABS(pagamento.valor)
+                            ELSE 0
                             END
                           ), 0) AS despesas
                         FROM relatorio

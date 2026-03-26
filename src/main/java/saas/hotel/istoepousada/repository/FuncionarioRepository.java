@@ -379,14 +379,15 @@ public class FuncionarioRepository {
                     ON p.id = f.fk_pessoa
                 JOIN cargo c
                     ON c.id = f.fk_cargo
-                LEFT JOIN cargo_tela ct
+                 JOIN cargo_tela ct
                     ON ct.cargo_id = c.id
-                LEFT JOIN tela t
+                 JOIN tela t
                     ON t.id = ct.tela_id
                 LEFT JOIN cargo_permissao cp
                     ON cp.fk_cargo = c.id
-                LEFT JOIN permissao pm
+                 LEFT JOIN permissao pm
                     ON pm.id = cp.fk_permissao
+                   AND pm.fk_tela = t.id
                 WHERE u.id = ?
                 ORDER BY c.id, t.id, pm.id
                 """;
@@ -401,7 +402,7 @@ public class FuncionarioRepository {
             String cargoDescricao;
 
             Map<Long, Tela> telasMap = new LinkedHashMap<>();
-            Map<Long, Permissao> permissoesMap = new LinkedHashMap<>();
+            Map<Long, List<Permissao>> permissoesPorTela = new LinkedHashMap<>();
 
             while (rs.next()) {
               if (authorization == null) {
@@ -419,14 +420,17 @@ public class FuncionarioRepository {
 
               Tela tela = Tela.ROW_MAPPER.mapRow(rs, rs.getRow());
               if (tela != null) {
-                telasMap.putIfAbsent(
-                    tela.id(),
-                    new Tela(tela.id(), tela.nome(), tela.descricao(), new ArrayList<>()));
-              }
+                telasMap.putIfAbsent(tela.id(), tela);
+                permissoesPorTela.putIfAbsent(tela.id(), new ArrayList<>());
 
-              Permissao permissao = Permissao.ROW_MAPPER.mapRow(rs, rs.getRow());
-              if (permissao != null) {
-                permissoesMap.putIfAbsent(permissao.id(), permissao);
+                Permissao permissao = Permissao.ROW_MAPPER.mapRow(rs, rs.getRow());
+                if (permissao != null) {
+                  List<Permissao> lista = permissoesPorTela.get(tela.id());
+                  boolean jaAdicionada = lista.stream().anyMatch(p -> p.id().equals(permissao.id()));
+                  if (!jaAdicionada) {
+                    lista.add(permissao);
+                  }
+                }
               }
             }
 
@@ -434,11 +438,13 @@ public class FuncionarioRepository {
               return null;
             }
 
-            List<Permissao> permissoes = new ArrayList<>(permissoesMap.values());
-
             List<Tela> telas =
-                telasMap.values().stream()
-                    .map(tela -> new Tela(tela.id(), tela.nome(), tela.descricao(), permissoes))
+                telasMap.entrySet().stream()
+                    .map(e -> {
+                      Tela t = e.getValue();
+                      return new Tela(t.id(), t.nome(), t.descricao(),
+                          permissoesPorTela.getOrDefault(e.getKey(), List.of()));
+                    })
                     .toList();
 
             Cargo cargo =

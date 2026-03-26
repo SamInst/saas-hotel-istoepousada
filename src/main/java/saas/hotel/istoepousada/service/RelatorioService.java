@@ -68,14 +68,6 @@ public class RelatorioService {
           "Arquivo de comprovante salvo com sucesso para o pagamento {}",
           novoRelatorio.pagamento().uuid());
     }
-    if (relatorio.pagamento().desconto() != null) {
-      pagamentoRepository.registrarDesconto(new Pagamento.Desconto.Request(
-              new Pagamento.Uuid(
-                      novoRelatorio.pagamento().uuid()),
-              relatorio.pagamento().desconto().porcentagem(),
-              relatorio.pagamento().desconto().valor())
-      );
-    }
     return novoRelatorio;
   }
 

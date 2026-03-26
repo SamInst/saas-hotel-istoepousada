@@ -76,10 +76,12 @@ public record Relatorio(
           Float descontoValor = rs.getObject("pagamento_desconto_valor", Float.class);
 
           Float valorFinal = valorOriginal;
-          if (descontoPorcentagem != null && descontoPorcentagem > 0) {
-            valorFinal = valorOriginal - (valorOriginal * descontoPorcentagem / 100);
-          } else if (descontoValor != null && descontoValor > 0) {
-            valorFinal = valorOriginal - descontoValor;
+          if (valorOriginal > 0) { // desconto só se aplica a valores positivos (entradas)
+            if (descontoPorcentagem != null && descontoPorcentagem > 0) {
+              valorFinal = valorOriginal - (valorOriginal * descontoPorcentagem / 100);
+            } else if (descontoValor != null && descontoValor > 0) {
+              valorFinal = valorOriginal - descontoValor;
+            }
           }
 
           return new Relatorio(
