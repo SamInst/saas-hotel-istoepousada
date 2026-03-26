@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
@@ -33,15 +34,17 @@ public class PermissionInterceptor implements HandlerInterceptor {
       return true;
     }
 
+    AcessoLiberado acessoLiberado = handlerMethod.getMethodAnnotation(AcessoLiberado.class);
+
     RequireTela requireTela = handlerMethod.getMethodAnnotation(RequireTela.class);
-    if (requireTela == null)
+    if (requireTela == null && acessoLiberado == null)
       requireTela = handlerMethod.getBeanType().getAnnotation(RequireTela.class);
 
     RequirePermissao requirePermissao = handlerMethod.getMethodAnnotation(RequirePermissao.class);
     if (requirePermissao == null)
       requirePermissao = handlerMethod.getBeanType().getAnnotation(RequirePermissao.class);
 
-    if (requireTela == null && requirePermissao == null) return true;
+    if (acessoLiberado == null && requireTela == null && requirePermissao == null) return true;
 
     Funcionario.Authorization funcionario =
         (Funcionario.Authorization) request.getAttribute("funcionario");
@@ -62,6 +65,29 @@ public class PermissionInterceptor implements HandlerInterceptor {
         (funcionario.cargo() == null || funcionario.cargo().telas() == null)
             ? List.of()
             : funcionario.cargo().telas();
+
+    /* ====== ACESSO LIBERADO (múltiplas telas) ====== */
+    if (acessoLiberado != null) {
+      Set<String> telasPermitidas =
+          Arrays.stream(acessoLiberado.value())
+              .map(s -> s.trim().toUpperCase())
+              .collect(Collectors.toSet());
+
+      boolean temAcesso =
+          telas.stream()
+              .filter(t -> t != null)
+              .anyMatch(t -> telasPermitidas.contains(safe(t.nome()).trim().toUpperCase()));
+
+      if (!temAcesso) {
+        writeJson(
+            response,
+            HttpServletResponse.SC_FORBIDDEN,
+            "Forbidden",
+            "Você não tem permissão para acessar esse recurso. Telas permitidas: " + telasPermitidas);
+        return false;
+      }
+      return true;
+    }
 
     Tela telaContexto = null;
 

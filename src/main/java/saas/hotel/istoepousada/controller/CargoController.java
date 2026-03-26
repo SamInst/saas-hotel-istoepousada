@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Cargo;
 import saas.hotel.istoepousada.dto.Objeto;
 import saas.hotel.istoepousada.dto.Permissao;
+import saas.hotel.istoepousada.dto.Tela;
 import saas.hotel.istoepousada.repository.ObjectRepository;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.CargoService;
@@ -59,8 +60,8 @@ public class CargoController {
   }
 
   @GetMapping("/telas")
-  public List<Objeto> telas() {
-    return objectRepository.telas();
+  public List<Tela> telas() {
+    return objectRepository.telasComPermissoes();
   }
 
   @GetMapping("/permissoes")

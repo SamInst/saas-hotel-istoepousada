@@ -385,7 +385,7 @@ public class FuncionarioRepository {
                     ON t.id = ct.tela_id
                 LEFT JOIN cargo_permissao cp
                     ON cp.fk_cargo = c.id
-                 JOIN permissao pm
+                 LEFT JOIN permissao pm
                     ON pm.id = cp.fk_permissao
                    AND pm.fk_tela = t.id
                 WHERE u.id = ?

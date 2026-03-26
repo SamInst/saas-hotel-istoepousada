@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Funcionario;
+import saas.hotel.istoepousada.security.AcessoLiberado;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.FuncionarioService;
 
@@ -20,6 +21,7 @@ public class FuncionarioController {
   }
 
   @GetMapping
+  @AcessoLiberado({"FINANCEIRO"})
   public Page<Funcionario> listar(
       @RequestParam(required = false) Long id,
       @RequestParam(required = false) String termo,
