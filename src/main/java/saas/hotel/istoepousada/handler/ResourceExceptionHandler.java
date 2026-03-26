@@ -27,6 +27,7 @@ public class ResourceExceptionHandler {
   static final String UNAVAIABLE = "Entidade não disponível";
   static final String TIME_OUT = "Tempo de Requisicao Esgotado";
   static final String ARGUMENTO_INVALIDO = "Argumento Invalido";
+  static final String BUSINESS_ERROR = "Regra de Negócio Violada";
   static final String NULL_POINTER = "Exceção de ponteiro NULL";
 
   @ExceptionHandler(NotFoundException.class)
@@ -102,6 +103,21 @@ public class ResourceExceptionHandler {
             request.getRequestURI());
     e.printStackTrace();
     return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT.value()).body(error);
+  }
+
+  @ExceptionHandler(BusinessException.class)
+  public ResponseEntity<Object> errorBusinessException(
+      BusinessException e, HttpServletRequest request) {
+    var error =
+        new StandardError(
+            Instant.now(),
+            HttpStatus.UNPROCESSABLE_ENTITY.value(),
+            BUSINESS_ERROR,
+            "",
+            e.getMessage(),
+            request.getRequestURI());
+    e.printStackTrace();
+    return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY.value()).body(error);
   }
 
   @ExceptionHandler(IllegalArgumentException.class)

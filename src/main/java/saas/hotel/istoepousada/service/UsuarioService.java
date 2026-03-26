@@ -127,6 +127,7 @@ public class UsuarioService {
     var usuario = findByUsername(request.username());
     Funcionario.Authorization funcionario =
         funcionarioRepository.funcionarioLogin(new Usuario.Id(usuario.id()));
+    System.out.println(funcionario);
 
     if (funcionario == null)
       throw new NotFoundException("Usuário não possui funcionário vinculado");
