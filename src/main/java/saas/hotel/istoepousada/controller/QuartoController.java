@@ -23,7 +23,7 @@ public class QuartoController {
   }
 
   @GetMapping
-  @AcessoLiberado({"FINANCEIRO"})
+  @AcessoLiberado({"FINANCEIRO", "ITENS"})
   public Page<Quarto> listar(
       @RequestParam(required = false) Long id,
       @RequestParam(required = false) String termo,

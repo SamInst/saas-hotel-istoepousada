@@ -9,6 +9,7 @@ import saas.hotel.istoepousada.dto.Objeto;
 import saas.hotel.istoepousada.dto.Permissao;
 import saas.hotel.istoepousada.dto.Tela;
 import saas.hotel.istoepousada.repository.ObjectRepository;
+import saas.hotel.istoepousada.security.AcessoLiberado;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.CargoService;
 
@@ -26,6 +27,7 @@ public class CargoController {
   }
 
   @GetMapping
+  @AcessoLiberado({"ITENS"})
   public Page<Cargo> listar(@ModelAttribute Cargo.Buscar buscar) {
     return cargoService.listar(buscar);
   }
