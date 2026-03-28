@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.dto.Relatorio;
 import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
@@ -252,6 +253,25 @@ public class RelatorioRepository {
             .toList();
 
     return new Relatorio.Extrato(pagamentos, new PageImpl<>(diarias, pageable, totalDias));
+  }
+
+  public void registrarRelatorioDeConsumo(Pagamento pagamento, Long funcionarioId, String descricao) {
+    Float valorComDesconto = calcularValorComDesconto(
+        pagamento.valor(),
+        pagamento.desconto() != null ? pagamento.desconto().porcentagem() : null,
+        pagamento.desconto() != null ? pagamento.desconto().valor() : null);
+    Long tipoPagamentoId = pagamento.tipo_pagamento() != null ? pagamento.tipo_pagamento().id() : null;
+    Float valorHistoricoDinheiro = calcularNovoHistoricoDinheiro(valorComDesconto, tipoPagamentoId);
+
+    jdbcTemplate.update(
+        """
+        INSERT INTO relatorio (data_hora, relatorio, fk_funcionario, quarto_id, valor_historico_dinheiro, despesa_pessoal, fk_pagamento)
+        VALUES (now(), ?, ?, null, ?, false, ?)
+        """,
+        descricao,
+        funcionarioId,
+        valorHistoricoDinheiro,
+        pagamento.uuid());
   }
 
   public Relatorio insert(Relatorio.Request request) {

@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.controller;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +32,11 @@ public class QuartoController {
       @RequestParam(defaultValue = "900") int size) {
     Pageable pageable = PageRequest.of(page, size);
     return quartoService.buscar(id, termo, status, pageable);
+  }
+
+  @GetMapping("/{id}/itens")
+  public List<Quarto.ItemQuarto> listarItens(@PathVariable Long id) {
+    return quartoService.listarItens(id);
   }
 
   @PostMapping

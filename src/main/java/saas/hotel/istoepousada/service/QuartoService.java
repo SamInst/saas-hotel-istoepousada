@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.service;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,11 @@ public class QuartoService {
     if (quarto.id() == null) throw new IllegalArgumentException("uuid é obrigatório.");
     validarParametros(quarto);
     return quartoRepository.update(quarto);
+  }
+
+  public List<Quarto.ItemQuarto> listarItens(Long quartoId) {
+    if (quartoId == null) throw new IllegalArgumentException("ID do quarto é obrigatório.");
+    return quartoRepository.listarItens(quartoId);
   }
 
   private void validarParametros(Quarto.Request quarto) {

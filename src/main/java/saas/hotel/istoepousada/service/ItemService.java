@@ -1,7 +1,5 @@
 package saas.hotel.istoepousada.service;
 
-import java.time.LocalDate;
-import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -9,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.CategoriaItem;
 import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.repository.ItemRepository;
+
+import java.util.List;
 
 @Service
 public class ItemService {
@@ -23,11 +23,9 @@ public class ItemService {
       Long id,
       String termo,
       Long categoriaId,
-      LocalDate dataInicioCadastro,
-      LocalDate dataFimCadastro,
       Pageable pageable) {
     return itemRepository.buscar(
-        id, termo, categoriaId, dataInicioCadastro, dataFimCadastro, pageable);
+        id, termo, categoriaId, pageable);
   }
 
   public Item buscarPorId(Long id) {
@@ -56,14 +54,7 @@ public class ItemService {
     return itemRepository.update(request);
   }
 
-  public List<Item.HistoricoPreco> listarHistoricoPrecoPorItemId(Long itemId) {
-    if (itemId == null) {
-      throw new IllegalArgumentException("ID do item é obrigatório.");
-    }
-    return itemRepository.listarHistoricoPrecoPorItemId(itemId);
-  }
-
-  public List<Item.HistoricoReposicao> listarHistoricoReposicaoPorItemId(Long itemId) {
+  public List<Item.HistoricoEstoque> listarHistoricoReposicaoPorItemId(Long itemId) {
     if (itemId == null) {
       throw new IllegalArgumentException("ID do item é obrigatório.");
     }
@@ -71,36 +62,12 @@ public class ItemService {
   }
 
   @Transactional
-  public void registrarHistoricoPreco(Item.HistoricoPreco.Request request) {
-    if (request == null) {
-      throw new IllegalArgumentException("Dados do histórico de preço são obrigatórios.");
-    }
-    if (request.item() == null || request.item().id() == null) {
-      throw new IllegalArgumentException("ID do item é obrigatório.");
-    }
-    if (request.funcionario() == null || request.funcionario().id() == null) {
-      throw new IllegalArgumentException("ID do funcionário é obrigatório.");
-    }
-    if (request.valor_compra_unidade() == null) {
-      throw new IllegalArgumentException("Valor de compra é obrigatório.");
-    }
-    if (request.valor_venda_unidade() == null) {
-      throw new IllegalArgumentException("Valor de venda é obrigatório.");
-    }
-
-    itemRepository.registrarHistoricoPreco(request);
-  }
-
-  @Transactional
-  public void registrarHistoricoReposicao(Item.HistoricoReposicao.Request request) {
+  public void registrarHistoricoReposicao(Item.HistoricoEstoque.Request request) {
     if (request == null) {
       throw new IllegalArgumentException("Dados do histórico de reposição são obrigatórios.");
     }
     if (request.item() == null || request.item().id() == null) {
       throw new IllegalArgumentException("ID do item é obrigatório.");
-    }
-    if (request.funcionario() == null || request.funcionario().id() == null) {
-      throw new IllegalArgumentException("ID do funcionário é obrigatório.");
     }
     if (request.quantidade_unidades() == null || request.quantidade_unidades() == 0) {
       throw new IllegalArgumentException("Quantidade de unidades deve ser diferente de zero.");
@@ -110,21 +77,18 @@ public class ItemService {
   }
 
   @Transactional
-  public void atualizarHistoricoReposicao(Item.HistoricoReposicao.Update request) {
+  public void atualizarHistoricoReposicao(Item.HistoricoEstoque.Update request) {
     if (request == null) {
       throw new IllegalArgumentException("Dados da atualização da reposição são obrigatórios.");
     }
     if (request.id() == null) {
       throw new IllegalArgumentException("ID do histórico é obrigatório.");
     }
-    if (request.funcionario() == null || request.funcionario().id() == null) {
-      throw new IllegalArgumentException("ID do funcionário é obrigatório.");
-    }
     if (request.quantidade_unidades() == null || request.quantidade_unidades() == 0) {
       throw new IllegalArgumentException("Quantidade de unidades deve ser diferente de zero.");
     }
 
-    itemRepository.atualizarHistoricoReposicao(request);
+    itemRepository.atualizarHistoricoEstoque(request);
   }
 
   @Transactional
@@ -140,18 +104,17 @@ public class ItemService {
   }
 
   @Transactional
-  public void atualizarCategoria(Long id, CategoriaItem.Request request) {
-    if (id == null) {
-      throw new IllegalArgumentException("ID da categoria é obrigatório.");
-    }
-    if (request == null) {
+  public void atualizarCategoria(CategoriaItem.Update categoria) {
+    if (categoria == null) {
       throw new IllegalArgumentException("Dados da categoria são obrigatórios.");
     }
-    if (request.nome() == null || request.nome().isBlank()) {
+    if (categoria.id() == null) {
+      throw new IllegalArgumentException("ID da categoria é obrigatório.");
+    }
+    if (categoria.nome() == null || categoria.nome().isBlank()) {
       throw new IllegalArgumentException("Nome da categoria é obrigatório.");
     }
-
-    itemRepository.atualizarCategoria(id, request);
+    itemRepository.atualizarCategoria(categoria);
   }
 
   public List<CategoriaItem> listarCategorias() {
@@ -163,6 +126,39 @@ public class ItemService {
       throw new IllegalArgumentException("ID da categoria é obrigatório.");
     }
     return itemRepository.findCategoriaById(id);
+  }
+
+  public Item.HistoricoEstoque.Estoque listarEstoque() {
+    return itemRepository.listarEstoque();
+  }
+
+  @Transactional
+  public void cancelarConsumo(Long consumoId) {
+    if (consumoId == null) {
+      throw new IllegalArgumentException("ID do consumo é obrigatório.");
+    }
+    itemRepository.cancelarConsumo(consumoId);
+  }
+
+  @Transactional
+  public void consumirItem(Item.Consumo.Request request) {
+    if (request == null) {
+      throw new IllegalArgumentException("Dados do consumo são obrigatórios.");
+    }
+    if (request.item() == null || request.item().id() == null) {
+      throw new IllegalArgumentException("ID do item é obrigatório.");
+    }
+    if (request.quantidade() == null || request.quantidade() <= 0) {
+      throw new IllegalArgumentException("Quantidade deve ser maior que zero.");
+    }
+    if (!Boolean.TRUE.equals(request.despesa_pessoal()) && request.pagamento() == null) {
+      throw new IllegalArgumentException("Pagamento é obrigatório quando não for despesa pessoal.");
+    }
+    itemRepository.consumirItem(request);
+  }
+
+  public List<Item.Consumo> listarConsumos(Pageable pageable) {
+    return itemRepository.listarConsumos(pageable);
   }
 
   private void validarRequestItem(Item.Request request) {
