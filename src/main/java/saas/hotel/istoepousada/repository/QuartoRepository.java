@@ -221,6 +221,23 @@ public class QuartoRepository {
     return findByIdOrThrow(request.id());
   }
 
+  public List<Quarto.ItemQuarto> listarItens(Long quartoId) {
+    String sql =
+        """
+            SELECT
+              qi.id                 AS quarto_item_id,
+              i.id                  AS item_id,
+              i.descricao           AS item_descricao,
+              qi.quantidade_atual   AS quarto_item_quantidade_atual,
+              qi.quantidade_padrao  AS quarto_item_quantidade_padrao
+            FROM quarto_item qi
+            JOIN item i ON i.id = qi.fk_item
+            WHERE qi.fk_quarto = ?
+            ORDER BY i.descricao
+            """;
+    return jdbcTemplate.query(sql, Quarto.ItemQuarto.ROW_MAPPER, quartoId);
+  }
+
   private void vincularCategoriaAtiva(Long quartoId, Long categoriaId) {
     jdbcTemplate.update(
         """
