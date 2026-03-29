@@ -269,9 +269,6 @@ public class PessoaService {
     if (pessoa.telefone() == null) {
       throw new IllegalArgumentException("Telefone é obrigatório.");
     }
-    if (!StringUtils.hasText(pessoa.email())) {
-      throw new IllegalArgumentException("Email é obrigatório.");
-    }
     if (pessoa.cep() == null) {
       throw new IllegalArgumentException("CEP é obrigatório.");
     }

@@ -124,8 +124,8 @@ public class PessoaRepository {
           p.status               AS pessoa_status,
           p.fk_funcionario       AS pessoa_funcionario_id,
           p.fk_titular           AS pessoa_titular_id,
-          func.nome              AS pessoa_funcionario_nome,
-          titular.nome           AS pessoa_titular_nome,
+          pf.nome              AS pessoa_funcionario_nome,
+          t.nome           AS pessoa_titular_nome,
           p.profissao            AS pessoa_profissao
   """;
 
@@ -154,8 +154,8 @@ public class PessoaRepository {
           p.fk_funcionario        AS pessoa_funcionario_id,
           p.fk_titular            AS pessoa_titular_id,
           p.profissao             AS pessoa_profissao,
-          pessoa_funcionario.nome AS pessoa_funcionario_nome,
-          titular.nome            AS pessoa_titular_nome,
+          pf.nome                 AS pessoa_funcionario_nome,
+          t.nome                  AS pessoa_titular_nome,
           e.id                    AS empresa_id,
           e.data_hora_registro    AS empresa_data_hora_registro,
           e.razao_social          AS empresa_razao_social,
@@ -185,9 +185,13 @@ public class PessoaRepository {
 
   public static String FROM_BASE = """
           FROM pessoa p
-            LEFT JOIN funcionario func ON func.id = p.fk_funcionario
-            LEFT JOIN pessoa pessoa_funcionario ON pessoa_funcionario.id = func.fk_pessoa
-            LEFT JOIN pessoa titular ON titular.id = p.fk_titular
+          
+            -- funcionario que cadastrou
+            LEFT JOIN funcionario f ON f.id = p.fk_funcionario
+            LEFT JOIN pessoa pf ON pf.id = f.fk_pessoa
+          
+            -- titular
+            LEFT JOIN pessoa t ON t.id = p.fk_titular
             LEFT JOIN empresa_pessoa ep ON ep.fk_pessoa = p.id
             LEFT JOIN empresa e ON e.id = ep.fk_empresa
 
@@ -539,8 +543,9 @@ public class PessoaRepository {
     String sql = SELECT_PESSOA +
         """           
         FROM pessoa p
-        LEFT JOIN pessoa func ON func.id = p.fk_funcionario
-        LEFT JOIN pessoa titular ON titular.id = p.fk_titular
+        LEFT JOIN funcionario f ON f.id = p.fk_funcionario
+        LEFT JOIN pessoa pf ON pf.id = f.fk_pessoa
+        LEFT JOIN pessoa t ON t.id = p.fk_titular
         WHERE p.fk_titular IN ("""
         + inPlaceholders
         + ") ORDER BY p.fk_titular, p.nome ";
