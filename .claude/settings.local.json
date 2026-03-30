@@ -6,7 +6,10 @@
       "Bash(taskkill:*)",
       "Bash(cmd /c \"taskkill /PID 19996 /F\")",
       "Bash(echo \"exit: $?\")",
-      "Bash(powershell -Command \"Stop-Process -Id 19996 -Force\")"
+      "Bash(powershell -Command \"Stop-Process -Id 19996 -Force\")",
+      "Bash(./mvnw compile:*)",
+      "Bash(ls mvnw* pom.xml)",
+      "Bash(./gradlew compileJava)"
     ]
   }
 }
