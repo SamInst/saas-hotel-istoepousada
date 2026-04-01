@@ -89,12 +89,17 @@ public class CategoriaRepository {
     String baseSql =
         """
         SELECT
-          c.id            AS categoria_id,
-          c.nome          AS categoria_nome,
-          c.descricao     AS categoria_descricao,
-          c.hora_checkin  AS categoria_hora_checkin,
-          c.hora_checkout AS categoria_hora_checkout
+          c.id                  AS categoria_id,
+          c.nome                AS categoria_nome,
+          c.descricao           AS categoria_descricao,
+          c.hora_checkin        AS categoria_hora_checkin,
+          c.hora_checkout       AS categoria_hora_checkout,
+          c.data_hora_cadastro  AS categoria_data_hora_cadastro,
+          f.id                  AS funcionario_id,
+          p.nome                AS funcionario_nome
         FROM public.categoria c
+        LEFT JOIN public.funcionario f ON f.id = c.fk_funcionario
+        LEFT JOIN public.pessoa p ON p.id = f.fk_pessoa
         WHERE c.id IN (%s)
         ORDER BY c.nome ASC NULLS LAST, c.id ASC
         """.formatted(in);
@@ -111,12 +116,17 @@ public class CategoriaRepository {
     String sql =
         """
         SELECT
-          c.id            AS categoria_id,
-          c.nome          AS categoria_nome,
-          c.descricao     AS categoria_descricao,
-          c.hora_checkin  AS categoria_hora_checkin,
-          c.hora_checkout AS categoria_hora_checkout
+          c.id                  AS categoria_id,
+          c.nome                AS categoria_nome,
+          c.descricao           AS categoria_descricao,
+          c.hora_checkin        AS categoria_hora_checkin,
+          c.hora_checkout       AS categoria_hora_checkout,
+          c.data_hora_cadastro  AS categoria_data_hora_cadastro,
+          f.id                  AS funcionario_id,
+          p.nome                AS funcionario_nome
         FROM public.categoria c
+        LEFT JOIN public.funcionario f ON f.id = c.fk_funcionario
+        LEFT JOIN public.pessoa p ON p.id = f.fk_pessoa
         WHERE c.id = ?
         """;
 
@@ -294,8 +304,8 @@ public class CategoriaRepository {
       for (Long fkSazon : fkSazonalidades) {
         jdbcTemplate.update(
             """
-            INSERT INTO public.categoria_sazonalidade (fk_quarto, fk_sazonalidade, fk_funcionario, data_hora_cadastro)
-            VALUES (?, ?, ?, now())
+            INSERT INTO public.categoria_sazonalidade (fk_categoria, fk_sazonalidade, fk_funcionario, data_hora_cadastro, ativo)
+            VALUES (?, ?, ?, now(), true)
             """,
             categoriaId, fkSazon, fkFunc);
       }
@@ -425,7 +435,7 @@ public class CategoriaRepository {
     jdbcTemplate.update("DELETE FROM public.modelo_ocupacao WHERE fk_categoria = ?", categoriaId);
     jdbcTemplate.update("DELETE FROM public.modelo_fixo WHERE fk_categoria = ?", categoriaId);
     jdbcTemplate.update("DELETE FROM public.quarto_categoria WHERE fk_categoria = ?", categoriaId);
-    jdbcTemplate.update("DELETE FROM public.categoria_sazonalidade WHERE fk_quarto = ?", categoriaId);
+    jdbcTemplate.update("DELETE FROM public.categoria_sazonalidade WHERE fk_categoria = ?", categoriaId);
   }
 
   // ── Helpers de enriquecimento (leitura) ───────────────────────────────────
@@ -452,6 +462,8 @@ public class CategoriaRepository {
               base.descricao(),
               base.hora_checkin(),
               base.hora_checkout(),
+              base.funcionario(),
+              base.data_hora_cadastro(),
               ocupacaoMap.getOrDefault(base.id(), List.of()),
               fixoMap.getOrDefault(base.id(), List.of()),
               dayUseMap.getOrDefault(base.id(), List.of()),
@@ -472,6 +484,8 @@ public class CategoriaRepository {
         base.descricao(),
         base.hora_checkin(),
         base.hora_checkout(),
+        base.funcionario(),
+        base.data_hora_cadastro(),
         carregarModelosOcupacao(in, idArr).getOrDefault(base.id(), List.of()),
         carregarModelosFixo(in, idArr).getOrDefault(base.id(), List.of()),
         carregarDayUseOperacoes(in, idArr).getOrDefault(base.id(), List.of()),
@@ -701,13 +715,13 @@ public class CategoriaRepository {
     String sql =
         """
         SELECT
-          cs.fk_quarto  AS cs_fk_categoria,
-          s.id          AS sazonalidade_id,
-          s.descricao   AS sazonalidade_descricao
+          cs.fk_categoria AS cs_fk_categoria,
+          s.id            AS sazonalidade_id,
+          s.descricao     AS sazonalidade_descricao
         FROM public.categoria_sazonalidade cs
         JOIN public.sazonalidade s ON s.id = cs.fk_sazonalidade
-        WHERE cs.fk_quarto IN (%s)
-        ORDER BY cs.fk_quarto, s.descricao
+        WHERE cs.fk_categoria IN (%s)
+        ORDER BY cs.fk_categoria, s.descricao
         """.formatted(in);
 
     Map<Long, List<Sazonalidade.Nome>> map = new LinkedHashMap<>();

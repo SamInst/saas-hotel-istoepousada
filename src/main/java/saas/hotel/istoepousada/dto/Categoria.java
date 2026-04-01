@@ -3,6 +3,7 @@ package saas.hotel.istoepousada.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotNull;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import org.springframework.jdbc.core.RowMapper;
@@ -14,6 +15,8 @@ public record Categoria(
     String descricao,
     @JsonFormat(pattern = "HH:mm") LocalTime hora_checkin,
     @JsonFormat(pattern = "HH:mm") LocalTime hora_checkout,
+    Funcionario.Nome funcionario,
+    @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_cadastro,
     List<ModeloOcupacao> modelos_ocupacao,
     List<ModeloFixo> modelos_fixo,
     List<DayUseOperacao> day_use,
@@ -257,17 +260,23 @@ public record Categoria(
   }
 
   public static final RowMapper<Categoria> ROW_MAPPER =
-      (rs, rowNum) ->
-          new Categoria(
-              rs.getLong("categoria_id"),
-              rs.getString("categoria_nome"),
-              rs.getString("categoria_descricao"),
-              rs.getObject("categoria_hora_checkin", LocalTime.class),
-              rs.getObject("categoria_hora_checkout", LocalTime.class),
-              null,
-              null,
-              null,
-              null,
-              null,
-              null);
+      (rs, rowNum) -> {
+        Long funcId = rs.getObject("funcionario_id", Long.class);
+        Funcionario.Nome funcionario =
+            funcId == null ? null : new Funcionario.Nome(funcId, rs.getString("funcionario_nome"));
+        return new Categoria(
+            rs.getLong("categoria_id"),
+            rs.getString("categoria_nome"),
+            rs.getString("categoria_descricao"),
+            rs.getObject("categoria_hora_checkin", LocalTime.class),
+            rs.getObject("categoria_hora_checkout", LocalTime.class),
+            funcionario,
+            rs.getObject("categoria_data_hora_cadastro", LocalDateTime.class),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+      };
 }
