@@ -323,7 +323,7 @@ public class SazonabilidadeService {
         r.data_inicio(), r.data_fim(),
         r.diario_hora_inicio_ciclo(), r.diario_hora_fim_ciclo(),
         r.semanal(), r.mensal(), r.anual(),
-        r.hora_checkin(), r.hora_checkout(), null);
+        r.hora_checkin(), r.hora_checkout(), null, null);
   }
 
   private Sazonalidade fromUpdate(Sazonalidade.Update r) {
@@ -331,6 +331,6 @@ public class SazonabilidadeService {
         r.data_inicio(), r.data_fim(),
         r.diario_hora_inicio_ciclo(), r.diario_hora_fim_ciclo(),
         r.semanal(), r.mensal(), r.anual(),
-        r.hora_checkin(), r.hora_checkout(), null);
+        r.hora_checkin(), r.hora_checkout(), null, null);
   }
 }

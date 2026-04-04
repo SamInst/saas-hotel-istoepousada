@@ -278,8 +278,10 @@ public class PessoaService {
     if (pessoaRepository.cpfJaExiste(pessoa.cpf())) {
       throw new IllegalArgumentException("CPF já cadastrado.");
     }
-    if (pessoaRepository.emailJaExiste(pessoa.email())) {
-      throw new IllegalArgumentException("Email já cadastrado.");
+    if ( pessoa.email() != null) {
+      if (pessoaRepository.emailJaExiste(pessoa.email())) {
+        throw new IllegalArgumentException("Email já cadastrado.");
+      }
     }
     if (pessoaRepository.telefoneJaExiste(pessoa.telefone())) {
       throw new IllegalArgumentException("Número já cadastrado.");

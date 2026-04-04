@@ -21,7 +21,8 @@ public record Sazonalidade(
     List<Integer> anual,
     @JsonFormat(pattern = "HH:mm") LocalTime hora_checkin,
     @JsonFormat(pattern = "HH:mm") LocalTime hora_checkout,
-    List<CategoriaVinculo> categorias) {
+    List<CategoriaVinculo> categorias,
+    List<Categoria.MenorIdade> menores_idade) {
 
   public record Id(@NotNull Long id) {}
 
@@ -58,7 +59,8 @@ public record Sazonalidade(
       List<Integer> anual,
       @JsonFormat(pattern = "HH:mm") LocalTime hora_checkin,
       @JsonFormat(pattern = "HH:mm") LocalTime hora_checkout,
-      List<Long> fk_categorias) {}
+      List<Long> fk_categorias,
+      List<Categoria.MenorIdade.Input> menores_idade) {}
 
   public record Update(
       @NotNull Long id,
@@ -72,7 +74,8 @@ public record Sazonalidade(
       List<Integer> anual,
       @JsonFormat(pattern = "HH:mm") LocalTime hora_checkin,
       @JsonFormat(pattern = "HH:mm") LocalTime hora_checkout,
-      List<Long> fk_categorias) {}
+      List<Long> fk_categorias,
+      List<Categoria.MenorIdade.Input> menores_idade) {}
 
   // ── Vínculo requests ──────────────────────────────────────────────────────
 
@@ -110,5 +113,5 @@ public record Sazonalidade(
               parseIntArray(rs.getArray("sazonalidade_anual")),
               rs.getObject("sazonalidade_hora_checkin", LocalTime.class),
               rs.getObject("sazonalidade_hora_checkout", LocalTime.class),
-              null);
+              null, null);
 }
