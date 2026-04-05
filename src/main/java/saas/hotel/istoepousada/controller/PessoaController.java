@@ -46,8 +46,9 @@ public class PessoaController {
     return pessoaService.atualizarPessoa(pessoa);
   }
 
-  @PutMapping("/vincular-titular")
-  public void vincularTitular(Pessoa.VinculoVeiculo vinculo) {
-    pessoaService.vincularTitular(vinculo);
-  }
+
+    @PutMapping("/vincular-titular")
+    public void vincularTitular(@RequestBody Pessoa.VinculoTitular vinculo) {
+      pessoaService.vincularTitular(vinculo);
+    }
 }
