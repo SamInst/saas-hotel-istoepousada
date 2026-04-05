@@ -157,7 +157,14 @@ public class PessoaService {
     validarCampos(pessoa);
 
     Pessoa new_pessoa = pessoaRepository.insert(pessoa);
-    pessoaRepository.vincularTitular(new_pessoa.id(), titular_id, true);
+
+    pessoaRepository.vincularTitular(
+            new Pessoa.VinculoTitular(
+                    new Pessoa.Id(titular_id),
+                    new Pessoa.Id(new_pessoa.id()),
+                    true
+            )
+    );
     return salvarOuAtualizarVeiculos(new_pessoa, pessoa.veiculos());
   }
 
@@ -278,8 +285,10 @@ public class PessoaService {
     if (pessoaRepository.cpfJaExiste(pessoa.cpf())) {
       throw new IllegalArgumentException("CPF já cadastrado.");
     }
-    if (pessoaRepository.emailJaExiste(pessoa.email())) {
-      throw new IllegalArgumentException("Email já cadastrado.");
+    if (pessoa.email() != null) {
+      if (pessoaRepository.emailJaExiste(pessoa.email())) {
+        throw new IllegalArgumentException("Email já cadastrado.");
+      }
     }
     if (pessoaRepository.telefoneJaExiste(pessoa.telefone())) {
       throw new IllegalArgumentException("Número já cadastrado.");
@@ -305,10 +314,8 @@ public class PessoaService {
     }
   }
 
-  public void vincularTitular(Pessoa.VinculoVeiculo vinculo) {
-    pessoaRepository.findById(vinculo.pessoa().id());
-    pessoaRepository.findById(vinculo.veiculo().id());
-    pessoaRepository.vincularTitular(
-        vinculo.pessoa().id(), vinculo.veiculo().id(), vinculo.vinculo());
+  public void vincularTitular(Pessoa.VinculoTitular vinculo) {
+    System.out.println(vinculo);
+    pessoaRepository.vincularTitular(vinculo);
   }
 }

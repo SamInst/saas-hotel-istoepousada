@@ -165,4 +165,6 @@ public record Pessoa(
   public record BatchRequest(List<Pessoa.Request> pessoas, List<Empresa.Id> empresas) {}
 
   public record VinculoVeiculo(Pessoa.Id pessoa, Veiculo.Id veiculo, Boolean vinculo) {}
+
+  public record VinculoTitular(Pessoa.Id titular, Pessoa.Id acompanhante, Boolean vinculo){}
 }

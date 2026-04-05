@@ -124,8 +124,8 @@ public class PessoaRepository {
           p.status               AS pessoa_status,
           p.fk_funcionario       AS pessoa_funcionario_id,
           p.fk_titular           AS pessoa_titular_id,
-          pf.nome              AS pessoa_funcionario_nome,
-          t.nome           AS pessoa_titular_nome,
+          pf.nome                AS pessoa_funcionario_nome,
+          t.nome                 AS pessoa_titular_nome,
           p.profissao            AS pessoa_profissao
   """;
 
@@ -198,8 +198,8 @@ public class PessoaRepository {
             LEFT JOIN funcionario fe on fe.id = e.fk_funcionario
             LEFT JOIN pessoa pfe ON pfe.id = fe.fk_pessoa
 
-            LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id AND pv.vinculo_ativo = true
-            LEFT JOIN veiculo v ON v.id = pv.veiculo_id
+            LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id
+            LEFT JOIN veiculo v ON v.id = pv.veiculo_id AND pv.vinculo_ativo = true
           """;
 
   public Page<Pessoa> buscar(
@@ -582,11 +582,14 @@ public class PessoaRepository {
     return jdbcTemplate.query(sql, Pessoa.ROW_MAPPER, empresa_id);
   }
 
-  public void vincularTitular(Long pessoaId, Long titularId, Boolean vinculo) {
-    if (vinculo) {
-      jdbcTemplate.update("UPDATE pessoa SET fk_titular = ? WHERE id = ?", titularId, pessoaId);
+  public void vincularTitular(Pessoa.VinculoTitular pessoa) {
+    if (pessoa.vinculo()) {
+      jdbcTemplate.update("UPDATE pessoa SET fk_titular = ? WHERE id = ?",
+              pessoa.titular().id(),
+              pessoa.acompanhante().id()
+      );
     } else {
-      jdbcTemplate.update("UPDATE pessoa SET fk_titular = NULL WHERE id = ?", pessoaId);
+      jdbcTemplate.update("UPDATE pessoa SET fk_titular = NULL WHERE id = ?", pessoa.acompanhante().id());
     }
   }
 
