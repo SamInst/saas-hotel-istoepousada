@@ -286,9 +286,7 @@ public class PessoaService {
         throw new IllegalArgumentException("Email já cadastrado.");
       }
     }
-    if (pessoaRepository.telefoneJaExiste(pessoa.telefone())) {
-      throw new IllegalArgumentException("Número já cadastrado.");
-    }
+
     if (pessoa.veiculos() != null && !pessoa.veiculos().isEmpty()) {
       pessoa
           .veiculos()
@@ -314,7 +312,6 @@ public class PessoaService {
   }
 
   public void vincularTitular(Pessoa.VinculoTitular vinculo) {
-    System.out.println(vinculo);
     pessoaRepository.vincularTitular(vinculo);
   }
 }

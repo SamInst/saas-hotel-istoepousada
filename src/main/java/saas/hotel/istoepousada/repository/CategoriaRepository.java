@@ -141,6 +141,20 @@ public class CategoriaRepository {
     return enriquecerCategoria(Objects.requireNonNull(base));
   }
 
+  public Categoria findByQuartoId(Long quartoId) {
+    try {
+      Long categoriaId =
+          jdbcTemplate.queryForObject(
+              "SELECT fk_categoria FROM public.quarto_categoria WHERE fk_quarto = ?",
+              Long.class,
+              quartoId);
+      if (categoriaId == null) return null;
+      return findByIdOrThrow(categoriaId);
+    } catch (EmptyResultDataAccessException e) {
+      return null;
+    }
+  }
+
   // ── Insert completo ───────────────────────────────────────────────────────
 
   @Transactional

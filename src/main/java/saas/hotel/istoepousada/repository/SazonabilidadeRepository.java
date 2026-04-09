@@ -202,7 +202,9 @@ public class SazonabilidadeRepository {
     }
 
     // modelos/day_use null = manter existentes; lista vazia = remover todos
-    if (request.modelos_ocupacao() != null || request.modelos_fixo() != null || request.day_use() != null) {
+    if (request.modelos_ocupacao() != null
+        || request.modelos_fixo() != null
+        || request.day_use() != null) {
       deletarModelosEDayUse(request.id());
       if (request.modelos_ocupacao() != null && !request.modelos_ocupacao().isEmpty()) {
         salvarModelosOcupacao(request.id(), request.modelos_ocupacao());
@@ -594,7 +596,10 @@ public class SazonabilidadeRepository {
           map.computeIfAbsent(sazonId, k -> new ArrayList<>())
               .add(
                   new Categoria.ModeloOcupacao(
-                      rs.getLong("mo_id"), null, rs.getInt("mo_quantidade"), rs.getDouble("mo_valor")));
+                      rs.getLong("mo_id"),
+                      null,
+                      rs.getInt("mo_quantidade"),
+                      rs.getDouble("mo_valor")));
         },
         ids);
     return map;
