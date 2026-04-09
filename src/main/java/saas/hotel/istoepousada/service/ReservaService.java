@@ -17,7 +17,9 @@ import saas.hotel.istoepousada.dto.Reserva;
 import saas.hotel.istoepousada.dto.Sazonalidade;
 import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.handler.exceptions.ConflictException;
+import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.repository.CategoriaRepository;
+import saas.hotel.istoepousada.repository.PagamentoRepository;
 import saas.hotel.istoepousada.repository.ReservaRepository;
 
 @Service
@@ -25,11 +27,15 @@ public class ReservaService {
 
   private final ReservaRepository reservaRepository;
   private final CategoriaRepository categoriaRepository;
+  private final PagamentoRepository pagamentoRepository;
 
   public ReservaService(
-      ReservaRepository reservaRepository, CategoriaRepository categoriaRepository) {
+      ReservaRepository reservaRepository,
+      CategoriaRepository categoriaRepository,
+      PagamentoRepository pagamentoRepository) {
     this.reservaRepository = reservaRepository;
     this.categoriaRepository = categoriaRepository;
+    this.pagamentoRepository = pagamentoRepository;
   }
 
   // ── Consultas ──────────────────────────────────────────────────────────────
@@ -105,7 +111,11 @@ public class ReservaService {
 
     if (req.pagamentos() != null) {
       for (Reserva.PagamentoReservaRequest pg : req.pagamentos()) {
-        reservaRepository.vincularPagamento(reservaId, pg.fk_pagamento());
+        Pagamento criado =
+            pagamentoRepository.create(
+                new Pagamento.Request(
+                    pg.tipo_pagamento(), pg.nome_pagador(), pg.descricao(), pg.valor(), null, null));
+        reservaRepository.vincularPagamento(reservaId, criado.uuid());
       }
     }
 

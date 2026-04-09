@@ -1,11 +1,11 @@
 package saas.hotel.istoepousada.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import org.springframework.jdbc.core.RowMapper;
 
 public record Reserva(
@@ -90,9 +90,13 @@ public record Reserva(
 
   // ── Requests ──────────────────────────────────────────────────────────────
 
-  public record PessoaRequest(@NotNull Long fk_pessoa, Boolean representante) {}
+  public record PessoaRequest(@JsonAlias("id") @NotNull Long fk_pessoa, Boolean representante) {}
 
-  public record PagamentoReservaRequest(@NotNull UUID fk_pagamento) {}
+  public record PagamentoReservaRequest(
+      @NotNull Pagamento.TipoPagamento.Id tipo_pagamento,
+      @NotNull String nome_pagador,
+      String descricao,
+      @NotNull Float valor) {}
 
   /** Dados de uma única reserva a ser inserida (usada dentro do BatchRequest). */
   public record Request(

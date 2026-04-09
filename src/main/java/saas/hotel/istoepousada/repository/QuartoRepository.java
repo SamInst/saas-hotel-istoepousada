@@ -100,7 +100,7 @@ public class QuartoRepository {
             + baseFrom
             + where
             + """
-            ORDER BY quarto.descricao ASC NULLS LAST, quarto.id ASC
+            ORDER BY quarto.id ASC
             LIMIT ? OFFSET ?
             """;
 
@@ -121,7 +121,7 @@ public class QuartoRepository {
         baseSelect
             + " WHERE quarto.id IN ("
             + in
-            + ") ORDER BY quarto.descricao ASC NULLS LAST, quarto.id ASC";
+            + ") ORDER BY quarto.id";
 
     List<Quarto> content = jdbcTemplate.query(pageSql, QUARTO_EXTRACTOR, ids.toArray());
 
