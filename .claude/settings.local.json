@@ -10,7 +10,8 @@
       "Bash(./mvnw compile:*)",
       "Bash(ls mvnw* pom.xml)",
       "Bash(./gradlew compileJava)",
-      "Bash(find /c/Users/sanhe/Downloads/istoepousada/istoepousada/src -name \"ConflictException.java\" -exec cat {} \\\\;)"
+      "Bash(find /c/Users/sanhe/Downloads/istoepousada/istoepousada/src -name \"ConflictException.java\" -exec cat {} \\\\;)",
+      "Bash(mvn compile:*)"
     ]
   }
 }

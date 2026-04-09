@@ -25,7 +25,8 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     // ← Verifica se o endpoint é público
     if (handler instanceof HandlerMethod handlerMethod) {
-      boolean isPublic = handlerMethod.hasMethodAnnotation(PublicEndpoint.class)
+      boolean isPublic =
+          handlerMethod.hasMethodAnnotation(PublicEndpoint.class)
               || handlerMethod.getBeanType().isAnnotationPresent(PublicEndpoint.class);
       if (isPublic) return true;
     }

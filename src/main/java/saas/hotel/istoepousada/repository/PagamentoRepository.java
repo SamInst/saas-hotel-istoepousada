@@ -2,7 +2,6 @@ package saas.hotel.istoepousada.repository;
 
 import java.util.List;
 import java.util.UUID;
-
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -60,7 +59,7 @@ public class PagamentoRepository {
   public Pagamento create(Pagamento.Request pagamento) {
     UUID uuid =
         jdbcTemplate.queryForObject(
-        """
+            """
             INSERT INTO pagamento (
               fk_tipo_pagamento,
               fk_funcionario,
@@ -83,16 +82,13 @@ public class PagamentoRepository {
       if (desconto != null) {
         updateDesconto(
             new Pagamento.Desconto.Update(
-                desconto.uuid(),
-                    pagamento.desconto().porcentagem(),
-                    pagamento.desconto().valor())
-        );
+                desconto.uuid(), pagamento.desconto().porcentagem(), pagamento.desconto().valor()));
       } else {
-        registrarDesconto(new Pagamento.Desconto.Request(
+        registrarDesconto(
+            new Pagamento.Desconto.Request(
                 new Pagamento.Uuid(uuid),
                 pagamento.desconto().porcentagem(),
-                pagamento.desconto().valor())
-        );
+                pagamento.desconto().valor()));
       }
     }
 
@@ -139,10 +135,10 @@ public class PagamentoRepository {
     if (pagamento.desconto() != null) {
       if (pagamento.desconto().uuid() != null && existsDescontoByPagamentoUuid(uuid)) {
         updateDesconto(
-                new Pagamento.Desconto.Update(
-                        pagamento.desconto().uuid(),
-                        pagamento.desconto().porcentagem(),
-                        pagamento.desconto().valor()));
+            new Pagamento.Desconto.Update(
+                pagamento.desconto().uuid(),
+                pagamento.desconto().porcentagem(),
+                pagamento.desconto().valor()));
       } else {
         registrarDesconto(
             new Pagamento.Desconto.Request(
@@ -181,7 +177,7 @@ public class PagamentoRepository {
   public Pagamento.Desconto findDescontoByPagamentoUuid(UUID uuid) {
     try {
       return jdbcTemplate.queryForObject(
-              """
+          """
                   SELECT
                       pagamento_desconto.id                 AS pagamento_desconto_id,
                       pagamento_desconto.fk_funcionario     AS pagamento_desconto_funcionario_id,
@@ -195,8 +191,8 @@ public class PagamentoRepository {
                   Join pagamento ON pagamento.id = pagamento_desconto.fk_pagamento
                   WHERE pagamento.id = ?
                   """,
-              Pagamento.Desconto.ROW_MAPPER,
-              uuid);
+          Pagamento.Desconto.ROW_MAPPER,
+          uuid);
     } catch (EmptyResultDataAccessException e) {
       return null;
     }
@@ -214,19 +210,20 @@ public class PagamentoRepository {
   }
 
   public void updateDesconto(Pagamento.Desconto.Update desconto) {
-    int rowsAffected = jdbcTemplate.update(
-        """
+    int rowsAffected =
+        jdbcTemplate.update(
+            """
             UPDATE pagamento_desconto SET
                 porcentagem = ?,
                 valor = ?,
                 fk_funcionario = ?
             WHERE id = ?
             """,
-        desconto.porcentagem(),
-        desconto.valor(),
-        getFuncionarioIdFromRequest(),
-        desconto.uuid());
-    
+            desconto.porcentagem(),
+            desconto.valor(),
+            getFuncionarioIdFromRequest(),
+            desconto.uuid());
+
     if (rowsAffected == 0) {
       throw new IllegalArgumentException(
           "Desconto com uuid " + desconto.uuid() + " não encontrado");

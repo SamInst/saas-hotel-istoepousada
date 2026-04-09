@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.controller;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -8,8 +9,6 @@ import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.CategoriaItem;
 import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.service.ItemService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping
@@ -27,8 +26,7 @@ public class ItemController {
       @RequestParam(required = false) String termo,
       @RequestParam(required = false) Long categoria_id,
       Pageable pageable) {
-    return itemService.buscar(
-        id, termo, categoria_id, pageable);
+    return itemService.buscar(id, termo, categoria_id, pageable);
   }
 
   @PostMapping("/item")
@@ -65,8 +63,7 @@ public class ItemController {
   }
 
   @GetMapping("/item/consumo")
-  public List<Item.Consumo> listarConsumos(
-      @PageableDefault(size = 50) Pageable pageable) {
+  public List<Item.Consumo> listarConsumos(@PageableDefault(size = 50) Pageable pageable) {
     return itemService.listarConsumos(pageable);
   }
 

@@ -51,7 +51,8 @@ public class CategoriaService {
     if (request.modelos_ocupacao() != null) {
       for (var mo : request.modelos_ocupacao()) {
         if (mo.quantidade() == null || mo.quantidade() <= 0)
-          throw new IllegalArgumentException("Quantidade do modelo de ocupação deve ser maior que 0.");
+          throw new IllegalArgumentException(
+              "Quantidade do modelo de ocupação deve ser maior que 0.");
         if (mo.valor() == null || mo.valor() < 0)
           throw new IllegalArgumentException("Valor do modelo de ocupação não pode ser negativo.");
       }
@@ -76,7 +77,8 @@ public class CategoriaService {
         if (duo.ocupacoes() != null) {
           for (var oc : duo.ocupacoes()) {
             if (oc.quantidade_pessoa() == null || oc.quantidade_pessoa() <= 0)
-              throw new IllegalArgumentException("Quantidade de pessoa no day use deve ser maior que 0.");
+              throw new IllegalArgumentException(
+                  "Quantidade de pessoa no day use deve ser maior que 0.");
           }
         }
       }
@@ -90,9 +92,11 @@ public class CategoriaService {
         if (mi.faixas_etarias() != null) {
           for (var fe : mi.faixas_etarias()) {
             if (fe.faixa_etaria() == null || fe.faixa_etaria().size() != 2)
-              throw new IllegalArgumentException("Faixa etária deve conter exatamente 2 valores [min, max].");
+              throw new IllegalArgumentException(
+                  "Faixa etária deve conter exatamente 2 valores [min, max].");
             if (fe.faixa_etaria().get(1) <= fe.faixa_etaria().get(0))
-              throw new IllegalArgumentException("Idade máxima deve ser maior que a mínima na faixa etária.");
+              throw new IllegalArgumentException(
+                  "Idade máxima deve ser maior que a mínima na faixa etária.");
           }
         }
         if (mi.porcentagens_por_quantidade() != null) {
@@ -107,16 +111,17 @@ public class CategoriaService {
 
   private void validarSubDados(Categoria.Update request) {
     // Reutiliza as mesmas validações via request virtual
-    validarSubDados(new Categoria.Request(
-        request.nome(),
-        request.descricao(),
-        request.hora_checkin(),
-        request.hora_checkout(),
-        request.modelos_ocupacao(),
-        request.modelos_fixo(),
-        request.day_use(),
-        request.fk_quartos(),
-        request.fk_sazonalidades(),
-        request.menores_idade()));
+    validarSubDados(
+        new Categoria.Request(
+            request.nome(),
+            request.descricao(),
+            request.hora_checkin(),
+            request.hora_checkout(),
+            request.modelos_ocupacao(),
+            request.modelos_fixo(),
+            request.day_use(),
+            request.fk_quartos(),
+            request.fk_sazonalidades(),
+            request.menores_idade()));
   }
 }

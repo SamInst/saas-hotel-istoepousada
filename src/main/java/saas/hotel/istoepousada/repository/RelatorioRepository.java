@@ -255,12 +255,15 @@ public class RelatorioRepository {
     return new Relatorio.Extrato(pagamentos, new PageImpl<>(diarias, pageable, totalDias));
   }
 
-  public void registrarRelatorioDeConsumo(Pagamento pagamento, Long funcionarioId, String descricao) {
-    Float valorComDesconto = calcularValorComDesconto(
-        pagamento.valor(),
-        pagamento.desconto() != null ? pagamento.desconto().porcentagem() : null,
-        pagamento.desconto() != null ? pagamento.desconto().valor() : null);
-    Long tipoPagamentoId = pagamento.tipo_pagamento() != null ? pagamento.tipo_pagamento().id() : null;
+  public void registrarRelatorioDeConsumo(
+      Pagamento pagamento, Long funcionarioId, String descricao) {
+    Float valorComDesconto =
+        calcularValorComDesconto(
+            pagamento.valor(),
+            pagamento.desconto() != null ? pagamento.desconto().porcentagem() : null,
+            pagamento.desconto() != null ? pagamento.desconto().valor() : null);
+    Long tipoPagamentoId =
+        pagamento.tipo_pagamento() != null ? pagamento.tipo_pagamento().id() : null;
     Float valorHistoricoDinheiro = calcularNovoHistoricoDinheiro(valorComDesconto, tipoPagamentoId);
 
     jdbcTemplate.update(
@@ -278,23 +281,23 @@ public class RelatorioRepository {
     Long tipoPagamentoId = request.pagamento().tipo_pagamento().id();
 
     Float valorOriginal = request.pagamento().valor();
-    Float descontoPorcentagem = request.pagamento().desconto() != null ? request.pagamento().desconto().porcentagem() : null;
-    Float descontoValor = request.pagamento().desconto() != null ? request.pagamento().desconto().valor() : null;
-    Float valorComDesconto = calcularValorComDesconto(valorOriginal, descontoPorcentagem, descontoValor);
-    
-    Float valorHistoricoDinheiro =
-            calcularNovoHistoricoDinheiro(
-                    valorComDesconto,
-                    tipoPagamentoId
-            );
+    Float descontoPorcentagem =
+        request.pagamento().desconto() != null
+            ? request.pagamento().desconto().porcentagem()
+            : null;
+    Float descontoValor =
+        request.pagamento().desconto() != null ? request.pagamento().desconto().valor() : null;
+    Float valorComDesconto =
+        calcularValorComDesconto(valorOriginal, descontoPorcentagem, descontoValor);
+
+    Float valorHistoricoDinheiro = calcularNovoHistoricoDinheiro(valorComDesconto, tipoPagamentoId);
 
     if (tipoPagamentoId != null && tipoPagamentoId == 1L && valorHistoricoDinheiro < 0) {
       Float saldoAtual = buscarUltimoHistoricoDinheiro();
       throw new BusinessException(
           String.format(
               "Saldo insuficiente no caixa. Saldo atual: R$ %.2f, valor a retirar: R$ %.2f.",
-              saldoAtual,
-              Math.abs(valorComDesconto != null ? valorComDesconto : 0F)));
+              saldoAtual, Math.abs(valorComDesconto != null ? valorComDesconto : 0F)));
     }
 
     boolean despesaPessoal = Boolean.TRUE.equals(request.despesa_pessoal());
@@ -327,18 +330,20 @@ public class RelatorioRepository {
 
   public Relatorio update(Relatorio.Update relatorio) {
     Relatorio relatorioAntigo = getByIdOrThrow(new Relatorio.Id(relatorio.id()));
-    
+
     // Atualiza o pagamento primeiro para ter o desconto atualizado
     if (relatorio.pagamento().valor() != null) {
       pagamentoRepository.update(relatorio.pagamento());
     }
-    
+
     // Busca o pagamento atualizado com desconto
     Relatorio relatorioAtualizado = getByIdOrThrow(new Relatorio.Id(relatorio.id()));
     Float valorComDesconto = relatorioAtualizado.valor();
-    Long novoTipoPagamentoId = relatorioAtualizado.pagamento() != null && relatorioAtualizado.pagamento().tipo_pagamento() != null
-        ? relatorioAtualizado.pagamento().tipo_pagamento().id()
-        : null;
+    Long novoTipoPagamentoId =
+        relatorioAtualizado.pagamento() != null
+                && relatorioAtualizado.pagamento().tipo_pagamento() != null
+            ? relatorioAtualizado.pagamento().tipo_pagamento().id()
+            : null;
 
     Float valorHistoricoDinheiro =
         recalcularHistoricoDinheiro(relatorioAntigo, valorComDesconto, novoTipoPagamentoId);
@@ -368,7 +373,8 @@ public class RelatorioRepository {
     return getByIdOrThrow(id);
   }
 
-  private Float calcularValorComDesconto(Float valorOriginal, Float descontoPorcentagem, Float descontoValor) {
+  private Float calcularValorComDesconto(
+      Float valorOriginal, Float descontoPorcentagem, Float descontoValor) {
     if (valorOriginal == null) {
       return 0F;
     }
@@ -397,7 +403,8 @@ public class RelatorioRepository {
     return ultimoHistorico + (valor != null ? valor : 0F);
   }
 
-  private Float recalcularHistoricoDinheiro(Relatorio relatorioAntigo, Float novoValorPagamento, Long novoTipoPagamentoId) {
+  private Float recalcularHistoricoDinheiro(
+      Relatorio relatorioAntigo, Float novoValorPagamento, Long novoTipoPagamentoId) {
     Float historicoAnterior = buscarHistoricoAnteriorAoRegistro(relatorioAntigo.id());
     if (novoTipoPagamentoId != null && novoTipoPagamentoId == 1L) {
       return historicoAnterior + (novoValorPagamento != null ? novoValorPagamento : 0F);
@@ -423,7 +430,7 @@ public class RelatorioRepository {
 
   private Float buscarHistoricoAnteriorAoRegistro(Long relatorioId) {
     String sql =
-            """
+        """
             SELECT COALESCE(valor_historico_dinheiro, 0)
             FROM relatorio
             WHERE relatorio.data_hora < (SELECT data_hora FROM relatorio WHERE id = ?)
@@ -471,21 +478,18 @@ public class RelatorioRepository {
 
       // Calcula o valor com desconto
       Float valorOriginal = valor != null ? valor.floatValue() : 0F;
-      Float valorComDesconto = calcularValorComDesconto(
-          valorOriginal,
-          descontoPorcentagem != null ? descontoPorcentagem.floatValue() : null,
-          descontoValor != null ? descontoValor.floatValue() : null
-      );
+      Float valorComDesconto =
+          calcularValorComDesconto(
+              valorOriginal,
+              descontoPorcentagem != null ? descontoPorcentagem.floatValue() : null,
+              descontoValor != null ? descontoValor.floatValue() : null);
 
       if (tipoId != null && tipoId.longValue() == 1) {
         historicoAcumulado += valorComDesconto;
       }
 
       jdbcTemplate.update(
-              "UPDATE relatorio SET valor_historico_dinheiro = ? WHERE id = ?",
-              historicoAcumulado,
-              id
-      );
+          "UPDATE relatorio SET valor_historico_dinheiro = ? WHERE id = ?", historicoAcumulado, id);
     }
   }
 
@@ -530,15 +534,15 @@ public class RelatorioRepository {
         entradas
             ? """
               COALESCE(SUM(
-                CASE WHEN pagamento.valor > 0 THEN 
-                  CASE 
-                    WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN 
+                CASE WHEN pagamento.valor > 0 THEN
+                  CASE
+                    WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN
                       pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
-                    WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN 
+                    WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN
                       pagamento.valor - pagamento_desconto.valor
                     ELSE pagamento.valor
                   END
-                ELSE 0 
+                ELSE 0
                 END
               ), 0)
               """
@@ -593,15 +597,15 @@ public class RelatorioRepository {
                           tipo_pagamento.id        AS tipo_id,
                           tipo_pagamento.descricao AS descricao,
                           COALESCE(SUM(
-                            CASE WHEN pagamento.valor > 0 THEN 
-                              CASE 
-                                WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN 
+                            CASE WHEN pagamento.valor > 0 THEN
+                              CASE
+                                WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN
                                   pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
-                                WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN 
+                                WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN
                                   pagamento.valor - pagamento_desconto.valor
                                 ELSE pagamento.valor
                               END
-                            ELSE 0 
+                            ELSE 0
                             END
                           ), 0) AS receitas,
                           COALESCE(SUM(

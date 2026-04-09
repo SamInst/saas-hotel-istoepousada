@@ -100,7 +100,8 @@ public class PessoaRepository {
         return pessoas;
       };
 
-  public static String SELECT_PESSOA = """
+  public static String SELECT_PESSOA =
+      """
           SELECT
           p.id                   AS pessoa_id,
           p.data_hora_registro   AS pessoa_data_hora_registro,
@@ -129,7 +130,8 @@ public class PessoaRepository {
           p.profissao            AS pessoa_profissao
   """;
 
-  public static String SELECT_PESSOA_COMPLETO = """
+  public static String SELECT_PESSOA_COMPLETO =
+      """
           SELECT
           p.id                    AS pessoa_id,
           p.data_hora_registro    AS pessoa_data_hora_registro,
@@ -183,13 +185,14 @@ public class PessoaRepository {
           v.cor                   AS veiculo_cor
           """;
 
-  public static String FROM_BASE = """
+  public static String FROM_BASE =
+      """
           FROM pessoa p
-          
+
             -- funcionario que cadastrou
             LEFT JOIN funcionario f ON f.id = p.fk_funcionario
             LEFT JOIN pessoa pf ON pf.id = f.fk_pessoa
-          
+
             -- titular
             LEFT JOIN pessoa t ON t.id = p.fk_titular
             LEFT JOIN empresa_pessoa ep ON ep.fk_pessoa = p.id
@@ -216,7 +219,9 @@ public class PessoaRepository {
 
     String baseSelect = String.format(SELECT_PESSOA_COMPLETO + FROM_BASE, veiculoJoinCondition);
 
-    StringBuilder where = new StringBuilder(" WHERE p.status NOT IN ('CONTRATADO'::public.pessoa_status, 'DEMITIDO'::public.pessoa_status) ");
+    StringBuilder where =
+        new StringBuilder(
+            " WHERE p.status NOT IN ('CONTRATADO'::public.pessoa_status, 'DEMITIDO'::public.pessoa_status) ");
     List<Object> params = new ArrayList<>();
 
     if (hasId) {
@@ -298,8 +303,7 @@ public class PessoaRepository {
       pageParams.addFirst(placaTrim);
     }
 
-    List<Pessoa> content =
-        jdbcTemplate.query(pageSql, PESSOA_EXTRACTOR, pageParams.toArray());
+    List<Pessoa> content = jdbcTemplate.query(pageSql, PESSOA_EXTRACTOR, pageParams.toArray());
 
     List<Pessoa> enriched = adicionarAcompanhantesParaTitulares(content);
 
@@ -350,17 +354,15 @@ public class PessoaRepository {
                         p.veiculos_vinculados(),
                         p.funcionario(),
                         p.titular(),
-                        acompanhantesPorTitular.getOrDefault(
-                                p.id(),
-                                List.of()
-                        ),
+                        acompanhantesPorTitular.getOrDefault(p.id(), List.of()),
                         p.profissao()))
         .toList();
   }
 
   public Pessoa findById(Long id) {
     try {
-      return jdbcTemplate.queryForObject(SELECT_PESSOA_COMPLETO + FROM_BASE + " WHERE p.id = ?", Pessoa.ROW_MAPPER, id);
+      return jdbcTemplate.queryForObject(
+          SELECT_PESSOA_COMPLETO + FROM_BASE + " WHERE p.id = ?", Pessoa.ROW_MAPPER, id);
     } catch (EmptyResultDataAccessException ex) {
       throw new NotFoundException("Pessoa não encontrada para o id: " + id);
     }
@@ -417,8 +419,7 @@ public class PessoaRepository {
             pessoa.status() == null ? Pessoa.Status.ATIVO.name() : pessoa.status().name(),
             getFuncionarioIdFromRequest(),
             pessoa.titular() != null ? pessoa.titular().id() : null,
-            pessoa.profissao()
-        );
+            pessoa.profissao());
     return findById(pessoa_id);
   }
 
@@ -540,15 +541,16 @@ public class PessoaRepository {
 
     String inPlaceholders = String.join(",", Collections.nCopies(titularIds.size(), "?"));
 
-    String sql = SELECT_PESSOA +
-        """           
+    String sql =
+        SELECT_PESSOA
+            + """
         FROM pessoa p
         LEFT JOIN funcionario f ON f.id = p.fk_funcionario
         LEFT JOIN pessoa pf ON pf.id = f.fk_pessoa
         LEFT JOIN pessoa t ON t.id = p.fk_titular
         WHERE p.fk_titular IN ("""
-        + inPlaceholders
-        + ") ORDER BY p.fk_titular, p.nome ";
+            + inPlaceholders
+            + ") ORDER BY p.fk_titular, p.nome ";
 
     return jdbcTemplate.query(
         sql,
@@ -568,8 +570,9 @@ public class PessoaRepository {
   }
 
   public List<Pessoa> findPessoasByEmpresaId(Long empresa_id) {
-    String sql = SELECT_PESSOA +
-        """
+    String sql =
+        SELECT_PESSOA
+            + """
         FROM empresa_pessoa ep
         JOIN pessoa p ON p.id = ep.fk_pessoa
         LEFT JOIN funcionario f ON f.id = p.fk_funcionario
@@ -584,56 +587,57 @@ public class PessoaRepository {
 
   public void vincularTitular(Pessoa.VinculoTitular pessoa) {
     if (pessoa.vinculo()) {
-      jdbcTemplate.update("UPDATE pessoa SET fk_titular = ? WHERE id = ?",
-              pessoa.titular().id(),
-              pessoa.acompanhante().id()
-      );
+      jdbcTemplate.update(
+          "UPDATE pessoa SET fk_titular = ? WHERE id = ?",
+          pessoa.titular().id(),
+          pessoa.acompanhante().id());
     } else {
-      jdbcTemplate.update("UPDATE pessoa SET fk_titular = NULL WHERE id = ?", pessoa.acompanhante().id());
+      jdbcTemplate.update(
+          "UPDATE pessoa SET fk_titular = NULL WHERE id = ?", pessoa.acompanhante().id());
     }
   }
 
   public Boolean cpfJaExiste(String cpf) {
     return jdbcTemplate.queryForObject(
-            """
+        """
                     SELECT COUNT(*) > 0
                     FROM pessoa
                     WHERE cpf = ?
                     """,
-            Boolean.class,
-            cpf);
+        Boolean.class,
+        cpf);
   }
 
   public Boolean emailJaExiste(String email) {
     return jdbcTemplate.queryForObject(
-            """
+        """
                     SELECT COUNT(*) > 0
                     FROM pessoa
                     WHERE email = ?
                     """,
-            Boolean.class,
-            email);
+        Boolean.class,
+        email);
   }
 
   public Boolean telefoneJaExiste(String telefone) {
     return jdbcTemplate.queryForObject(
-            """
+        """
                     SELECT COUNT(*) > 0
                     FROM pessoa
                     WHERE telefone = ?
                     """,
-            Boolean.class,
-            telefone);
+        Boolean.class,
+        telefone);
   }
 
   public Boolean placaJaExiste(String placa) {
     return jdbcTemplate.queryForObject(
-            """
+        """
                     SELECT COUNT(*) > 0
                     FROM veiculo
                     WHERE placa = ?
                     """,
-            Boolean.class,
-            placa);
+        Boolean.class,
+        placa);
   }
 }

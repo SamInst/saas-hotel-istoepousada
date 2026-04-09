@@ -19,12 +19,12 @@ public class VeiculoRepository {
   public Veiculo findById(Long id) {
     String sql =
         """
-            SELECT 
-                id     as veiculo_id, 
-                modelo as veiculo_modelo, 
-                marca  as veiculo_marca, 
-                ano    as veiculo_ano, 
-                placa  as veiculo_placa, 
+            SELECT
+                id     as veiculo_id,
+                modelo as veiculo_modelo,
+                marca  as veiculo_marca,
+                ano    as veiculo_ano,
+                placa  as veiculo_placa,
                 cor    as veiculo_cor
             FROM veiculo
             WHERE id = ?

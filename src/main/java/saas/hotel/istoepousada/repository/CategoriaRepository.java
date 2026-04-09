@@ -102,7 +102,8 @@ public class CategoriaRepository {
         LEFT JOIN public.pessoa p ON p.id = f.fk_pessoa
         WHERE c.id IN (%s)
         ORDER BY c.nome ASC NULLS LAST, c.id ASC
-        """.formatted(in);
+        """
+            .formatted(in);
 
     List<Categoria> bases = jdbcTemplate.query(baseSql, Categoria.ROW_MAPPER, ids.toArray());
     List<Categoria> content = enriquecerLista(bases, ids);
@@ -159,8 +160,14 @@ public class CategoriaRepository {
             request.hora_checkout());
 
     // null = nova categoria, qualquer vínculo de quarto existente é conflito
-    salvarSubDados(categoriaId, null, request.modelos_ocupacao(), request.modelos_fixo(),
-        request.day_use(), request.fk_quartos(), request.fk_sazonalidades(),
+    salvarSubDados(
+        categoriaId,
+        null,
+        request.modelos_ocupacao(),
+        request.modelos_fixo(),
+        request.day_use(),
+        request.fk_quartos(),
+        request.fk_sazonalidades(),
         request.menores_idade());
 
     return findByIdOrThrow(categoriaId);
@@ -194,8 +201,14 @@ public class CategoriaRepository {
     deletarSubDados(request.id());
 
     // request.id() = categoria atual, quartos de outra categoria são conflito
-    salvarSubDados(request.id(), request.id(), request.modelos_ocupacao(), request.modelos_fixo(),
-        request.day_use(), request.fk_quartos(), request.fk_sazonalidades(),
+    salvarSubDados(
+        request.id(),
+        request.id(),
+        request.modelos_ocupacao(),
+        request.modelos_fixo(),
+        request.day_use(),
+        request.fk_quartos(),
+        request.fk_sazonalidades(),
         request.menores_idade());
 
     return findByIdOrThrow(request.id());
@@ -222,7 +235,10 @@ public class CategoriaRepository {
             INSERT INTO public.modelo_ocupacao (fk_categoria, fk_sazonalidade, fk_funcionario, data_hora_cadastro, quantidade, valor)
             VALUES (?, null, ?, now(), ?, ?)
             """,
-            categoriaId, fkFunc, mo.quantidade(), mo.valor());
+            categoriaId,
+            fkFunc,
+            mo.quantidade(),
+            mo.valor());
       }
     }
 
@@ -233,7 +249,9 @@ public class CategoriaRepository {
             INSERT INTO public.modelo_fixo (fk_categoria, fk_sazonalidade, fk_funcionario, data_hora_cadastro, valor)
             VALUES (?, null, ?, now(), ?)
             """,
-            categoriaId, fkFunc, mf.valor());
+            categoriaId,
+            fkFunc,
+            mf.valor());
       }
     }
 
@@ -247,7 +265,9 @@ public class CategoriaRepository {
                 RETURNING id
                 """,
                 Long.class,
-                categoriaId, fkFunc, duo.ativo());
+                categoriaId,
+                fkFunc,
+                duo.ativo());
 
         if (duo.padrao() != null) {
           var p = duo.padrao();
@@ -256,8 +276,11 @@ public class CategoriaRepository {
               INSERT INTO public.day_use_modelo_padrao (fk_day_use_modelo_operacao, fk_sazonalidade, fk_funcionario, data_hora_cadastro, preco_base, hora_preco_base, valor_hora_adicional)
               VALUES (?, null, ?, now(), ?, ?, ?)
               """,
-              operacaoId, fkFunc,
-              p.preco_base(), p.hora_preco_base(), p.valor_hora_adicional());
+              operacaoId,
+              fkFunc,
+              p.preco_base(),
+              p.hora_preco_base(),
+              p.valor_hora_adicional());
         }
 
         if (duo.ocupacoes() != null) {
@@ -270,7 +293,9 @@ public class CategoriaRepository {
                     RETURNING id
                     """,
                     Long.class,
-                    operacaoId, fkFunc, oc.quantidade_pessoa());
+                    operacaoId,
+                    fkFunc,
+                    oc.quantidade_pessoa());
 
             if (oc.quantidades() != null) {
               for (var q : oc.quantidades()) {
@@ -279,7 +304,10 @@ public class CategoriaRepository {
                     INSERT INTO public.day_use_modelo_ocupacao_quantidade_pessoa (fk_day_use_modelo_ocupacao, fk_funcionario, data_hora_cadastro, quantidade, valor, valor_hora_adicional_por_pessoa)
                     VALUES (?, ?, now(), ?, ?, ?)
                     """,
-                    ocupacaoId, fkFunc, q.quantidade(), q.valor(),
+                    ocupacaoId,
+                    fkFunc,
+                    q.quantidade(),
+                    q.valor(),
                     q.valor_hora_adicional_por_pessoa());
               }
             }
@@ -296,7 +324,9 @@ public class CategoriaRepository {
             INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, fk_funcionario, data_hora_cadastro)
             VALUES (?, ?, ?, now())
             """,
-            fkQuarto, categoriaId, fkFunc);
+            fkQuarto,
+            categoriaId,
+            fkFunc);
       }
     }
 
@@ -307,7 +337,9 @@ public class CategoriaRepository {
             INSERT INTO public.categoria_sazonalidade (fk_categoria, fk_sazonalidade, fk_funcionario, data_hora_cadastro, ativo)
             VALUES (?, ?, ?, now(), true)
             """,
-            categoriaId, fkSazon, fkFunc);
+            categoriaId,
+            fkSazon,
+            fkFunc);
       }
     }
 
@@ -321,15 +353,16 @@ public class CategoriaRepository {
                 RETURNING id
                 """,
                 Long.class,
-                fkFunc, categoriaId, mi.idade_gratuidade());
+                fkFunc,
+                categoriaId,
+                mi.idade_gratuidade());
 
         salvarSubModeloMenorIdade(menorId, fkFunc, mi);
       }
     }
   }
 
-  private void salvarSubModeloMenorIdade(
-      Long menorId, Long fkFunc, Categoria.MenorIdade.Input mi) {
+  private void salvarSubModeloMenorIdade(Long menorId, Long fkFunc, Categoria.MenorIdade.Input mi) {
     switch (mi.modelo()) {
       case TAXA_ADICIONAL_FIXA -> {
         if (mi.taxas_fixas() != null) {
@@ -339,7 +372,10 @@ public class CategoriaRepository {
                 INSERT INTO public.menor_idade_modelo_taxa_adicional_fixa (fk_menor_idade, fk_funcionario, data_hora_cadastro, idade_maxima, valor_por_crianca)
                 VALUES (?, ?, now(), ?, ?)
                 """,
-                menorId, fkFunc, tf.idade_maxima(), tf.valor_por_crianca());
+                menorId,
+                fkFunc,
+                tf.idade_maxima(),
+                tf.valor_por_crianca());
           }
         }
       }
@@ -351,7 +387,10 @@ public class CategoriaRepository {
                 INSERT INTO public.menor_idade_modelo_taxa_adicional_por_quantidade (fk_menor_idade, fk_funcionario, data_hora_cadastro, quantidade_crianca, valor)
                 VALUES (?, ?, now(), ?, ?)
                 """,
-                menorId, fkFunc, tq.quantidade_crianca(), tq.valor());
+                menorId,
+                fkFunc,
+                tq.quantidade_crianca(),
+                tq.valor());
           }
         }
       }
@@ -367,7 +406,10 @@ public class CategoriaRepository {
                 INSERT INTO public.menor_idade_modelo_faixa_etaria (fk_menor_idade, fk_funcionario, data_hora_cadastro, faixa_etaria, valor)
                 VALUES (?, ?, now(), ?, ?)
                 """,
-                menorId, fkFunc, faixaArray, fe.valor());
+                menorId,
+                fkFunc,
+                faixaArray,
+                fe.valor());
           }
         }
       }
@@ -379,7 +421,10 @@ public class CategoriaRepository {
                 INSERT INTO public.menor_idade_modelo_porcentagem_por_quantidade (fk_menor_idade, fk_funcionario, data_hora_cadastro, quantidade, porcentagem)
                 VALUES (?, ?, now(), ?, ?)
                 """,
-                menorId, fkFunc, pq.quantidade(), pq.porcentagem());
+                menorId,
+                fkFunc,
+                pq.quantidade(),
+                pq.porcentagem());
           }
         }
       }
@@ -397,10 +442,26 @@ public class CategoriaRepository {
     if (!menorIds.isEmpty()) {
       String inMenor = String.join(",", Collections.nCopies(menorIds.size(), "?"));
       Object[] menorArr = menorIds.toArray();
-      jdbcTemplate.update("DELETE FROM public.menor_idade_modelo_taxa_adicional_fixa WHERE fk_menor_idade IN (" + inMenor + ")", menorArr);
-      jdbcTemplate.update("DELETE FROM public.menor_idade_modelo_taxa_adicional_por_quantidade WHERE fk_menor_idade IN (" + inMenor + ")", menorArr);
-      jdbcTemplate.update("DELETE FROM public.menor_idade_modelo_faixa_etaria WHERE fk_menor_idade IN (" + inMenor + ")", menorArr);
-      jdbcTemplate.update("DELETE FROM public.menor_idade_modelo_porcentagem_por_quantidade WHERE fk_menor_idade IN (" + inMenor + ")", menorArr);
+      jdbcTemplate.update(
+          "DELETE FROM public.menor_idade_modelo_taxa_adicional_fixa WHERE fk_menor_idade IN ("
+              + inMenor
+              + ")",
+          menorArr);
+      jdbcTemplate.update(
+          "DELETE FROM public.menor_idade_modelo_taxa_adicional_por_quantidade WHERE fk_menor_idade IN ("
+              + inMenor
+              + ")",
+          menorArr);
+      jdbcTemplate.update(
+          "DELETE FROM public.menor_idade_modelo_faixa_etaria WHERE fk_menor_idade IN ("
+              + inMenor
+              + ")",
+          menorArr);
+      jdbcTemplate.update(
+          "DELETE FROM public.menor_idade_modelo_porcentagem_por_quantidade WHERE fk_menor_idade IN ("
+              + inMenor
+              + ")",
+          menorArr);
     }
     jdbcTemplate.update("DELETE FROM public.menor_idade WHERE fk_categoria = ?", categoriaId);
 
@@ -414,28 +475,42 @@ public class CategoriaRepository {
     if (!operacaoIds.isEmpty()) {
       String inOp = String.join(",", Collections.nCopies(operacaoIds.size(), "?"));
       Object[] opArr = operacaoIds.toArray();
-      jdbcTemplate.update("DELETE FROM public.day_use_modelo_padrao WHERE fk_day_use_modelo_operacao IN (" + inOp + ")", opArr);
+      jdbcTemplate.update(
+          "DELETE FROM public.day_use_modelo_padrao WHERE fk_day_use_modelo_operacao IN ("
+              + inOp
+              + ")",
+          opArr);
 
       List<Long> ocupacaoIds =
           jdbcTemplate.query(
-              "SELECT id FROM public.day_use_modelo_ocupacao WHERE fk_day_use_modelo_operacao IN (" + inOp + ")",
+              "SELECT id FROM public.day_use_modelo_ocupacao WHERE fk_day_use_modelo_operacao IN ("
+                  + inOp
+                  + ")",
               (rs, rowNum) -> rs.getLong("id"),
               opArr);
 
       if (!ocupacaoIds.isEmpty()) {
         String inOc = String.join(",", Collections.nCopies(ocupacaoIds.size(), "?"));
         jdbcTemplate.update(
-            "DELETE FROM public.day_use_modelo_ocupacao_quantidade_pessoa WHERE fk_day_use_modelo_ocupacao IN (" + inOc + ")",
+            "DELETE FROM public.day_use_modelo_ocupacao_quantidade_pessoa WHERE fk_day_use_modelo_ocupacao IN ("
+                + inOc
+                + ")",
             ocupacaoIds.toArray());
       }
-      jdbcTemplate.update("DELETE FROM public.day_use_modelo_ocupacao WHERE fk_day_use_modelo_operacao IN (" + inOp + ")", opArr);
+      jdbcTemplate.update(
+          "DELETE FROM public.day_use_modelo_ocupacao WHERE fk_day_use_modelo_operacao IN ("
+              + inOp
+              + ")",
+          opArr);
     }
-    jdbcTemplate.update("DELETE FROM public.day_use_modelo_operacao WHERE fk_categoria = ?", categoriaId);
+    jdbcTemplate.update(
+        "DELETE FROM public.day_use_modelo_operacao WHERE fk_categoria = ?", categoriaId);
 
     jdbcTemplate.update("DELETE FROM public.modelo_ocupacao WHERE fk_categoria = ?", categoriaId);
     jdbcTemplate.update("DELETE FROM public.modelo_fixo WHERE fk_categoria = ?", categoriaId);
     jdbcTemplate.update("DELETE FROM public.quarto_categoria WHERE fk_categoria = ?", categoriaId);
-    jdbcTemplate.update("DELETE FROM public.categoria_sazonalidade WHERE fk_categoria = ?", categoriaId);
+    jdbcTemplate.update(
+        "DELETE FROM public.categoria_sazonalidade WHERE fk_categoria = ?", categoriaId);
   }
 
   // ── Helpers de enriquecimento (leitura) ───────────────────────────────────
@@ -509,7 +584,8 @@ public class CategoriaRepository {
         LEFT JOIN public.sazonalidade s ON s.id = mo.fk_sazonalidade
         WHERE mo.fk_categoria IN (%s)
         ORDER BY mo.fk_categoria, mo.id
-        """.formatted(in);
+        """
+            .formatted(in);
 
     Map<Long, List<Categoria.ModeloOcupacao>> map = new LinkedHashMap<>();
     jdbcTemplate.query(
@@ -536,7 +612,8 @@ public class CategoriaRepository {
         LEFT JOIN public.sazonalidade s ON s.id = mf.fk_sazonalidade
         WHERE mf.fk_categoria IN (%s)
         ORDER BY mf.fk_categoria, mf.id
-        """.formatted(in);
+        """
+            .formatted(in);
 
     Map<Long, List<Categoria.ModeloFixo>> map = new LinkedHashMap<>();
     jdbcTemplate.query(
@@ -564,7 +641,8 @@ public class CategoriaRepository {
         LEFT JOIN public.sazonalidade s ON s.id = duo.fk_sazonalidade
         WHERE duo.fk_categoria IN (%s)
         ORDER BY duo.fk_categoria, duo.id
-        """.formatted(in);
+        """
+            .formatted(in);
 
     Map<Long, List<Categoria.DayUseOperacao>> operacoesMap = new LinkedHashMap<>();
     Map<Long, Long> operacaoCatMap = new LinkedHashMap<>();
@@ -582,8 +660,9 @@ public class CategoriaRepository {
                   : new Sazonalidade.Nome(sazonId, rs.getString("duo_sazonalidade_descricao"));
           operacoesMap
               .computeIfAbsent(catId, k -> new ArrayList<>())
-              .add(new Categoria.DayUseOperacao(
-                  operacaoId, sazon, rs.getBoolean("duo_ativo"), null, new ArrayList<>()));
+              .add(
+                  new Categoria.DayUseOperacao(
+                      operacaoId, sazon, rs.getBoolean("duo_ativo"), null, new ArrayList<>()));
         },
         ids);
 
@@ -620,7 +699,8 @@ public class CategoriaRepository {
           dup.valor_hora_adicional       AS dup_valor_hora_adicional
         FROM public.day_use_modelo_padrao dup
         WHERE dup.fk_day_use_modelo_operacao IN (%s)
-        """.formatted(in);
+        """
+            .formatted(in);
 
     Map<Long, Categoria.DayUsePadrao> map = new LinkedHashMap<>();
     jdbcTemplate.query(
@@ -649,7 +729,8 @@ public class CategoriaRepository {
         LEFT JOIN public.day_use_modelo_ocupacao_quantidade_pessoa duop ON duop.fk_day_use_modelo_ocupacao = duo.id
         WHERE duo.fk_day_use_modelo_operacao IN (%s)
         ORDER BY duo.id, duop.quantidade ASC
-        """.formatted(in);
+        """
+            .formatted(in);
 
     Map<Long, List<Categoria.DayUseOcupacao>> byOperacao = new LinkedHashMap<>();
     Map<Long, Categoria.DayUseOcupacao> ocupacaoById = new LinkedHashMap<>();
@@ -697,7 +778,8 @@ public class CategoriaRepository {
         JOIN public.quarto q ON q.id = qc.fk_quarto
         WHERE qc.fk_categoria IN (%s)
         ORDER BY qc.fk_categoria, q.descricao
-        """.formatted(in);
+        """
+            .formatted(in);
 
     Map<Long, List<Quarto.Descricao>> map = new LinkedHashMap<>();
     jdbcTemplate.query(
@@ -722,7 +804,8 @@ public class CategoriaRepository {
         JOIN public.sazonalidade s ON s.id = cs.fk_sazonalidade
         WHERE cs.fk_categoria IN (%s)
         ORDER BY cs.fk_categoria, s.descricao
-        """.formatted(in);
+        """
+            .formatted(in);
 
     Map<Long, List<Sazonalidade.Nome>> map = new LinkedHashMap<>();
     jdbcTemplate.query(
@@ -730,7 +813,9 @@ public class CategoriaRepository {
         rs -> {
           Long catId = rs.getLong("cs_fk_categoria");
           map.computeIfAbsent(catId, k -> new ArrayList<>())
-              .add(new Sazonalidade.Nome(rs.getLong("sazonalidade_id"), rs.getString("sazonalidade_descricao")));
+              .add(
+                  new Sazonalidade.Nome(
+                      rs.getLong("sazonalidade_id"), rs.getString("sazonalidade_descricao")));
         },
         ids);
     return map;
@@ -749,7 +834,8 @@ public class CategoriaRepository {
         LEFT JOIN public.sazonalidade s ON s.id = mi.fk_sazonalidade
         WHERE mi.fk_categoria IN (%s)
         ORDER BY mi.fk_categoria, mi.id
-        """.formatted(in);
+        """
+            .formatted(in);
 
     Map<Long, List<Categoria.MenorIdade>> map = new LinkedHashMap<>();
     Map<Long, Long> menorCatMap = new LinkedHashMap<>();
@@ -766,10 +852,16 @@ public class CategoriaRepository {
                   ? null
                   : new Sazonalidade.Nome(sazonId, rs.getString("sazonalidade_descricao"));
           map.computeIfAbsent(catId, k -> new ArrayList<>())
-              .add(new Categoria.MenorIdade(
-                  menorId, sazon,
-                  rs.getObject("mi_idade_gratuidade", Integer.class),
-                  null, List.of(), List.of(), List.of(), List.of()));
+              .add(
+                  new Categoria.MenorIdade(
+                      menorId,
+                      sazon,
+                      rs.getObject("mi_idade_gratuidade", Integer.class),
+                      null,
+                      List.of(),
+                      List.of(),
+                      List.of(),
+                      List.of()));
         },
         ids);
 
@@ -779,9 +871,11 @@ public class CategoriaRepository {
     Object[] miIds = menorCatMap.keySet().toArray();
 
     Map<Long, List<Categoria.MenorTaxaFixa>> taxasFixas = carregarMenoresTaxasFixas(miIn, miIds);
-    Map<Long, List<Categoria.MenorTaxaPorQuantidade>> taxasQtd = carregarMenoresTaxasPorQuantidade(miIn, miIds);
+    Map<Long, List<Categoria.MenorTaxaPorQuantidade>> taxasQtd =
+        carregarMenoresTaxasPorQuantidade(miIn, miIds);
     Map<Long, List<Categoria.MenorFaixaEtaria>> faixas = carregarMenoresFaixasEtarias(miIn, miIds);
-    Map<Long, List<Categoria.MenorPorcentagemPorQuantidade>> porcentagens = carregarMenoresPorcentagens(miIn, miIds);
+    Map<Long, List<Categoria.MenorPorcentagemPorQuantidade>> porcentagens =
+        carregarMenoresPorcentagens(miIn, miIds);
 
     for (List<Categoria.MenorIdade> lista : map.values()) {
       lista.replaceAll(
@@ -789,10 +883,17 @@ public class CategoriaRepository {
             List<Categoria.MenorTaxaFixa> tf = taxasFixas.getOrDefault(mi.id(), List.of());
             List<Categoria.MenorTaxaPorQuantidade> tq = taxasQtd.getOrDefault(mi.id(), List.of());
             List<Categoria.MenorFaixaEtaria> fe = faixas.getOrDefault(mi.id(), List.of());
-            List<Categoria.MenorPorcentagemPorQuantidade> pq = porcentagens.getOrDefault(mi.id(), List.of());
+            List<Categoria.MenorPorcentagemPorQuantidade> pq =
+                porcentagens.getOrDefault(mi.id(), List.of());
             return new Categoria.MenorIdade(
-                mi.id(), mi.sazonalidade(), mi.idade_gratuidade(),
-                inferirModeloMenorIdade(tf, tq, fe, pq), tf, tq, fe, pq);
+                mi.id(),
+                mi.sazonalidade(),
+                mi.idade_gratuidade(),
+                inferirModeloMenorIdade(tf, tq, fe, pq),
+                tf,
+                tq,
+                fe,
+                pq);
           });
     }
 
@@ -818,12 +919,16 @@ public class CategoriaRepository {
         SELECT id AS mtf_id, fk_menor_idade AS mtf_fk, idade_maxima AS mtf_idade_maxima, valor_por_crianca AS mtf_valor_por_crianca
         FROM public.menor_idade_modelo_taxa_adicional_fixa WHERE fk_menor_idade IN (%s)
         ORDER BY fk_menor_idade, idade_maxima
-        """.formatted(in);
+        """
+            .formatted(in);
     Map<Long, List<Categoria.MenorTaxaFixa>> map = new LinkedHashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      map.computeIfAbsent(rs.getLong("mtf_fk"), k -> new ArrayList<>())
-          .add(Categoria.MenorTaxaFixa.ROW_MAPPER.mapRow(rs, 0));
-    }, ids);
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          map.computeIfAbsent(rs.getLong("mtf_fk"), k -> new ArrayList<>())
+              .add(Categoria.MenorTaxaFixa.ROW_MAPPER.mapRow(rs, 0));
+        },
+        ids);
     return map;
   }
 
@@ -834,12 +939,16 @@ public class CategoriaRepository {
         SELECT id AS mtq_id, fk_menor_idade AS mtq_fk, quantidade_crianca AS mtq_quantidade_crianca, valor AS mtq_valor
         FROM public.menor_idade_modelo_taxa_adicional_por_quantidade WHERE fk_menor_idade IN (%s)
         ORDER BY fk_menor_idade, quantidade_crianca
-        """.formatted(in);
+        """
+            .formatted(in);
     Map<Long, List<Categoria.MenorTaxaPorQuantidade>> map = new LinkedHashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      map.computeIfAbsent(rs.getLong("mtq_fk"), k -> new ArrayList<>())
-          .add(Categoria.MenorTaxaPorQuantidade.ROW_MAPPER.mapRow(rs, 0));
-    }, ids);
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          map.computeIfAbsent(rs.getLong("mtq_fk"), k -> new ArrayList<>())
+              .add(Categoria.MenorTaxaPorQuantidade.ROW_MAPPER.mapRow(rs, 0));
+        },
+        ids);
     return map;
   }
 
@@ -850,12 +959,16 @@ public class CategoriaRepository {
         SELECT id AS mfe_id, fk_menor_idade AS mfe_fk, faixa_etaria AS mfe_faixa_etaria, valor AS mfe_valor
         FROM public.menor_idade_modelo_faixa_etaria WHERE fk_menor_idade IN (%s)
         ORDER BY fk_menor_idade, id
-        """.formatted(in);
+        """
+            .formatted(in);
     Map<Long, List<Categoria.MenorFaixaEtaria>> map = new LinkedHashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      map.computeIfAbsent(rs.getLong("mfe_fk"), k -> new ArrayList<>())
-          .add(Categoria.MenorFaixaEtaria.ROW_MAPPER.mapRow(rs, 0));
-    }, ids);
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          map.computeIfAbsent(rs.getLong("mfe_fk"), k -> new ArrayList<>())
+              .add(Categoria.MenorFaixaEtaria.ROW_MAPPER.mapRow(rs, 0));
+        },
+        ids);
     return map;
   }
 
@@ -866,20 +979,24 @@ public class CategoriaRepository {
         SELECT id AS mpq_id, fk_menor_idade AS mpq_fk, quantidade AS mpq_quantidade, porcentagem AS mpq_porcentagem
         FROM public.menor_idade_modelo_porcentagem_por_quantidade WHERE fk_menor_idade IN (%s)
         ORDER BY fk_menor_idade, quantidade
-        """.formatted(in);
+        """
+            .formatted(in);
     Map<Long, List<Categoria.MenorPorcentagemPorQuantidade>> map = new LinkedHashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      map.computeIfAbsent(rs.getLong("mpq_fk"), k -> new ArrayList<>())
-          .add(Categoria.MenorPorcentagemPorQuantidade.ROW_MAPPER.mapRow(rs, 0));
-    }, ids);
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          map.computeIfAbsent(rs.getLong("mpq_fk"), k -> new ArrayList<>())
+              .add(Categoria.MenorPorcentagemPorQuantidade.ROW_MAPPER.mapRow(rs, 0));
+        },
+        ids);
     return map;
   }
 
   // ── Utilitário ────────────────────────────────────────────────────────────
 
   /**
-   * Verifica se algum dos quartos já pertence a uma categoria diferente de categoriaId.
-   * No INSERT, categoriaId é null (categoria ainda não existe) → qualquer vínculo existente é erro.
+   * Verifica se algum dos quartos já pertence a uma categoria diferente de categoriaId. No INSERT,
+   * categoriaId é null (categoria ainda não existe) → qualquer vínculo existente é erro.
    */
   private void validarQuartosDisponiveis(List<Long> fkQuartos, Long categoriaId) {
     if (fkQuartos == null || fkQuartos.isEmpty()) return;
@@ -897,7 +1014,8 @@ public class CategoriaRepository {
           JOIN public.quarto q ON q.id = qc.fk_quarto
           WHERE qc.fk_quarto IN (%s)
             AND qc.fk_categoria != ?
-          """.formatted(in);
+          """
+              .formatted(in);
       params.add(categoriaId);
     } else {
       sql =
@@ -906,10 +1024,12 @@ public class CategoriaRepository {
           FROM public.quarto_categoria qc
           JOIN public.quarto q ON q.id = qc.fk_quarto
           WHERE qc.fk_quarto IN (%s)
-          """.formatted(in);
+          """
+              .formatted(in);
     }
 
-    List<String> ocupados = jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString("descricao"), params.toArray());
+    List<String> ocupados =
+        jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString("descricao"), params.toArray());
 
     if (!ocupados.isEmpty()) {
       throw new IllegalArgumentException(

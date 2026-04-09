@@ -22,6 +22,9 @@ public record Sazonalidade(
     @JsonFormat(pattern = "HH:mm") LocalTime hora_checkin,
     @JsonFormat(pattern = "HH:mm") LocalTime hora_checkout,
     List<CategoriaVinculo> categorias,
+    List<Categoria.ModeloOcupacao> modelos_ocupacao,
+    List<Categoria.ModeloFixo> modelos_fixo,
+    List<Categoria.DayUseOperacao> day_use,
     List<Categoria.MenorIdade> menores_idade) {
 
   public record Id(@NotNull Long id) {}
@@ -59,6 +62,9 @@ public record Sazonalidade(
       List<Integer> anual,
       @JsonFormat(pattern = "HH:mm") LocalTime hora_checkin,
       @JsonFormat(pattern = "HH:mm") LocalTime hora_checkout,
+      List<Categoria.ModeloOcupacao.Input> modelos_ocupacao,
+      List<Categoria.ModeloFixo.Input> modelos_fixo,
+      List<Categoria.DayUseOperacao.Input> day_use,
       List<Long> fk_categorias,
       List<Categoria.MenorIdade.Input> menores_idade) {}
 
@@ -74,18 +80,18 @@ public record Sazonalidade(
       List<Integer> anual,
       @JsonFormat(pattern = "HH:mm") LocalTime hora_checkin,
       @JsonFormat(pattern = "HH:mm") LocalTime hora_checkout,
+      List<Categoria.ModeloOcupacao.Input> modelos_ocupacao,
+      List<Categoria.ModeloFixo.Input> modelos_fixo,
+      List<Categoria.DayUseOperacao.Input> day_use,
       List<Long> fk_categorias,
       List<Categoria.MenorIdade.Input> menores_idade) {}
 
   // ── Vínculo requests ──────────────────────────────────────────────────────
 
   public record VinculoCategoriaRequest(
-      @NotNull Long fk_sazonalidade,
-      @NotNull Long fk_categoria) {}
+      @NotNull Long fk_sazonalidade, @NotNull Long fk_categoria) {}
 
-  public record VinculoCategoriaToggle(
-      @NotNull Long id,
-      @NotNull Boolean ativo) {}
+  public record VinculoCategoriaToggle(@NotNull Long id, @NotNull Boolean ativo) {}
 
   // ── RowMapper ─────────────────────────────────────────────────────────────
 
@@ -113,5 +119,9 @@ public record Sazonalidade(
               parseIntArray(rs.getArray("sazonalidade_anual")),
               rs.getObject("sazonalidade_hora_checkin", LocalTime.class),
               rs.getObject("sazonalidade_hora_checkout", LocalTime.class),
-              null, null);
+              null,
+              null,
+              null,
+              null,
+              null);
 }

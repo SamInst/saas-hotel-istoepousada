@@ -27,17 +27,15 @@ public class UsuarioController {
   }
 
   @PatchMapping("/{id}/bloqueio")
-  public Usuario alterarStatusBloqueio(
-      @PathVariable Long id,
-      @RequestParam Boolean bloqueado) {
+  public Usuario alterarStatusBloqueio(@PathVariable Long id, @RequestParam Boolean bloqueado) {
     return usuarioService.bloquear(id, bloqueado);
   }
 
   @PostMapping("/autenticar")
   public AutenticacaoResponse autenticar(@RequestBody AutenticacaoRequest request) {
     boolean autenticado = usuarioService.autenticar(request.username(), request.senha());
-    return autenticado ?
-            new AutenticacaoResponse(true, "Login bem-sucedido")
-            : new AutenticacaoResponse(false, "Credenciais inválidas");
+    return autenticado
+        ? new AutenticacaoResponse(true, "Login bem-sucedido")
+        : new AutenticacaoResponse(false, "Credenciais inválidas");
   }
 }

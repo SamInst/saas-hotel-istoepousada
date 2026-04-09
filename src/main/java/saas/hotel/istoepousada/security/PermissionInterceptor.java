@@ -30,7 +30,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
     if (!(handler instanceof HandlerMethod handlerMethod)) return true;
 
     if (handlerMethod.hasMethodAnnotation(PublicEndpoint.class)
-            || handlerMethod.getBeanType().isAnnotationPresent(PublicEndpoint.class)) {
+        || handlerMethod.getBeanType().isAnnotationPresent(PublicEndpoint.class)) {
       return true;
     }
 
@@ -83,7 +83,8 @@ public class PermissionInterceptor implements HandlerInterceptor {
             response,
             HttpServletResponse.SC_FORBIDDEN,
             "Forbidden",
-            "Você não tem permissão para acessar esse recurso. Telas permitidas: " + telasPermitidas);
+            "Você não tem permissão para acessar esse recurso. Telas permitidas: "
+                + telasPermitidas);
         return false;
       }
       return true;

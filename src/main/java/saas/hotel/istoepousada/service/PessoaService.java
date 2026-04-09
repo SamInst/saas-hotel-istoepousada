@@ -144,8 +144,7 @@ public class PessoaService {
             titular_salvo.funcionario(),
             titular_salvo.titular(),
             acompanhantes_salvos,
-            titular_salvo.profissao()
-        );
+            titular_salvo.profissao());
 
     List<Pessoa> retorno = new ArrayList<>();
     retorno.add(titularComAcompanhantes);
@@ -159,12 +158,7 @@ public class PessoaService {
     Pessoa new_pessoa = pessoaRepository.insert(pessoa);
 
     pessoaRepository.vincularTitular(
-            new Pessoa.VinculoTitular(
-                    new Pessoa.Id(titular_id),
-                    new Pessoa.Id(new_pessoa.id()),
-                    true
-            )
-    );
+        new Pessoa.VinculoTitular(new Pessoa.Id(titular_id), new Pessoa.Id(new_pessoa.id()), true));
     return salvarOuAtualizarVeiculos(new_pessoa, pessoa.veiculos());
   }
 
@@ -176,7 +170,9 @@ public class PessoaService {
     List<Veiculo> veiculosExistentes = veiculoService.findAllByPessoaId(salva.id());
 
     if (veiculosExistentes.isEmpty()) {
-      if (veiculos.isEmpty()) {return salva;}
+      if (veiculos.isEmpty()) {
+        return salva;
+      }
 
       List<Veiculo> veiculosSalvos = new ArrayList<>(veiculos.size());
 
@@ -294,23 +290,26 @@ public class PessoaService {
       throw new IllegalArgumentException("Número já cadastrado.");
     }
     if (pessoa.veiculos() != null && !pessoa.veiculos().isEmpty()) {
-      pessoa.veiculos().forEach(veiculo -> {
-        if (veiculo.modelo() == null) {
-          throw new IllegalArgumentException("Modelo do veículo é obrigatório.");
-        }
-        if (veiculo.marca() == null) {
-          throw new IllegalArgumentException("Marca do veículo é obrigatória.");
-        }
-        if (veiculo.placa() == null) {
-          throw new IllegalArgumentException("Placa do veículo é obrigatória.");
-        }
-        if (veiculo.placa().isEmpty()) {
-          throw new IllegalArgumentException("Placa do veículo não pode ser vazia.");
-        }
-        if (pessoaRepository.placaJaExiste(veiculo.placa())) {
-          throw new IllegalArgumentException("Placa do veículo já cadastrada.");
-        }
-      });
+      pessoa
+          .veiculos()
+          .forEach(
+              veiculo -> {
+                if (veiculo.modelo() == null) {
+                  throw new IllegalArgumentException("Modelo do veículo é obrigatório.");
+                }
+                if (veiculo.marca() == null) {
+                  throw new IllegalArgumentException("Marca do veículo é obrigatória.");
+                }
+                if (veiculo.placa() == null) {
+                  throw new IllegalArgumentException("Placa do veículo é obrigatória.");
+                }
+                if (veiculo.placa().isEmpty()) {
+                  throw new IllegalArgumentException("Placa do veículo não pode ser vazia.");
+                }
+                if (pessoaRepository.placaJaExiste(veiculo.placa())) {
+                  throw new IllegalArgumentException("Placa do veículo já cadastrada.");
+                }
+              });
     }
   }
 
