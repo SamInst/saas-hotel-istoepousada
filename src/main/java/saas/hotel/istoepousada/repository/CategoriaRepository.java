@@ -64,7 +64,7 @@ public class CategoriaRepository {
       total = 0L;
     }
 
-    if (total == null || total == 0) {
+    if (total == 0) {
       return new PageImpl<>(List.of(), pageable, 0);
     }
 
@@ -791,7 +791,7 @@ public class CategoriaRepository {
         FROM public.quarto_categoria qc
         JOIN public.quarto q ON q.id = qc.fk_quarto
         WHERE qc.fk_categoria IN (%s)
-        ORDER BY qc.fk_categoria, q.descricao
+        ORDER BY qc.fk_categoria, q.id ASC
         """
             .formatted(in);
 

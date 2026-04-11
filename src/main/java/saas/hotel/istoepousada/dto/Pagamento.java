@@ -17,8 +17,32 @@ public record Pagamento(
     @NotNull Float valor,
     Boolean cancelado,
     Desconto desconto,
-    String path_arquivo) {
+    String path_arquivo,
+    MotivoCancelamento motivo_cancelamento) {
   public record Uuid(@NotNull UUID uuid) {}
+
+  public record CancelamentoRequest(@NotNull String motivo_cancelamento) {}
+
+  public record MotivoCancelamento(
+      @NotNull UUID id,
+      @NotNull String motivo_cancelamento,
+      Funcionario.Nome funcionario,
+      @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime data_hora_registro) {
+
+    public static final RowMapper<MotivoCancelamento> ROW_MAPPER =
+        (rs, rowNum) -> {
+          UUID motivoId = rs.getObject("pagamento_motivo_id", UUID.class);
+          if (motivoId == null) return null;
+          Long funcId = rs.getObject("pagamento_motivo_funcionario_id", Long.class);
+          return new MotivoCancelamento(
+              motivoId,
+              rs.getString("pagamento_motivo_cancelamento"),
+              funcId == null
+                  ? null
+                  : new Funcionario.Nome(funcId, rs.getString("pagamento_motivo_funcionario_nome")),
+              rs.getObject("pagamento_motivo_data_hora_registro", LocalDateTime.class));
+        };
+  }
 
   public record Request(
       @NotNull TipoPagamento.Id tipo_pagamento,
@@ -96,6 +120,7 @@ public record Pagamento(
                 : rs.getObject("pagamento_valor", Float.class),
             rs.getBoolean("pagamento_cancelado"),
             Pagamento.Desconto.ROW_MAPPER.mapRow(rs, row_num),
-            rs.getString("pagamento_path_arquivo"));
+            rs.getString("pagamento_path_arquivo"),
+            Pagamento.MotivoCancelamento.ROW_MAPPER.mapRow(rs, row_num));
       };
 }

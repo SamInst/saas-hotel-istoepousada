@@ -78,6 +78,22 @@ public class ReservaController {
     return reservaService.atualizar(update);
   }
 
+  /** Adiciona uma pessoa a uma reserva existente. */
+  @PostMapping("/{id}/pessoa")
+  @ResponseStatus(HttpStatus.CREATED)
+  public Reserva adicionarPessoa(
+      @PathVariable Long id, @RequestBody @Valid Reserva.PessoaRequest request) {
+    return reservaService.adicionarPessoa(id, request);
+  }
+
+  /** Adiciona um pagamento a uma reserva existente. */
+  @PostMapping("/{id}/pagamento")
+  @ResponseStatus(HttpStatus.CREATED)
+  public Reserva adicionarPagamento(
+      @PathVariable Long id, @RequestBody @Valid Reserva.PagamentoReservaRequest request) {
+    return reservaService.adicionarPagamento(id, request);
+  }
+
   /** Cancela uma reserva. */
   @PutMapping("/{id}/cancelar")
   @ResponseStatus(HttpStatus.NO_CONTENT)

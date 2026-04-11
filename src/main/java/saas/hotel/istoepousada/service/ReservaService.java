@@ -104,8 +104,9 @@ public class ReservaService {
     Long reservaId = reservaRepository.insertAndGetId(req.fk_quarto(), entrada, saida);
 
     if (req.pessoas() != null) {
-      for (Reserva.PessoaRequest p : req.pessoas()) {
-        reservaRepository.vincularPessoa(reservaId, p.fk_pessoa(), p.representante());
+      for (int i = 0; i < req.pessoas().size(); i++) {
+        Reserva.PessoaRequest p = req.pessoas().get(i);
+        reservaRepository.vincularPessoa(reservaId, p.fk_pessoa(), i == 0);
       }
     }
 
@@ -170,6 +171,31 @@ public class ReservaService {
     }
 
     return reservaRepository.update(update.id(), update.fk_quarto(), novaEntrada, novaSaida);
+  }
+
+  // ── Adição avulsa ─────────────────────────────────────────────────────────
+
+  @Transactional
+  public Reserva adicionarPessoa(Long reservaId, Reserva.PessoaRequest request) {
+    if (reservaId == null) throw new IllegalArgumentException("Id da reserva é obrigatório.");
+    if (request == null || request.fk_pessoa() == null)
+      throw new IllegalArgumentException("Pessoa é obrigatória.");
+    reservaRepository.findById(reservaId); // valida existência
+    reservaRepository.vincularPessoa(reservaId, request.fk_pessoa(), Boolean.TRUE.equals(request.representante()));
+    return reservaRepository.findById(reservaId);
+  }
+
+  @Transactional
+  public Reserva adicionarPagamento(Long reservaId, Reserva.PagamentoReservaRequest request) {
+    if (reservaId == null) throw new IllegalArgumentException("Id da reserva é obrigatório.");
+    if (request == null) throw new IllegalArgumentException("Pagamento é obrigatório.");
+    reservaRepository.findById(reservaId); // valida existência
+    Pagamento criado =
+        pagamentoRepository.create(
+            new Pagamento.Request(
+                request.tipo_pagamento(), request.nome_pagador(), request.descricao(), request.valor(), null, null));
+    reservaRepository.vincularPagamento(reservaId, criado.uuid());
+    return reservaRepository.findById(reservaId);
   }
 
   // ── Cancelamento ───────────────────────────────────────────────────────────

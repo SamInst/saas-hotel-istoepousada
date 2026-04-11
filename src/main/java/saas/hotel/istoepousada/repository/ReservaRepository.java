@@ -313,7 +313,12 @@ public class ReservaRepository {
           desp.nome                  AS pagamento_desconto_funcionario_nome,
           d.porcentagem              AS pagamento_desconto_porcentagem,
           d.valor                    AS pagamento_desconto_valor,
-          d.data_hora_registro       AS pagamento_desconto_data_hora_registro
+          d.data_hora_registro       AS pagamento_desconto_data_hora_registro,
+          mc.id                      AS pagamento_motivo_id,
+          mc.motivo_cancelamento     AS pagamento_motivo_cancelamento,
+          mcf.id                     AS pagamento_motivo_funcionario_id,
+          mcp.nome                   AS pagamento_motivo_funcionario_nome,
+          mc.data_hora_registro      AS pagamento_motivo_data_hora_registro
         FROM public.reserva_pagamento rpag
         JOIN public.pagamento pag ON pag.id = rpag.fk_pagamento
         JOIN public.tipo_pagamento tp ON tp.id = pag.fk_tipo_pagamento
@@ -328,6 +333,13 @@ public class ReservaRepository {
         ) d ON true
         LEFT JOIN public.funcionario desf ON desf.id = d.fk_funcionario
         LEFT JOIN public.pessoa desp ON desp.id = desf.fk_pessoa
+        LEFT JOIN LATERAL (
+          SELECT * FROM public.pagamento_motivo_cancelamento mc
+          WHERE mc.fk_pagamento = pag.id
+          ORDER BY mc.data_hora_registro DESC LIMIT 1
+        ) mc ON true
+        LEFT JOIN public.funcionario mcf ON mcf.id = mc.fk_funcionario
+        LEFT JOIN public.pessoa mcp ON mcp.id = mcf.fk_pessoa
         WHERE rpag.fk_reserva IN (%s)
         ORDER BY rpag.fk_reserva, rpag.data_hora_registro ASC
         """)

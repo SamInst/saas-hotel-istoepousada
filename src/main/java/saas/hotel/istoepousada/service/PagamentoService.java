@@ -36,7 +36,7 @@ public class PagamentoService {
   }
 
   @Transactional
-  public void cancelarPagamento(UUID id) {
-    pagamentoRepository.cancelarPagamento(id);
+  public void cancelarPagamento(UUID id, String motivo) {
+    pagamentoRepository.cancelarPagamento(id, motivo);
   }
 }

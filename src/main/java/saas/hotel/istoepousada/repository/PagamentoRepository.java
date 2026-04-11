@@ -40,7 +40,13 @@ public class PagamentoRepository {
                       pde.nome             AS pagamento_desconto_funcionario_nome,
                       d.porcentagem        AS pagamento_desconto_porcentagem,
                       d.valor              AS pagamento_desconto_valor,
-                      d.data_hora_registro AS pagamento_desconto_data_hora_registro
+                      d.data_hora_registro AS pagamento_desconto_data_hora_registro,
+
+                      mc.id                AS pagamento_motivo_id,
+                      mc.motivo_cancelamento AS pagamento_motivo_cancelamento,
+                      mcf.id               AS pagamento_motivo_funcionario_id,
+                      mcp.nome             AS pagamento_motivo_funcionario_nome,
+                      mc.data_hora_registro AS pagamento_motivo_data_hora_registro
                     FROM pagamento p
                     JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
                     LEFT JOIN funcionario f ON f.id = p.fk_funcionario
@@ -54,6 +60,15 @@ public class PagamentoRepository {
                     ) d ON true
                     LEFT JOIN funcionario df ON df.id = d.fk_funcionario
                     LEFT JOIN pessoa pde ON pde.id = df.fk_pessoa
+                    LEFT JOIN LATERAL (
+                      SELECT *
+                      FROM pagamento_motivo_cancelamento mc
+                      WHERE mc.fk_pagamento = p.id
+                      ORDER BY mc.data_hora_registro DESC
+                      LIMIT 1
+                    ) mc ON true
+                    LEFT JOIN funcionario mcf ON mcf.id = mc.fk_funcionario
+                    LEFT JOIN pessoa mcp ON mcp.id = mcf.fk_pessoa
                     """;
 
   public Pagamento create(Pagamento.Request pagamento) {
@@ -153,6 +168,22 @@ public class PagamentoRepository {
 
   public void cancelarPagamento(UUID id) {
     jdbcTemplate.update("update pagamento set cancelado = true WHERE id = ?", id);
+  }
+
+  public void cancelarPagamento(UUID id, String motivo) {
+    int rows = jdbcTemplate.update("UPDATE pagamento SET cancelado = true WHERE id = ?", id);
+    if (rows == 0) {
+      throw new IllegalArgumentException("Pagamento com uuid " + id + " não encontrado");
+    }
+    jdbcTemplate.update(
+            """
+            INSERT INTO public.pagamento_motivo_cancelamento
+              (fk_pagamento, fk_funcionario, motivo_cancelamento, data_hora_registro)
+            VALUES (?, ?, ?, NOW())
+            """,
+            id,
+            getFuncionarioIdFromRequest(),
+            motivo);
   }
 
   public Pagamento.Desconto findDescontoById(UUID uuid) {
