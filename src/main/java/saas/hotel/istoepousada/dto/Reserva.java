@@ -19,6 +19,8 @@ public record Reserva(
     Boolean ativa,
     Boolean hospedado,
     Boolean cancelado,
+    Float valor_total,
+    String observacao,
     List<ReservaPessoa> pessoas,
     List<ReservaPagamento> pagamentos) {
 
@@ -103,40 +105,41 @@ public record Reserva(
       @NotNull Long fk_quarto,
       @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
       @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
+      Integer quantidade_adultos,
+      List<Integer> idades_criancas,
+      String observacao,
       List<PessoaRequest> pessoas,
       List<PagamentoReservaRequest> pagamentos) {}
 
   /** Inserção de múltiplas reservas de uma vez. */
   public record BatchRequest(@NotNull List<Request> reservas) {}
 
-  /** Edição de uma reserva (somente campos de quarto e datas). */
+  /** Edição de uma reserva (quarto, datas e observação). */
   public record Update(
       @NotNull Long id,
       Long fk_quarto,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
-      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida) {}
+      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
+      String observacao) {}
 
   // ── Cálculo de preços ─────────────────────────────────────────────────────
 
   public record CalculoPrecosRequest(
       @NotNull Long fk_quarto,
-      @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
-      @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
+      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
+      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
       @NotNull Integer quantidade_adultos,
-      List<Integer> idades_criancas) {}
+      List<Integer> idades_criancas,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_inicio,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_fim) {}
 
   public record ItemPreco(String descricao, Double valor) {}
 
   public record ResultadoPreco(
-      Long fk_quarto,
-      String quarto_descricao,
-      Long fk_categoria,
-      String categoria_nome,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
-      Integer noites,
-      Double valor_base,
-      Double valor_criancas,
+      Integer diarias,
+      Double valor_diaria,
       Double valor_total,
       List<ItemPreco> detalhes) {}
 
@@ -164,6 +167,8 @@ public record Reserva(
             rs.getBoolean("reserva_ativa"),
             rs.getBoolean("reserva_hospedado"),
             rs.getBoolean("reserva_cancelado"),
+            rs.getObject("reserva_valor_total", Float.class),
+            rs.getString("reserva_observacao"),
             null,
             null);
       };

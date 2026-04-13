@@ -14,7 +14,8 @@
       "Bash(mvn compile:*)",
       "Bash(grep -E \"\\\\.\\(sql|md|txt\\)$\")",
       "Bash(./gradlew build:*)",
-      "Bash(./gradlew spotlessApply)"
+      "Bash(./gradlew spotlessApply)",
+      "Bash(./gradlew compileJava -q)"
     ]
   }
 }
