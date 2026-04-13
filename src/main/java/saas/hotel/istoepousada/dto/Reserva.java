@@ -107,6 +107,7 @@ public record Reserva(
       @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
       Integer quantidade_adultos,
       List<Integer> idades_criancas,
+      @JsonFormat(pattern = "dd/MM/yyyy") List<LocalDate> datas_nascimento,
       String observacao,
       List<PessoaRequest> pessoas,
       List<PagamentoReservaRequest> pagamentos) {}
@@ -133,14 +134,20 @@ public record Reserva(
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_inicio,
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_fim) {}
 
-  public record ItemPreco(String descricao, Double valor) {}
+  public record ItemPreco(
+      String descricao,
+      Double valor_base,
+      Double acrescimo_sazonalidade,
+      Double valor_final) {}
 
   public record ResultadoPreco(
+      Quarto.Descricao quarto,
+      Categoria.Nome categoria,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
       Integer diarias,
-      Double valor_diaria,
       Double valor_total,
+      List<Sazonalidade.Nome> sazonalidades_aplicadas,
       List<ItemPreco> detalhes) {}
 
   // ── RowMapper ──────────────────────────────────────────────────────────────
