@@ -176,14 +176,14 @@ public class PagamentoRepository {
       throw new IllegalArgumentException("Pagamento com uuid " + id + " não encontrado");
     }
     jdbcTemplate.update(
-            """
+        """
             INSERT INTO public.pagamento_motivo_cancelamento
               (fk_pagamento, fk_funcionario, motivo_cancelamento, data_hora_registro)
             VALUES (?, ?, ?, NOW())
             """,
-            id,
-            getFuncionarioIdFromRequest(),
-            motivo);
+        id,
+        getFuncionarioIdFromRequest(),
+        motivo);
   }
 
   public Pagamento.Desconto findDescontoById(UUID uuid) {

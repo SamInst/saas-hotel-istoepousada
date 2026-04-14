@@ -14,12 +14,12 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Categoria;
+import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.dto.Quarto;
 import saas.hotel.istoepousada.dto.Reserva;
 import saas.hotel.istoepousada.dto.Sazonalidade;
 import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.handler.exceptions.ConflictException;
-import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.repository.CategoriaRepository;
 import saas.hotel.istoepousada.repository.PagamentoRepository;
 import saas.hotel.istoepousada.repository.ReservaRepository;
@@ -140,7 +140,8 @@ public class ReservaService {
     }
 
     Long reservaId =
-        reservaRepository.insertAndGetId(req.fk_quarto(), entrada, saida, valorTotal, req.observacao());
+        reservaRepository.insertAndGetId(
+            req.fk_quarto(), entrada, saida, valorTotal, req.observacao());
 
     if (req.pessoas() != null) {
       for (int i = 0; i < req.pessoas().size(); i++) {
@@ -154,7 +155,12 @@ public class ReservaService {
         Pagamento criado =
             pagamentoRepository.create(
                 new Pagamento.Request(
-                    pg.tipo_pagamento(), pg.nome_pagador(), pg.descricao(), pg.valor(), null, null));
+                    pg.tipo_pagamento(),
+                    pg.nome_pagador(),
+                    pg.descricao(),
+                    pg.valor(),
+                    null,
+                    null));
         reservaRepository.vincularPagamento(reservaId, criado.uuid());
       }
     }
@@ -209,7 +215,8 @@ public class ReservaService {
       }
     }
 
-    return reservaRepository.update(update.id(), update.fk_quarto(), novaEntrada, novaSaida, update.observacao());
+    return reservaRepository.update(
+        update.id(), update.fk_quarto(), novaEntrada, novaSaida, update.observacao());
   }
 
   // ── Adição avulsa ─────────────────────────────────────────────────────────
@@ -220,7 +227,8 @@ public class ReservaService {
     if (request == null || request.fk_pessoa() == null)
       throw new IllegalArgumentException("Pessoa é obrigatória.");
     reservaRepository.findById(reservaId); // valida existência
-    reservaRepository.vincularPessoa(reservaId, request.fk_pessoa(), Boolean.TRUE.equals(request.representante()));
+    reservaRepository.vincularPessoa(
+        reservaId, request.fk_pessoa(), Boolean.TRUE.equals(request.representante()));
     return reservaRepository.findById(reservaId);
   }
 
@@ -232,7 +240,12 @@ public class ReservaService {
     Pagamento criado =
         pagamentoRepository.create(
             new Pagamento.Request(
-                request.tipo_pagamento(), request.nome_pagador(), request.descricao(), request.valor(), null, null));
+                request.tipo_pagamento(),
+                request.nome_pagador(),
+                request.descricao(),
+                request.valor(),
+                null,
+                null));
     reservaRepository.vincularPagamento(reservaId, criado.uuid());
     return reservaRepository.findById(reservaId);
   }
@@ -263,9 +276,7 @@ public class ReservaService {
 
     // Referência de data para calcular idades: hora_inicio (day use) ou data_entrada (pernoite)
     LocalDate dataRef =
-        horaInicio != null ? horaInicio.toLocalDate()
-            : dataEntrada != null ? dataEntrada
-            : null;
+        horaInicio != null ? horaInicio.toLocalDate() : dataEntrada != null ? dataEntrada : null;
     if (dataRef == null) throw new IllegalArgumentException("Informe data_entrada ou hora_inicio.");
 
     List<Integer> idadesCriancas = new ArrayList<>();
@@ -319,7 +330,8 @@ public class ReservaService {
     // Datas iguais = entrada após meia-noite: calcula como 1 diária usando data_entrada - 1
     boolean mesmaData = req.data_entrada().isEqual(req.data_saida());
     LocalDate dataEntradaCalculo = mesmaData ? req.data_entrada().minusDays(1) : req.data_entrada();
-    int noites = mesmaData ? 1 : (int) ChronoUnit.DAYS.between(req.data_entrada(), req.data_saida());
+    int noites =
+        mesmaData ? 1 : (int) ChronoUnit.DAYS.between(req.data_entrada(), req.data_saida());
 
     ReservaRepository.CategoriaCheckin catInfo =
         reservaRepository.findCategoriaCheckinByQuartoId(req.fk_quarto());
@@ -338,6 +350,8 @@ public class ReservaService {
         reservaRepository.findSazonModelosOcupacao(sazonIds);
     Map<Long, List<Categoria.ModeloFixo>> sazonModelosFixo =
         reservaRepository.findSazonModelosFixo(sazonIds);
+    Map<Long, List<Categoria.MenorIdade>> sazonMenoresIdade =
+        categoriaRepository.findSazonMenoresIdade(sazonIds);
 
     String quartoDesc = reservaRepository.findQuartoDescricao(req.fk_quarto());
     Quarto.Descricao quartoObj = new Quarto.Descricao(req.fk_quarto(), quartoDesc);
@@ -345,13 +359,12 @@ public class ReservaService {
 
     double valorTotal = 0.0;
     List<Reserva.ItemPreco> detalhes = new ArrayList<>();
-    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM");
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     // Rastreia sazonalidades efetivamente aplicadas
     Map<Long, Sazonalidade.Nome> sazonAplicadasMap = new LinkedHashMap<>();
 
-    boolean temCriancas =
-        req.idades_criancas() != null && !req.idades_criancas().isEmpty();
+    boolean temCriancas = req.idades_criancas() != null && !req.idades_criancas().isEmpty();
 
     for (int i = 0; i < noites; i++) {
       LocalDate night = dataEntradaCalculo.plusDays(i);
@@ -361,11 +374,12 @@ public class ReservaService {
       if (activeSazonId != null) {
         sazonAplicadasMap.computeIfAbsent(
             activeSazonId,
-            id -> sazonalidades.stream()
-                .filter(s -> s.id().equals(id))
-                .findFirst()
-                .map(s -> new Sazonalidade.Nome(s.id(), s.descricao()))
-                .orElse(null));
+            id ->
+                sazonalidades.stream()
+                    .filter(s -> s.id().equals(id))
+                    .findFirst()
+                    .map(s -> new Sazonalidade.Nome(s.id(), s.descricao()))
+                    .orElse(null));
       }
 
       // Prioridade 1: modelos próprios da sazonalidade (fk_categoria IS NULL)
@@ -392,20 +406,30 @@ public class ReservaService {
       }
 
       // Preço base sempre calculado dos modelos sem sazonalidade (para o acréscimo)
-      List<Categoria.ModeloOcupacao> baseOcupacao = filtrarPorSazon(categoria.modelos_ocupacao(), null);
+      List<Categoria.ModeloOcupacao> baseOcupacao =
+          filtrarPorSazon(categoria.modelos_ocupacao(), null);
       List<Categoria.ModeloFixo> baseFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), null);
       double precoBase = resolverPrecoAdultos(baseOcupacao, baseFixo, req.quantidade_adultos());
 
-      double noiteAdultosPreco = resolverPrecoAdultos(modelosOcupacao, modelosFixo, req.quantidade_adultos());
-      String adultoLabel = req.quantidade_adultos() + " adulto(s)";
+      double noiteAdultosPreco =
+          resolverPrecoAdultos(modelosOcupacao, modelosFixo, req.quantidade_adultos());
+      String adultoLabel = req.quantidade_adultos() + " Adulto(s)";
       if (!modelosFixo.isEmpty() && modelosOcupacao.isEmpty()) adultoLabel = "tarifa fixa";
 
       // Crianças por noite
       double noiteCriancasPreco = 0.0;
       List<Integer> criancasComTaxa = new ArrayList<>();
+      List<Integer> criancasGratuitas = new ArrayList<>();
       if (temCriancas) {
+        // Prioridade 1: regra própria da sazonalidade (fk_categoria IS NULL)
         List<Categoria.MenorIdade> regras =
-            filtrarMenoresPorSazon(categoria.menores_idade(), activeSazonId);
+            activeSazonId != null
+                ? sazonMenoresIdade.getOrDefault(activeSazonId, List.of())
+                : List.of();
+        // Prioridade 2: regra da categoria vinculada à sazonalidade
+        if (regras.isEmpty() && activeSazonId != null)
+          regras = filtrarMenoresPorSazon(categoria.menores_idade(), activeSazonId);
+        // Prioridade 3: regra base da categoria
         if (regras.isEmpty()) regras = filtrarMenoresPorSazon(categoria.menores_idade(), null);
         if (!regras.isEmpty()) {
           Categoria.MenorIdade regra = regras.get(0);
@@ -417,6 +441,8 @@ public class ReservaService {
             if (taxa > 0) {
               noiteCriancasPreco += taxa;
               criancasComTaxa.add(idade);
+            } else {
+              criancasGratuitas.add(idade);
             }
           }
         }
@@ -425,23 +451,47 @@ public class ReservaService {
       double acrescimo = usandoBase ? 0.0 : noiteAdultosPreco - precoBase;
       double noiteTotal = noiteAdultosPreco + noiteCriancasPreco;
 
+      LocalDate nextNight = night.plusDays(1);
       StringBuilder desc =
-          new StringBuilder("Noite " + night.format(fmt) + " - " + adultoLabel);
+          new StringBuilder(
+              "Diaria "
+                  + (i + 1)
+                  + " - ("
+                  + night.format(fmt)
+                  + " -> "
+                  + nextNight.format(fmt)
+                  + ") "
+                  + adultoLabel);
       if (!criancasComTaxa.isEmpty()) {
         if (criancasComTaxa.size() == 1) {
-          desc.append(" + Criança ").append(criancasComTaxa.get(0)).append(" anos");
+          desc.append(" + Criança de ").append(criancasComTaxa.get(0)).append(" anos");
         } else {
-          desc.append(" + Crianças: ")
-              .append(criancasComTaxa.stream().map(String::valueOf).collect(Collectors.joining(", ")))
+          desc.append(" + Crianças de ")
+              .append(
+                  criancasComTaxa.stream().map(String::valueOf).collect(Collectors.joining(", ")))
               .append(" anos");
         }
       }
+      if (!criancasGratuitas.isEmpty()) {
+        if (criancasGratuitas.size() == 1) {
+          desc.append(" + Criança de ")
+              .append(criancasGratuitas.get(0))
+              .append(" anos (gratuidade)");
+        } else {
+          desc.append(" + Crianças de ")
+              .append(
+                  criancasGratuitas.stream().map(String::valueOf).collect(Collectors.joining(", ")))
+              .append(" anos (gratuidade)");
+        }
+      }
 
-      detalhes.add(new Reserva.ItemPreco(
-          desc.toString(),
-          precoBase + noiteCriancasPreco,
-          acrescimo,
-          noiteTotal));
+      detalhes.add(
+          new Reserva.ItemPreco(
+              desc.toString(),
+              precoBase,
+              acrescimo,
+              noiteCriancasPreco > 0 ? noiteCriancasPreco : null,
+              noiteTotal));
       valorTotal += noiteTotal;
     }
 
@@ -484,15 +534,16 @@ public class ReservaService {
     Long activeSazonId = findActiveSazonalidade(sazonalidades, diaUso);
 
     List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.SazonInfo::id).toList();
-    Map<Long, Categoria.DayUseOperacao> sazonDayUse =
-        reservaRepository.findSazonDayUse(sazonIds);
+    Map<Long, Categoria.DayUseOperacao> sazonDayUse = reservaRepository.findSazonDayUse(sazonIds);
 
     // Base (sem sazonalidade) — sempre calculado para derivar o acréscimo
-    Categoria.DayUseOperacao operacaoBase = categoria.day_use() == null ? null :
-        categoria.day_use().stream()
-            .filter(du -> du.sazonalidade() == null && Boolean.TRUE.equals(du.ativo()))
-            .findFirst()
-            .orElse(null);
+    Categoria.DayUseOperacao operacaoBase =
+        categoria.day_use() == null
+            ? null
+            : categoria.day_use().stream()
+                .filter(du -> du.sazonalidade() == null && Boolean.TRUE.equals(du.ativo()))
+                .findFirst()
+                .orElse(null);
 
     // Prioridade 1: Day Use próprio da sazonalidade
     Categoria.DayUseOperacao operacao =
@@ -518,11 +569,14 @@ public class ReservaService {
 
     if (operacao == null) {
       throw new BusinessException(
-          "Nenhuma configuração de Day Use ativa encontrada para o quarto " + req.fk_quarto() + ".");
+          "Nenhuma configuração de Day Use ativa encontrada para o quarto "
+              + req.fk_quarto()
+              + ".");
     }
 
     int totalPessoas =
-        req.quantidade_adultos() + (req.idades_criancas() != null ? req.idades_criancas().size() : 0);
+        req.quantidade_adultos()
+            + (req.idades_criancas() != null ? req.idades_criancas().size() : 0);
     double minutos = ChronoUnit.MINUTES.between(horaInicio, horaFim);
     double horas = minutos / 60.0;
     double horasPadrao =
@@ -544,25 +598,28 @@ public class ReservaService {
             + "h)";
 
     double valorTotal = calcularValorDayUse(operacao, horas, totalPessoas, horasPadrao);
-    double valorBase = usandoBase || operacaoBase == null
-        ? valorTotal
-        : calcularValorDayUse(operacaoBase, horas, totalPessoas, horasPadrao);
+    double valorBase =
+        usandoBase || operacaoBase == null
+            ? valorTotal
+            : calcularValorDayUse(operacaoBase, horas, totalPessoas, horasPadrao);
     double acrescimo = valorTotal - valorBase;
 
     String tipoModelo = operacao.padrao() != null ? "padrão" : "por ocupação";
-    String descricao = "Day Use " + periodoDesc + " - " + totalPessoas + " pessoa(s) - " + tipoModelo;
+    String descricao =
+        "Day Use " + periodoDesc + " - " + totalPessoas + " pessoa(s) - " + tipoModelo;
 
     String quartoDesc = reservaRepository.findQuartoDescricao(req.fk_quarto());
     Quarto.Descricao quartoObj = new Quarto.Descricao(req.fk_quarto(), quartoDesc);
     Categoria.Nome categoriaObj = new Categoria.Nome(catInfo.id(), catInfo.nome());
 
-    Sazonalidade.Nome sazonNome = activeSazonId != null
-        ? sazonalidades.stream()
-            .filter(s -> s.id().equals(activeSazonId))
-            .findFirst()
-            .map(s -> new Sazonalidade.Nome(s.id(), s.descricao()))
-            .orElse(null)
-        : null;
+    Sazonalidade.Nome sazonNome =
+        activeSazonId != null
+            ? sazonalidades.stream()
+                .filter(s -> s.id().equals(activeSazonId))
+                .findFirst()
+                .map(s -> new Sazonalidade.Nome(s.id(), s.descricao()))
+                .orElse(null)
+            : null;
 
     return new Reserva.ResultadoPreco(
         quartoObj,
@@ -572,7 +629,7 @@ public class ReservaService {
         0,
         valorTotal,
         sazonNome != null ? List.of(sazonNome) : null,
-        List.of(new Reserva.ItemPreco(descricao, valorBase, acrescimo, valorTotal)));
+        List.of(new Reserva.ItemPreco(descricao, valorBase, acrescimo, null, valorTotal)));
   }
 
   // ── Helpers de preço ──────────────────────────────────────────────────────
@@ -582,13 +639,12 @@ public class ReservaService {
       List<Categoria.ModeloFixo> modelosFixo,
       int quantidade) {
     if (!modelosOcupacao.isEmpty()) {
-      var modelo = modelosOcupacao.stream()
-          .filter(m -> m.quantidade() == quantidade)
-          .findFirst();
+      var modelo = modelosOcupacao.stream().filter(m -> m.quantidade() == quantidade).findFirst();
       if (modelo.isEmpty()) {
-        modelo = modelosOcupacao.stream()
-            .filter(m -> m.quantidade() <= quantidade)
-            .max(Comparator.comparingInt(Categoria.ModeloOcupacao::quantidade));
+        modelo =
+            modelosOcupacao.stream()
+                .filter(m -> m.quantidade() <= quantidade)
+                .max(Comparator.comparingInt(Categoria.ModeloOcupacao::quantidade));
       }
       if (modelo.isPresent()) return modelo.get().valor();
     } else if (!modelosFixo.isEmpty()) {
@@ -606,7 +662,8 @@ public class ReservaService {
         return padrao.preco_base();
       }
       double horasExtras = Math.ceil(horas - horasBase);
-      double valorExtra = padrao.valor_hora_adicional() != null ? padrao.valor_hora_adicional() : 0.0;
+      double valorExtra =
+          padrao.valor_hora_adicional() != null ? padrao.valor_hora_adicional() : 0.0;
       return padrao.preco_base() + horasExtras * valorExtra;
     }
     if (operacao.ocupacoes() != null && !operacao.ocupacoes().isEmpty()) {
@@ -644,13 +701,19 @@ public class ReservaService {
 
   private Long findActiveSazonalidade(
       List<ReservaRepository.SazonInfo> sazonalidades, LocalDate date) {
-    for (ReservaRepository.SazonInfo s : sazonalidades) {
-      boolean appliesDateRange =
-          s.dataInicio() != null
-              && s.dataFim() != null
-              && !date.isBefore(s.dataInicio())
-              && !date.isAfter(s.dataFim());
 
+    // Sazonalidade de range de data é soberana: tem prioridade sobre qualquer outra
+    for (ReservaRepository.SazonInfo s : sazonalidades) {
+      if (s.dataInicio() != null
+          && s.dataFim() != null
+          && !date.isBefore(s.dataInicio())
+          && !date.isAfter(s.dataFim())) {
+        return s.id();
+      }
+    }
+
+    // Sem range de data: aplica semanal, mensal ou anual (primeira que bater)
+    for (ReservaRepository.SazonInfo s : sazonalidades) {
       boolean appliesSemanal =
           s.semanal() != null
               && !s.semanal().isEmpty()
@@ -662,10 +725,11 @@ public class ReservaService {
       boolean appliesAnual =
           s.anual() != null && !s.anual().isEmpty() && s.anual().contains(date.getMonthValue());
 
-      if (appliesDateRange || appliesSemanal || appliesMensal || appliesAnual) {
+      if (appliesSemanal || appliesMensal || appliesAnual) {
         return s.id();
       }
     }
+
     return null;
   }
 
@@ -733,7 +797,7 @@ public class ReservaService {
                 f ->
                     f.faixa_etaria() != null
                         && f.faixa_etaria().size() >= 2
-                        && idade >= f.faixa_etaria().get(0)
+                        && idade >= f.faixa_etaria().getFirst()
                         && idade <= f.faixa_etaria().get(1))
             .findFirst()
             .map(Categoria.MenorFaixaEtaria::valor)

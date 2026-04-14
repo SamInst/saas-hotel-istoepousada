@@ -117,9 +117,11 @@ public class ReservaController {
    * pessoa. Pessoas com 18+ são adultos; demais são crianças com suas idades calculadas.
    *
    * <p>Pernoite: informar data_entrada e data_saida.
+   *
    * <p>Day Use: informar hora_inicio e hora_fim (LocalDateTime). Datas de entrada/saída opcionais.
    *
    * <p>Exemplos:
+   *
    * <pre>
    * GET /reserva/calcular-preco?fk_quarto=1&data_entrada=20/04/2025&data_saida=23/04/2025
    *   &datas_nascimento=15/03/1990&datas_nascimento=10/06/2016
@@ -132,11 +134,14 @@ public class ReservaController {
   @GetMapping("/calcular-preco")
   public Reserva.ResultadoPreco calcularPrecoPorPessoas(
       @RequestParam Long fk_quarto,
-      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
+      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy")
+          LocalDate data_entrada,
       @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
       @RequestParam @DateTimeFormat(pattern = "dd/MM/yyyy") List<LocalDate> datas_nascimento,
-      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_inicio,
-      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_fim) {
+      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy HH:mm")
+          LocalDateTime hora_inicio,
+      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy HH:mm")
+          LocalDateTime hora_fim) {
     return reservaService.calcularPrecoPorPessoas(
         fk_quarto, data_entrada, data_saida, datas_nascimento, hora_inicio, hora_fim);
   }

@@ -1006,6 +1006,84 @@ public class CategoriaRepository {
     return map;
   }
 
+  // ── Regras de menor idade próprias de sazonalidade (fk_categoria IS NULL) ─
+
+  public Map<Long, List<Categoria.MenorIdade>> findSazonMenoresIdade(List<Long> sazonIds) {
+    if (sazonIds == null || sazonIds.isEmpty()) return Map.of();
+
+    String in = String.join(",", Collections.nCopies(sazonIds.size(), "?"));
+    Object[] idsArr = sazonIds.toArray();
+
+    Map<Long, List<Categoria.MenorIdade>> map = new LinkedHashMap<>();
+    Map<Long, Long> menorSazonMap = new LinkedHashMap<>();
+
+    jdbcTemplate.query(
+        """
+        SELECT mi.id               AS mi_id,
+               mi.fk_sazonalidade  AS mi_fk_sazonalidade,
+               mi.idade_gratuidade AS mi_idade_gratuidade,
+               s.descricao         AS sazonalidade_descricao
+        FROM public.menor_idade mi
+        JOIN public.sazonalidade s ON s.id = mi.fk_sazonalidade
+        WHERE mi.fk_sazonalidade IN (%s) AND mi.fk_categoria IS NULL
+        ORDER BY mi.fk_sazonalidade, mi.id
+        """
+            .formatted(in),
+        rs -> {
+          Long sazonId = rs.getLong("mi_fk_sazonalidade");
+          Long menorId = rs.getLong("mi_id");
+          menorSazonMap.put(menorId, sazonId);
+          Sazonalidade.Nome sazon =
+              new Sazonalidade.Nome(sazonId, rs.getString("sazonalidade_descricao"));
+          map.computeIfAbsent(sazonId, k -> new ArrayList<>())
+              .add(
+                  new Categoria.MenorIdade(
+                      menorId,
+                      sazon,
+                      rs.getObject("mi_idade_gratuidade", Integer.class),
+                      null,
+                      List.of(),
+                      List.of(),
+                      List.of(),
+                      List.of()));
+        },
+        idsArr);
+
+    if (menorSazonMap.isEmpty()) return map;
+
+    String miIn = String.join(",", Collections.nCopies(menorSazonMap.size(), "?"));
+    Object[] miIds = menorSazonMap.keySet().toArray();
+
+    Map<Long, List<Categoria.MenorTaxaFixa>> taxasFixas = carregarMenoresTaxasFixas(miIn, miIds);
+    Map<Long, List<Categoria.MenorTaxaPorQuantidade>> taxasQtd =
+        carregarMenoresTaxasPorQuantidade(miIn, miIds);
+    Map<Long, List<Categoria.MenorFaixaEtaria>> faixas = carregarMenoresFaixasEtarias(miIn, miIds);
+    Map<Long, List<Categoria.MenorPorcentagemPorQuantidade>> porcentagens =
+        carregarMenoresPorcentagens(miIn, miIds);
+
+    for (List<Categoria.MenorIdade> lista : map.values()) {
+      lista.replaceAll(
+          mi -> {
+            List<Categoria.MenorTaxaFixa> tf = taxasFixas.getOrDefault(mi.id(), List.of());
+            List<Categoria.MenorTaxaPorQuantidade> tq = taxasQtd.getOrDefault(mi.id(), List.of());
+            List<Categoria.MenorFaixaEtaria> fe = faixas.getOrDefault(mi.id(), List.of());
+            List<Categoria.MenorPorcentagemPorQuantidade> pq =
+                porcentagens.getOrDefault(mi.id(), List.of());
+            return new Categoria.MenorIdade(
+                mi.id(),
+                mi.sazonalidade(),
+                mi.idade_gratuidade(),
+                inferirModeloMenorIdade(tf, tq, fe, pq),
+                tf,
+                tq,
+                fe,
+                pq);
+          });
+    }
+
+    return map;
+  }
+
   // ── Utilitário ────────────────────────────────────────────────────────────
 
   /**

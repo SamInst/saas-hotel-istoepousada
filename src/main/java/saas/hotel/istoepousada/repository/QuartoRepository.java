@@ -117,11 +117,7 @@ public class QuartoRepository {
 
     String in = String.join(",", Collections.nCopies(ids.size(), "?"));
 
-    String pageSql =
-        baseSelect
-            + " WHERE quarto.id IN ("
-            + in
-            + ") ORDER BY quarto.id";
+    String pageSql = baseSelect + " WHERE quarto.id IN (" + in + ") ORDER BY quarto.id";
 
     List<Quarto> content = jdbcTemplate.query(pageSql, QUARTO_EXTRACTOR, ids.toArray());
 

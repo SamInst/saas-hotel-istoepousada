@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -14,7 +15,6 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.LinkedHashMap;
 import saas.hotel.istoepousada.dto.Categoria;
 import saas.hotel.istoepousada.dto.Reserva;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
@@ -402,7 +402,11 @@ public class ReservaRepository {
 
   @Transactional
   public Long insertAndGetId(
-      Long quartoId, LocalDateTime entrada, LocalDateTime saida, double valorTotal, String observacao) {
+      Long quartoId,
+      LocalDateTime entrada,
+      LocalDateTime saida,
+      double valorTotal,
+      String observacao) {
     return jdbcTemplate.queryForObject(
         """
         INSERT INTO public.reserva (fk_quarto, ativa, hospedado, cancelado,
@@ -501,7 +505,8 @@ public class ReservaRepository {
         FROM public.day_use_modelo_operacao duo
         WHERE duo.fk_sazonalidade IN (%s) AND duo.fk_categoria IS NULL
         ORDER BY duo.fk_sazonalidade, duo.id
-        """).formatted(in),
+        """)
+            .formatted(in),
         rs -> {
           operacaoSazonMap.put(rs.getLong("duo_id"), rs.getLong("duo_fk_sazonalidade"));
           operacaoAtivoMap.put(rs.getLong("duo_id"), rs.getBoolean("duo_ativo"));
@@ -523,9 +528,11 @@ public class ReservaRepository {
                dup.valor_hora_adicional AS dup_valor_hora_adicional
         FROM public.day_use_modelo_padrao dup
         WHERE dup.fk_day_use_modelo_operacao IN (%s)
-        """).formatted(inOp),
+        """)
+            .formatted(inOp),
         rs -> {
-          padraoMap.put(rs.getLong("dup_fk_operacao"), Categoria.DayUsePadrao.ROW_MAPPER.mapRow(rs, 0));
+          padraoMap.put(
+              rs.getLong("dup_fk_operacao"), Categoria.DayUsePadrao.ROW_MAPPER.mapRow(rs, 0));
         },
         opIds);
 
@@ -544,39 +551,52 @@ public class ReservaRepository {
                ON duop.fk_day_use_modelo_ocupacao = duo.id
         WHERE duo.fk_day_use_modelo_operacao IN (%s)
         ORDER BY duo.id, duop.quantidade ASC
-        """).formatted(inOp),
+        """)
+            .formatted(inOp),
         rs -> {
           Long ocId = rs.getLong("duo_id");
           if (!ocupacaoById.containsKey(ocId)) {
-            ocupacaoById.put(ocId, new Categoria.DayUseOcupacao(
-                ocId, rs.getInt("duo_quantidade_pessoa"), new ArrayList<>()));
+            ocupacaoById.put(
+                ocId,
+                new Categoria.DayUseOcupacao(
+                    ocId, rs.getInt("duo_quantidade_pessoa"), new ArrayList<>()));
             ocupacaoOperacaoMap.put(ocId, rs.getLong("duo_fk_operacao"));
           }
           Long pessoaId = rs.getObject("duop_id", Long.class);
           if (pessoaId != null) {
-            ocupacaoById.get(ocId).quantidades().add(
-                new Categoria.DayUseOcupacaoPessoa(
-                    pessoaId,
-                    rs.getInt("duop_quantidade"),
-                    rs.getInt("duop_valor"),
-                    rs.getObject("duop_valor_hora_adicional_por_pessoa", Integer.class)));
+            ocupacaoById
+                .get(ocId)
+                .quantidades()
+                .add(
+                    new Categoria.DayUseOcupacaoPessoa(
+                        pessoaId,
+                        rs.getInt("duop_quantidade"),
+                        rs.getInt("duop_valor"),
+                        rs.getObject("duop_valor_hora_adicional_por_pessoa", Integer.class)));
           }
         },
         opIds);
 
     // Grupo de ocupacoes por operacao
     Map<Long, List<Categoria.DayUseOcupacao>> ocupacoesPorOperacao = new LinkedHashMap<>();
-    ocupacaoOperacaoMap.forEach((ocId, opId) ->
-        ocupacoesPorOperacao.computeIfAbsent(opId, k -> new ArrayList<>())
-            .add(ocupacaoById.get(ocId)));
+    ocupacaoOperacaoMap.forEach(
+        (ocId, opId) ->
+            ocupacoesPorOperacao
+                .computeIfAbsent(opId, k -> new ArrayList<>())
+                .add(ocupacaoById.get(ocId)));
 
     // Monta resultado: sazonId -> DayUseOperacao
     Map<Long, Categoria.DayUseOperacao> result = new LinkedHashMap<>();
-    operacaoSazonMap.forEach((opId, sazonId) ->
-        result.putIfAbsent(sazonId, new Categoria.DayUseOperacao(
-            opId, null, operacaoAtivoMap.get(opId),
-            padraoMap.get(opId),
-            ocupacoesPorOperacao.getOrDefault(opId, List.of()))));
+    operacaoSazonMap.forEach(
+        (opId, sazonId) ->
+            result.putIfAbsent(
+                sazonId,
+                new Categoria.DayUseOperacao(
+                    opId,
+                    null,
+                    operacaoAtivoMap.get(opId),
+                    padraoMap.get(opId),
+                    ocupacoesPorOperacao.getOrDefault(opId, List.of()))));
 
     return result;
   }
@@ -594,12 +614,17 @@ public class ReservaRepository {
         FROM public.modelo_ocupacao mo
         WHERE mo.fk_sazonalidade IN (%s) AND mo.fk_categoria IS NULL
         ORDER BY mo.fk_sazonalidade, mo.id
-        """).formatted(in),
+        """)
+            .formatted(in),
         rs -> {
           Long sid = rs.getLong("mo_fk_sazonalidade");
           map.computeIfAbsent(sid, k -> new ArrayList<>())
-              .add(new Categoria.ModeloOcupacao(
-                  rs.getLong("mo_id"), null, rs.getInt("mo_quantidade"), rs.getDouble("mo_valor")));
+              .add(
+                  new Categoria.ModeloOcupacao(
+                      rs.getLong("mo_id"),
+                      null,
+                      rs.getInt("mo_quantidade"),
+                      rs.getDouble("mo_valor")));
         },
         sazonIds.toArray());
     return map;
@@ -615,7 +640,8 @@ public class ReservaRepository {
         FROM public.modelo_fixo mf
         WHERE mf.fk_sazonalidade IN (%s) AND mf.fk_categoria IS NULL
         ORDER BY mf.fk_sazonalidade, mf.id
-        """).formatted(in),
+        """)
+            .formatted(in),
         rs -> {
           Long sid = rs.getLong("mf_fk_sazonalidade");
           map.computeIfAbsent(sid, k -> new ArrayList<>())

@@ -138,6 +138,7 @@ public record Reserva(
       String descricao,
       Double valor_base,
       Double acrescimo_sazonalidade,
+      Double valor_criancas,
       Double valor_final) {}
 
   public record ResultadoPreco(
