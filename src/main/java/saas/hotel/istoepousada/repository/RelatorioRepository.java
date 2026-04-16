@@ -64,7 +64,13 @@ public class RelatorioRepository {
             pagamento_desconto.data_hora_registro      AS pagamento_desconto_data_hora_registro,
 
             funcionario_pagamento_desconto.id          AS pagamento_desconto_funcionario_id,
-            pessoa_funcionario_pagamento_desconto.nome AS pagamento_desconto_funcionario_nome
+            pessoa_funcionario_pagamento_desconto.nome AS pagamento_desconto_funcionario_nome,
+
+            mc.id                                      AS pagamento_motivo_id,
+            mc.motivo_cancelamento                     AS pagamento_motivo_cancelamento,
+            mc.data_hora_registro                      AS pagamento_motivo_data_hora_registro,
+            funcionario_motivo.id                      AS pagamento_motivo_funcionario_id,
+            pessoa_funcionario_motivo.nome             AS pagamento_motivo_funcionario_nome
         FROM relatorio
         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
@@ -79,6 +85,14 @@ public class RelatorioRepository {
         LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
         LEFT JOIN funcionario funcionario_pagamento_desconto ON funcionario_pagamento_desconto.id = pagamento_desconto.fk_funcionario
         LEFT JOIN pessoa pessoa_funcionario_pagamento_desconto ON pessoa_funcionario_pagamento_desconto.id = funcionario_pagamento_desconto.fk_pessoa
+
+        LEFT JOIN LATERAL (
+            SELECT * FROM public.pagamento_motivo_cancelamento
+            WHERE fk_pagamento = pagamento.id
+            ORDER BY data_hora_registro DESC LIMIT 1
+        ) mc ON true
+        LEFT JOIN funcionario funcionario_motivo ON funcionario_motivo.id = mc.fk_funcionario
+        LEFT JOIN pessoa pessoa_funcionario_motivo ON pessoa_funcionario_motivo.id = funcionario_motivo.fk_pessoa
         """;
 
   public Relatorio.Extrato buscar(

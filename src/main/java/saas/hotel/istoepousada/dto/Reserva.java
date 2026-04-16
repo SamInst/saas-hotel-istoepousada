@@ -108,6 +108,7 @@ public record Reserva(
       Integer quantidade_adultos,
       List<Integer> idades_criancas,
       @JsonFormat(pattern = "dd/MM/yyyy") List<LocalDate> datas_nascimento,
+      Double valor_total,
       String observacao,
       List<PessoaRequest> pessoas,
       List<PagamentoReservaRequest> pagamentos) {}
@@ -121,6 +122,7 @@ public record Reserva(
       Long fk_quarto,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
+      Double valor_total,
       String observacao) {}
 
   // ── Cálculo de preços ─────────────────────────────────────────────────────

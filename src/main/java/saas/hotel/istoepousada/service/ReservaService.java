@@ -22,6 +22,7 @@ import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.handler.exceptions.ConflictException;
 import saas.hotel.istoepousada.repository.CategoriaRepository;
 import saas.hotel.istoepousada.repository.PagamentoRepository;
+import saas.hotel.istoepousada.repository.RelatorioRepository;
 import saas.hotel.istoepousada.repository.ReservaRepository;
 
 @Service
@@ -30,14 +31,17 @@ public class ReservaService {
   private final ReservaRepository reservaRepository;
   private final CategoriaRepository categoriaRepository;
   private final PagamentoRepository pagamentoRepository;
+  private final RelatorioRepository relatorioRepository;
 
   public ReservaService(
       ReservaRepository reservaRepository,
       CategoriaRepository categoriaRepository,
-      PagamentoRepository pagamentoRepository) {
+      PagamentoRepository pagamentoRepository,
+      RelatorioRepository relatorioRepository) {
     this.reservaRepository = reservaRepository;
     this.categoriaRepository = categoriaRepository;
     this.pagamentoRepository = pagamentoRepository;
+    this.relatorioRepository = relatorioRepository;
   }
 
   // ── Consultas ──────────────────────────────────────────────────────────────
@@ -103,41 +107,7 @@ public class ReservaService {
           "O quarto " + req.fk_quarto() + " já possui reserva no período informado.");
     }
 
-    // Deriva adultos/crianças a partir das datas de nascimento, se fornecidas
-    int qtdAdultos;
-    List<Integer> idadesCriancas;
-
-    if (req.datas_nascimento() != null && !req.datas_nascimento().isEmpty()) {
-      qtdAdultos = 0;
-      List<Integer> criancas = new ArrayList<>();
-      for (LocalDate nascimento : req.datas_nascimento()) {
-        int idade = java.time.Period.between(nascimento, req.data_entrada()).getYears();
-        if (idade >= 18) {
-          qtdAdultos++;
-        } else {
-          criancas.add(idade);
-        }
-      }
-      idadesCriancas = criancas;
-    } else {
-      qtdAdultos = req.quantidade_adultos() != null ? req.quantidade_adultos() : 0;
-      idadesCriancas = req.idades_criancas() != null ? req.idades_criancas() : List.of();
-    }
-
-    double valorTotal = 0.0;
-    if (qtdAdultos > 0) {
-      Reserva.ResultadoPreco resultado =
-          calcularPrecoUnico(
-              new Reserva.CalculoPrecosRequest(
-                  req.fk_quarto(),
-                  req.data_entrada(),
-                  req.data_saida(),
-                  qtdAdultos,
-                  idadesCriancas,
-                  null,
-                  null));
-      valorTotal = resultado.valor_total();
-    }
+    double valorTotal = req.valor_total() != null ? req.valor_total() : 0.0;
 
     Long reservaId =
         reservaRepository.insertAndGetId(
@@ -162,6 +132,10 @@ public class ReservaService {
                     null,
                     null));
         reservaRepository.vincularPagamento(reservaId, criado.uuid());
+        relatorioRepository.registrarRelatorioDeConsumo(
+            criado,
+            relatorioRepository.getFuncionarioId(),
+            "Reserva - Quarto " + req.fk_quarto());
       }
     }
 
@@ -216,7 +190,7 @@ public class ReservaService {
     }
 
     return reservaRepository.update(
-        update.id(), update.fk_quarto(), novaEntrada, novaSaida, update.observacao());
+        update.id(), update.fk_quarto(), novaEntrada, novaSaida, update.valor_total(), update.observacao());
   }
 
   // ── Adição avulsa ─────────────────────────────────────────────────────────
@@ -236,7 +210,7 @@ public class ReservaService {
   public Reserva adicionarPagamento(Long reservaId, Reserva.PagamentoReservaRequest request) {
     if (reservaId == null) throw new IllegalArgumentException("Id da reserva é obrigatório.");
     if (request == null) throw new IllegalArgumentException("Pagamento é obrigatório.");
-    reservaRepository.findById(reservaId); // valida existência
+    Reserva reserva = reservaRepository.findById(reservaId);
     Pagamento criado =
         pagamentoRepository.create(
             new Pagamento.Request(
@@ -247,6 +221,10 @@ public class ReservaService {
                 null,
                 null));
     reservaRepository.vincularPagamento(reservaId, criado.uuid());
+    relatorioRepository.registrarRelatorioDeConsumo(
+        criado,
+        relatorioRepository.getFuncionarioId(),
+        "Reserva - Quarto " + (reserva.quarto() != null ? reserva.quarto().descricao() : reservaId));
     return reservaRepository.findById(reservaId);
   }
 
@@ -702,14 +680,15 @@ public class ReservaService {
   private Long findActiveSazonalidade(
       List<ReservaRepository.SazonInfo> sazonalidades, LocalDate date) {
 
-    // Sazonalidade de range de data é soberana: tem prioridade sobre qualquer outra
+    // Sazonalidade de range de data é soberana: tem prioridade sobre qualquer outra.
+    // Um período com dataInicio ou dataFim nulo representa range aberto (sem início ou sem fim).
     for (ReservaRepository.SazonInfo s : sazonalidades) {
-      if (s.dataInicio() != null
-          && s.dataFim() != null
-          && !date.isBefore(s.dataInicio())
-          && !date.isAfter(s.dataFim())) {
-        return s.id();
-      }
+      boolean isPeriodo = s.dataInicio() != null || s.dataFim() != null;
+      if (!isPeriodo) continue;
+      boolean inRange =
+          (s.dataInicio() == null || !date.isBefore(s.dataInicio()))
+              && (s.dataFim() == null || !date.isAfter(s.dataFim()));
+      if (inRange) return s.id();
     }
 
     // Sem range de data: aplica semanal, mensal ou anual (primeira que bater)

@@ -457,6 +457,7 @@ public class ReservaRepository {
       Long novoQuartoId,
       LocalDateTime novaEntrada,
       LocalDateTime novaSaida,
+      Double valorTotal,
       String observacao) {
     int rows =
         jdbcTemplate.update(
@@ -466,6 +467,7 @@ public class ReservaRepository {
               data_hora_entrada = COALESCE(?, data_hora_entrada),
               data_hora_saida   = COALESCE(?, data_hora_saida),
               fk_funcionario    = COALESCE(?, fk_funcionario),
+              valor_total       = COALESCE(?, valor_total),
               observacao        = COALESCE(?, observacao)
             WHERE id = ?
             """,
@@ -473,6 +475,7 @@ public class ReservaRepository {
             novaEntrada,
             novaSaida,
             getFuncionarioId(),
+            valorTotal,
             observacao,
             reservaId);
 

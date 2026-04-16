@@ -257,52 +257,9 @@ public class SazonabilidadeService {
 
     // ── Modo cruzado ──────────────────────────────────────────────────────
 
-    // Data vs Diário: sempre conflita (ambos cobrem os mesmos instantes)
-    if ((nData && eDiario) || (nDiario && eData)) {
-      throw new ConflictException(
-          "Sazonalidade de data específica não pode coexistir com sazonalidade diária "
-              + nome
-              + ".");
-    }
-
-    // Data vs Semanal
-    if (nData && eSemanal) {
-      if (dateRangeOverlapsWeekdays(nova.data_inicio(), nova.data_fim(), existente.semanal()))
-        throw new ConflictException(
-            "Período de data abrange dias da semana da sazonalidade " + nome + ".");
-      return;
-    }
-    if (nSemanal && eData) {
-      if (dateRangeOverlapsWeekdays(existente.data_inicio(), existente.data_fim(), nova.semanal()))
-        throw new ConflictException(
-            "Dias da semana estão no período de data da sazonalidade " + nome + ".");
-      return;
-    }
-
-    // Data vs Mensal
-    if (nData && eMensal) {
-      if (dateRangeOverlapsDaysOfMonth(nova.data_inicio(), nova.data_fim(), existente.mensal()))
-        throw new ConflictException(
-            "Período de data abrange dias do mês da sazonalidade " + nome + ".");
-      return;
-    }
-    if (nMensal && eData) {
-      if (dateRangeOverlapsDaysOfMonth(
-          existente.data_inicio(), existente.data_fim(), nova.mensal()))
-        throw new ConflictException(
-            "Dias do mês estão no período de data da sazonalidade " + nome + ".");
-      return;
-    }
-
-    // Data vs Anual
-    if (nData && eAnual) {
-      if (dateRangeOverlapsMonths(nova.data_inicio(), nova.data_fim(), existente.anual()))
-        throw new ConflictException("Período de data abrange meses da sazonalidade " + nome + ".");
-      return;
-    }
-    if (nAnual && eData) {
-      if (dateRangeOverlapsMonths(existente.data_inicio(), existente.data_fim(), nova.anual()))
-        throw new ConflictException("Meses estão no período de data da sazonalidade " + nome + ".");
+    // Período de data é soberano: pode coexistir com qualquer outro tipo (diário, semanal,
+    // mensal, anual) sem conflito, pois ele sobrescreve os demais no cálculo.
+    if (nData || eData) {
       return;
     }
 
@@ -324,46 +281,6 @@ public class SazonabilidadeService {
       throw new ConflictException(
           "Sazonalidade mensal em conflito com a sazonalidade " + nome + ".");
     }
-  }
-
-  // ── Helpers de verificação de sobreposição ────────────────────────────────
-
-  private boolean dateRangeOverlapsWeekdays(
-      LocalDate inicio, LocalDate fim, List<Integer> weekdays) {
-    if (inicio == null || fim == null) return true; // intervalo aberto cobre todos os dias
-    if (!inicio.plusDays(6).isAfter(fim))
-      return true; // >= 7 dias sempre cobre todos os dias da semana
-    Set<Integer> days = new HashSet<>(weekdays);
-    LocalDate d = inicio;
-    while (!d.isAfter(fim)) {
-      if (days.contains(d.getDayOfWeek().getValue())) return true;
-      d = d.plusDays(1);
-    }
-    return false;
-  }
-
-  private boolean dateRangeOverlapsDaysOfMonth(
-      LocalDate inicio, LocalDate fim, List<Integer> daysOfMonth) {
-    if (inicio == null || fim == null) return true;
-    if (!inicio.plusDays(30).isAfter(fim)) return true; // >= 31 dias cobre todos os dias do mês
-    Set<Integer> days = new HashSet<>(daysOfMonth);
-    LocalDate d = inicio;
-    while (!d.isAfter(fim)) {
-      if (days.contains(d.getDayOfMonth())) return true;
-      d = d.plusDays(1);
-    }
-    return false;
-  }
-
-  private boolean dateRangeOverlapsMonths(LocalDate inicio, LocalDate fim, List<Integer> months) {
-    if (inicio == null || fim == null) return true;
-    Set<Integer> monthsSet = new HashSet<>(months);
-    LocalDate current = inicio.withDayOfMonth(1);
-    while (!current.isAfter(fim)) {
-      if (monthsSet.contains(current.getMonthValue())) return true;
-      current = current.plusMonths(1);
-    }
-    return false;
   }
 
   // ── Helpers de conversão ──────────────────────────────────────────────────
