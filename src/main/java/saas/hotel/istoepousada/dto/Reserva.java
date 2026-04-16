@@ -16,11 +16,10 @@ public record Reserva(
     @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_entrada,
     @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_saida,
     @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
-    Boolean ativa,
-    Boolean hospedado,
-    Boolean cancelado,
+    Reserva.Status status,
     Float valor_total,
     String observacao,
+    Orcamento orcamento_info,
     List<ReservaPessoa> pessoas,
     List<ReservaPagamento> pagamentos) {
 
@@ -29,7 +28,8 @@ public record Reserva(
     ATIVO,
     HOSPEDADO,
     FINALIZADO,
-    CANCELADO;
+    CANCELADO,
+    ORCAMENTO;
 
     public static Status map(String status) {
       if (status == null || status.isBlank()) return ATIVO;
@@ -87,6 +87,24 @@ public record Reserva(
 
   // ── Agrupamento por dia (visão mensal) ────────────────────────────────────
 
+  // ── Orçamento vinculado ───────────────────────────────────────────────────
+
+  public record Orcamento(
+      @NotNull Long id,
+      @NotNull String nome_solicitante,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro) {
+
+    public static final RowMapper<Orcamento> ROW_MAPPER =
+        (rs, rowNum) -> {
+          Long orcId = rs.getObject("orcamento_id", Long.class);
+          if (orcId == null) return null;
+          return new Orcamento(
+              orcId,
+              rs.getString("orcamento_nome_solicitante"),
+              rs.getObject("orcamento_data_hora_registro", LocalDateTime.class));
+        };
+  }
+
   public record PorDia(
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data, List<Reserva> reservas) {}
 
@@ -109,6 +127,8 @@ public record Reserva(
       List<Integer> idades_criancas,
       @JsonFormat(pattern = "dd/MM/yyyy") List<LocalDate> datas_nascimento,
       Double valor_total,
+      Boolean orcamento,
+      String nome_solicitante,
       String observacao,
       List<PessoaRequest> pessoas,
       List<PagamentoReservaRequest> pagamentos) {}
@@ -174,11 +194,10 @@ public record Reserva(
             rs.getObject("reserva_data_hora_entrada", LocalDateTime.class),
             rs.getObject("reserva_data_hora_saida", LocalDateTime.class),
             rs.getObject("reserva_data_hora_registro", LocalDateTime.class),
-            rs.getBoolean("reserva_ativa"),
-            rs.getBoolean("reserva_hospedado"),
-            rs.getBoolean("reserva_cancelado"),
+            Reserva.Status.map(rs.getString("reserva_status")),
             rs.getObject("reserva_valor_total", Float.class),
             rs.getString("reserva_observacao"),
+            Reserva.Orcamento.ROW_MAPPER.mapRow(rs, rowNum),
             null,
             null);
       };

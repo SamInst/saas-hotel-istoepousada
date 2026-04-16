@@ -111,7 +111,12 @@ public class ReservaService {
 
     Long reservaId =
         reservaRepository.insertAndGetId(
-            req.fk_quarto(), entrada, saida, valorTotal, req.observacao());
+            req.fk_quarto(), entrada, saida, valorTotal,
+            Boolean.TRUE.equals(req.orcamento()), req.observacao());
+
+    if (Boolean.TRUE.equals(req.orcamento()) && req.nome_solicitante() != null) {
+      reservaRepository.insertOrcamento(reservaId, req.nome_solicitante());
+    }
 
     if (req.pessoas() != null) {
       for (int i = 0; i < req.pessoas().size(); i++) {
@@ -228,13 +233,21 @@ public class ReservaService {
     return reservaRepository.findById(reservaId);
   }
 
-  // ── Cancelamento ───────────────────────────────────────────────────────────
+  // ── Cancelamento / Ativação de orçamento ──────────────────────────────────
 
   @Transactional
   public void cancelar(Long id) {
     if (id == null) throw new IllegalArgumentException("Id é obrigatório.");
-    reservaRepository.findById(id); // valida existência
+    Reserva reserva = reservaRepository.findById(id);
+    if (reserva.status() == Reserva.Status.CANCELADO)
+      throw new BusinessException("Reserva já está cancelada.");
     reservaRepository.cancelar(id);
+  }
+
+  @Transactional
+  public Reserva ativarOrcamento(Long id) {
+    if (id == null) throw new IllegalArgumentException("Id é obrigatório.");
+    return reservaRepository.ativar(id);
   }
 
   // ── Cálculo de preços ─────────────────────────────────────────────────────

@@ -102,6 +102,12 @@ public class ReservaController {
     reservaService.cancelar(id);
   }
 
+  /** Ativa um orçamento (muda status de ORCAMENTO para ATIVO). */
+  @PutMapping("/{id}/ativar")
+  public Reserva ativar(@PathVariable Long id) {
+    return reservaService.ativarOrcamento(id);
+  }
+
   /**
    * Calcula o preço de uma ou mais reservas com base no quarto, período, adultos e crianças. As
    * regras de preço são buscadas da categoria do quarto (com suporte a sazonalidade).

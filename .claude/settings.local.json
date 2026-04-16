@@ -18,7 +18,8 @@
       "Bash(./gradlew compileJava -q)",
       "Bash(cmd.exe /c \"gradlew.bat compileJava 2>&1\")",
       "Bash(cmd.exe /c \"gradlew.bat compileJava\")",
-      "Bash(cmd.exe:*)"
+      "Bash(cmd.exe:*)",
+      "Bash(cmd *)"
     ]
   }
 }

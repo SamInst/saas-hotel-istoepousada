@@ -17,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Categoria;
 import saas.hotel.istoepousada.dto.Reserva;
+import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
@@ -109,14 +110,15 @@ public class ReservaRepository {
       """
       SELECT
         r.id                    AS reserva_id,
-        r.ativa                 AS reserva_ativa,
-        r.hospedado             AS reserva_hospedado,
-        r.cancelado             AS reserva_cancelado,
+        r.status                AS reserva_status,
         r.data_hora_entrada     AS reserva_data_hora_entrada,
         r.data_hora_saida       AS reserva_data_hora_saida,
         r.data_hora_registro    AS reserva_data_hora_registro,
         r.valor_total           AS reserva_valor_total,
         r.observacao            AS reserva_observacao,
+        ro.id                   AS orcamento_id,
+        ro.nome_solicitante     AS orcamento_nome_solicitante,
+        ro.data_hora_registro   AS orcamento_data_hora_registro,
         q.id                    AS reserva_quarto_id,
         q.descricao             AS reserva_quarto_descricao,
         c.id                    AS reserva_categoria_id,
@@ -125,6 +127,7 @@ public class ReservaRepository {
         pf.nome                 AS reserva_funcionario_nome
       FROM public.reserva r
       JOIN public.quarto q ON q.id = r.fk_quarto
+      LEFT JOIN public.reserva_orcamento ro ON ro.fk_reserva = r.id
       LEFT JOIN public.quarto_categoria qc ON qc.fk_quarto = r.fk_quarto
       LEFT JOIN public.categoria c ON c.id = qc.fk_categoria
       LEFT JOIN public.funcionario f ON f.id = r.fk_funcionario
@@ -137,7 +140,7 @@ public class ReservaRepository {
     StringBuilder where =
         new StringBuilder(
             """
-            WHERE r.cancelado = false
+            WHERE r.status != 'CANCELADO'
               AND EXTRACT(MONTH FROM r.data_hora_entrada) = ?
               AND EXTRACT(YEAR FROM r.data_hora_entrada) = ?
             """);
@@ -170,7 +173,7 @@ public class ReservaRepository {
     StringBuilder where =
         new StringBuilder(
             """
-            WHERE r.cancelado = false
+            WHERE r.status != 'CANCELADO'
               AND r.data_hora_entrada::date = ?
             """);
     List<Object> params = new ArrayList<>();
@@ -242,11 +245,10 @@ public class ReservaRepository {
                     r.data_hora_entrada(),
                     r.data_hora_saida(),
                     r.data_hora_registro(),
-                    r.ativa(),
-                    r.hospedado(),
-                    r.cancelado(),
+                    r.status(),
                     r.valor_total(),
                     r.observacao(),
+                    r.orcamento_info(),
                     pessoasMap.getOrDefault(r.id(), List.of()),
                     pagamentosMap.getOrDefault(r.id(), List.of())))
         .toList();
@@ -372,7 +374,7 @@ public class ReservaRepository {
         SELECT COUNT(*) > 0
         FROM public.reserva
         WHERE fk_quarto = ?
-          AND cancelado = false
+          AND status != 'CANCELADO'
           AND data_hora_entrada < ?
           AND data_hora_saida > ?
         """
@@ -406,22 +408,36 @@ public class ReservaRepository {
       LocalDateTime entrada,
       LocalDateTime saida,
       double valorTotal,
+      boolean orcamento,
       String observacao) {
+    String status = orcamento ? "ORCAMENTO" : "ATIVO";
     return jdbcTemplate.queryForObject(
         """
-        INSERT INTO public.reserva (fk_quarto, ativa, hospedado, cancelado,
+        INSERT INTO public.reserva (fk_quarto, status,
                                     data_hora_entrada, data_hora_saida, fk_funcionario,
                                     valor_total, observacao)
-        VALUES (?, true, false, false, ?, ?, ?, ?, ?)
+        VALUES (?, ?::public.status_reserva, ?, ?, ?, ?, ?)
         RETURNING id
         """,
         Long.class,
         quartoId,
+        status,
         entrada,
         saida,
         getFuncionarioId(),
         valorTotal,
         observacao);
+  }
+
+  @Transactional
+  public void insertOrcamento(Long reservaId, String nomeSolicitante) {
+    jdbcTemplate.update(
+        """
+        INSERT INTO public.reserva_orcamento (fk_reserva, nome_solicitante)
+        VALUES (?, ?)
+        """,
+        reservaId,
+        nomeSolicitante);
   }
 
   @Transactional
@@ -489,8 +505,21 @@ public class ReservaRepository {
   public void cancelar(Long id) {
     int rows =
         jdbcTemplate.update(
-            "UPDATE public.reserva SET cancelado = true, ativa = false WHERE id = ?", id);
+            "UPDATE public.reserva SET status = 'CANCELADO'::public.status_reserva WHERE id = ?",
+            id);
     if (rows == 0) throw new NotFoundException("Reserva não encontrada: " + id);
+  }
+
+  @Transactional
+  public Reserva ativar(Long id) {
+    int rows =
+        jdbcTemplate.update(
+            "UPDATE public.reserva SET status = 'ATIVO'::public.status_reserva WHERE id = ? AND status = 'ORCAMENTO'::public.status_reserva",
+            id);
+    if (rows == 0)
+      throw new BusinessException(
+          "Reserva não encontrada ou não está em status de orçamento: " + id);
+    return findById(id);
   }
 
   // ── Day Use próprio da sazonalidade (fk_categoria IS NULL) ───────────────
