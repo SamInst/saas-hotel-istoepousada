@@ -2,7 +2,6 @@ package saas.hotel.istoepousada.controller;
 
 import jakarta.validation.Valid;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -95,60 +94,23 @@ public class ReservaController {
     return reservaService.adicionarPagamento(id, request);
   }
 
-  /** Cancela uma reserva. */
-  @PutMapping("/{id}/cancelar")
+  /** Retorna todas as reservas vinculadas a um orçamento. */
+  @GetMapping("/orcamento/{orcamentoId}")
+  public List<Reserva> buscarPorOrcamento(@PathVariable Long orcamentoId) {
+    return reservaService.buscarPorOrcamento(orcamentoId);
+  }
+
+  /** Atualiza o status de uma lista de reservas. */
+  @PutMapping("/status")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void cancelar(@PathVariable Long id) {
-    reservaService.cancelar(id);
+  public void atualizarStatus(@RequestBody Reserva.AtualizarStatusRequest request) {
+    reservaService.atualizarStatus(request);
   }
 
-  /** Ativa um orçamento (muda status de ORCAMENTO para ATIVO). */
-  @PutMapping("/{id}/ativar")
-  public Reserva ativar(@PathVariable Long id) {
-    return reservaService.ativarOrcamento(id);
-  }
-
-  /**
-   * Calcula o preço de uma ou mais reservas com base no quarto, período, adultos e crianças. As
-   * regras de preço são buscadas da categoria do quarto (com suporte a sazonalidade).
-   */
+  /** Calcula o preço para um ou mais quartos. Cada item tem seu próprio quarto, datas e pessoas. */
   @PostMapping("/calcular-preco")
-  public List<Reserva.ResultadoPreco> calcularPrecos(
-      @RequestBody @Valid List<Reserva.CalculoPrecosRequest> requests) {
-    return reservaService.calcularPrecos(requests);
-  }
-
-  /**
-   * Calcula o preço de pernoite ou Day Use pelo quarto, período e datas de nascimento de cada
-   * pessoa. Pessoas com 18+ são adultos; demais são crianças com suas idades calculadas.
-   *
-   * <p>Pernoite: informar data_entrada e data_saida.
-   *
-   * <p>Day Use: informar hora_inicio e hora_fim (LocalDateTime). Datas de entrada/saída opcionais.
-   *
-   * <p>Exemplos:
-   *
-   * <pre>
-   * GET /reserva/calcular-preco?fk_quarto=1&data_entrada=20/04/2025&data_saida=23/04/2025
-   *   &datas_nascimento=15/03/1990&datas_nascimento=10/06/2016
-   *
-   * GET /reserva/calcular-preco?fk_quarto=1
-   *   &hora_inicio=20/04/2025 10:00&hora_fim=20/04/2025 18:00
-   *   &datas_nascimento=15/03/1990&datas_nascimento=10/06/2016
-   * </pre>
-   */
-  @GetMapping("/calcular-preco")
-  public Reserva.ResultadoPreco calcularPrecoPorPessoas(
-      @RequestParam Long fk_quarto,
-      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy")
-          LocalDate data_entrada,
-      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
-      @RequestParam @DateTimeFormat(pattern = "dd/MM/yyyy") List<LocalDate> datas_nascimento,
-      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy HH:mm")
-          LocalDateTime hora_inicio,
-      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy HH:mm")
-          LocalDateTime hora_fim) {
-    return reservaService.calcularPrecoPorPessoas(
-        fk_quarto, data_entrada, data_saida, datas_nascimento, hora_inicio, hora_fim);
+  public List<Reserva.ResultadoPreco> calcularPreco(
+      @RequestBody List<Reserva.CalcularPrecoRequest> requests) {
+    return reservaService.calcularPreco(requests);
   }
 }

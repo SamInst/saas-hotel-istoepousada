@@ -116,9 +116,9 @@ public class ReservaRepository {
         r.data_hora_registro    AS reserva_data_hora_registro,
         r.valor_total           AS reserva_valor_total,
         r.observacao            AS reserva_observacao,
-        ro.id                   AS orcamento_id,
-        ro.nome_solicitante     AS orcamento_nome_solicitante,
-        ro.data_hora_registro   AS orcamento_data_hora_registro,
+        o.id                    AS orcamento_id,
+        o.nome_solicitante      AS orcamento_nome_solicitante,
+        o.data_hora_registro    AS orcamento_data_hora_registro,
         q.id                    AS reserva_quarto_id,
         q.descricao             AS reserva_quarto_descricao,
         c.id                    AS reserva_categoria_id,
@@ -127,7 +127,8 @@ public class ReservaRepository {
         pf.nome                 AS reserva_funcionario_nome
       FROM public.reserva r
       JOIN public.quarto q ON q.id = r.fk_quarto
-      LEFT JOIN public.reserva_orcamento ro ON ro.fk_reserva = r.id
+      LEFT JOIN public.orcamento_reserva orv ON orv.fk_reserva = r.id
+      LEFT JOIN public.orcamento o ON o.id = orv.fk_orcamento
       LEFT JOIN public.quarto_categoria qc ON qc.fk_quarto = r.fk_quarto
       LEFT JOIN public.categoria c ON c.id = qc.fk_categoria
       LEFT JOIN public.funcionario f ON f.id = r.fk_funcionario
@@ -140,7 +141,7 @@ public class ReservaRepository {
     StringBuilder where =
         new StringBuilder(
             """
-            WHERE r.status != 'CANCELADO'
+            WHERE r.status NOT IN ('CANCELADO', 'ORCAMENTO')
               AND EXTRACT(MONTH FROM r.data_hora_entrada) = ?
               AND EXTRACT(YEAR FROM r.data_hora_entrada) = ?
             """);
@@ -173,7 +174,7 @@ public class ReservaRepository {
     StringBuilder where =
         new StringBuilder(
             """
-            WHERE r.status != 'CANCELADO'
+            WHERE r.status NOT IN ('CANCELADO', 'ORCAMENTO')
               AND r.data_hora_entrada::date = ?
             """);
     List<Object> params = new ArrayList<>();
@@ -205,7 +206,7 @@ public class ReservaRepository {
         SELECT_RESERVA_BASE
             + """
             WHERE r.fk_quarto = ?
-              AND r.cancelado = false
+              AND r.status NOT IN ('CANCELADO', 'ORCAMENTO')
               AND EXTRACT(MONTH FROM r.data_hora_entrada) = ?
               AND EXTRACT(YEAR FROM r.data_hora_entrada) = ?
             ORDER BY r.data_hora_entrada ASC
@@ -232,6 +233,7 @@ public class ReservaRepository {
 
     List<Long> ids = bases.stream().map(Reserva::id).toList();
     Map<Long, List<Reserva.ReservaPessoa>> pessoasMap = buscarPessoasPorReservas(ids);
+    Map<Long, List<Reserva.OrcamentoPessoa>> orcamentoPessoasMap = buscarOrcamentoPessoasPorReservas(ids);
     Map<Long, List<Reserva.ReservaPagamento>> pagamentosMap = buscarPagamentosPorReservas(ids);
 
     return bases.stream()
@@ -250,6 +252,7 @@ public class ReservaRepository {
                     r.observacao(),
                     r.orcamento_info(),
                     pessoasMap.getOrDefault(r.id(), List.of()),
+                    orcamentoPessoasMap.getOrDefault(r.id(), List.of()),
                     pagamentosMap.getOrDefault(r.id(), List.of())))
         .toList();
   }
@@ -430,14 +433,64 @@ public class ReservaRepository {
   }
 
   @Transactional
-  public void insertOrcamento(Long reservaId, String nomeSolicitante) {
-    jdbcTemplate.update(
+  public Long insertOrcamento(String nomeSolicitante, Long funcionarioId) {
+    return jdbcTemplate.queryForObject(
         """
-        INSERT INTO public.reserva_orcamento (fk_reserva, nome_solicitante)
-        VALUES (?, ?)
+        INSERT INTO public.orcamento (nome_solicitante, fk_funcionario)
+        VALUES (?, ?) RETURNING id
         """,
-        reservaId,
-        nomeSolicitante);
+        Long.class,
+        nomeSolicitante,
+        funcionarioId);
+  }
+
+  @Transactional
+  public void insertOrcamentoPessoa(Long reservaId, String nome, LocalDate dataNascimento) {
+    jdbcTemplate.update(
+        "INSERT INTO public.orcamento_reserva_pessoa (fk_reserva, nome, data_nascimento) VALUES (?, ?, ?)",
+        reservaId, nome, dataNascimento);
+  }
+
+  private Map<Long, List<Reserva.OrcamentoPessoa>> buscarOrcamentoPessoasPorReservas(List<Long> reservaIds) {
+    String in = String.join(",", Collections.nCopies(reservaIds.size(), "?"));
+    List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+        "SELECT id, fk_reserva, nome, data_nascimento FROM public.orcamento_reserva_pessoa WHERE fk_reserva IN (" + in + ")",
+        reservaIds.toArray());
+    Map<Long, List<Reserva.OrcamentoPessoa>> map = new HashMap<>();
+    for (Map<String, Object> row : rows) {
+      Long resId = ((Number) row.get("fk_reserva")).longValue();
+      map.computeIfAbsent(resId, k -> new ArrayList<>()).add(
+          new Reserva.OrcamentoPessoa(
+              ((Number) row.get("id")).longValue(),
+              (String) row.get("nome"),
+              ((java.sql.Date) row.get("data_nascimento")).toLocalDate()));
+    }
+    return map;
+  }
+
+  @Transactional
+  public void vincularOrcamentoReserva(Long orcamentoId, Long reservaId) {
+    jdbcTemplate.update(
+        "INSERT INTO public.orcamento_reserva (fk_orcamento, fk_reserva) VALUES (?, ?)",
+        orcamentoId,
+        reservaId);
+  }
+
+  public List<Reserva> findByOrcamentoId(Long orcamentoId) {
+    String sql = SELECT_RESERVA_BASE + " WHERE orv.fk_orcamento = ? ORDER BY r.data_hora_entrada ASC ";
+    List<Reserva> bases = jdbcTemplate.query(sql, Reserva.ROW_MAPPER, orcamentoId);
+    return enriquecer(bases);
+  }
+
+  @Transactional
+  public void atualizarStatus(List<Long> ids, Reserva.Status status) {
+    String inClause = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(","));
+    List<Object> params = new ArrayList<>();
+    params.add(status.name());
+    params.addAll(ids);
+    jdbcTemplate.update(
+        "UPDATE public.reserva SET status = ? WHERE id IN (" + inClause + ")",
+        params.toArray());
   }
 
   @Transactional

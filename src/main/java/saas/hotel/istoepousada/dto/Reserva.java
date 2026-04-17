@@ -2,11 +2,13 @@ package saas.hotel.istoepousada.dto;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.jdbc.core.RowMapper;
+import saas.hotel.istoepousada.config.BrLocalDateDeserializer;
 
 public record Reserva(
     @NotNull Long id,
@@ -21,6 +23,7 @@ public record Reserva(
     String observacao,
     Orcamento orcamento_info,
     List<ReservaPessoa> pessoas,
+    List<OrcamentoPessoa> pessoas_orcamento,
     List<ReservaPagamento> pagamentos) {
 
   public enum Status {
@@ -85,6 +88,13 @@ public record Reserva(
         };
   }
 
+  // ── Pessoas não cadastradas do orçamento ─────────────────────────────────
+
+  public record OrcamentoPessoa(
+      @NotNull Long id,
+      @NotNull String nome,
+      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_nascimento) {}
+
   // ── Agrupamento por dia (visão mensal) ────────────────────────────────────
 
   // ── Orçamento vinculado ───────────────────────────────────────────────────
@@ -110,6 +120,12 @@ public record Reserva(
 
   // ── Requests ──────────────────────────────────────────────────────────────
 
+  public record AtualizarStatusRequest(@NotNull List<Long> ids, @NotNull Status status) {}
+
+  public record OrcamentoPessoaRequest(
+      @NotNull String nome,
+      @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_nascimento) {}
+
   public record PessoaRequest(@JsonAlias("id") @NotNull Long fk_pessoa, Boolean representante) {}
 
   public record PagamentoReservaRequest(
@@ -131,6 +147,7 @@ public record Reserva(
       String nome_solicitante,
       String observacao,
       List<PessoaRequest> pessoas,
+      List<OrcamentoPessoaRequest> pessoas_orcamento,
       List<PagamentoReservaRequest> pagamentos) {}
 
   /** Inserção de múltiplas reservas de uma vez. */
@@ -147,6 +164,15 @@ public record Reserva(
 
   // ── Cálculo de preços ─────────────────────────────────────────────────────
 
+  public record CalcularPrecoRequest(
+      @NotNull Long fk_quarto,
+      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
+      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
+      @NotNull @JsonDeserialize(contentUsing = BrLocalDateDeserializer.class)
+          List<LocalDate> datas_nascimento,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_inicio,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_fim) {}
+
   public record CalculoPrecosRequest(
       @NotNull Long fk_quarto,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
@@ -158,6 +184,7 @@ public record Reserva(
 
   public record ItemPreco(
       String descricao,
+      Sazonalidade.Nome sazonalidade,
       Double valor_base,
       Double acrescimo_sazonalidade,
       Double valor_criancas,
@@ -198,6 +225,7 @@ public record Reserva(
             rs.getObject("reserva_valor_total", Float.class),
             rs.getString("reserva_observacao"),
             Reserva.Orcamento.ROW_MAPPER.mapRow(rs, rowNum),
+            null,
             null,
             null);
       };

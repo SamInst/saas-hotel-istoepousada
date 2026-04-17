@@ -5,11 +5,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +18,7 @@ import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.handler.exceptions.ConflictException;
 import saas.hotel.istoepousada.repository.CategoriaRepository;
 import saas.hotel.istoepousada.repository.PagamentoRepository;
+import saas.hotel.istoepousada.repository.PessoaRepository;
 import saas.hotel.istoepousada.repository.RelatorioRepository;
 import saas.hotel.istoepousada.repository.ReservaRepository;
 
@@ -32,16 +29,19 @@ public class ReservaService {
   private final CategoriaRepository categoriaRepository;
   private final PagamentoRepository pagamentoRepository;
   private final RelatorioRepository relatorioRepository;
+  private final PessoaRepository pessoaRepository;
 
   public ReservaService(
       ReservaRepository reservaRepository,
       CategoriaRepository categoriaRepository,
       PagamentoRepository pagamentoRepository,
-      RelatorioRepository relatorioRepository) {
+      RelatorioRepository relatorioRepository,
+      PessoaRepository pessoaRepository) {
     this.reservaRepository = reservaRepository;
     this.categoriaRepository = categoriaRepository;
     this.pagamentoRepository = pagamentoRepository;
     this.relatorioRepository = relatorioRepository;
+    this.pessoaRepository = pessoaRepository;
   }
 
   // ── Consultas ──────────────────────────────────────────────────────────────
@@ -78,9 +78,25 @@ public class ReservaService {
       throw new IllegalArgumentException("Lista de reservas é obrigatória.");
     }
 
+    boolean isOrcamento = request.reservas().stream().anyMatch(r -> Boolean.TRUE.equals(r.orcamento()));
+    Long orcamentoId = null;
+    if (isOrcamento) {
+      String nome = resolverNomeSolicitante(request.reservas());
+      orcamentoId = reservaRepository.insertOrcamento(nome, relatorioRepository.getFuncionarioId());
+    }
+
     List<Reserva> resultados = new ArrayList<>();
     for (Reserva.Request req : request.reservas()) {
-      resultados.add(inserirUma(req));
+      Reserva reserva = inserirUma(req);
+      if (orcamentoId != null && Boolean.TRUE.equals(req.orcamento())) {
+        reservaRepository.vincularOrcamentoReserva(orcamentoId, reserva.id());
+      }
+      if (req.pessoas_orcamento() != null) {
+        for (Reserva.OrcamentoPessoaRequest p : req.pessoas_orcamento()) {
+          reservaRepository.insertOrcamentoPessoa(reserva.id(), p.nome(), p.data_nascimento());
+        }
+      }
+      resultados.add(reservaRepository.findById(reserva.id()));
     }
     return resultados;
   }
@@ -113,10 +129,6 @@ public class ReservaService {
         reservaRepository.insertAndGetId(
             req.fk_quarto(), entrada, saida, valorTotal,
             Boolean.TRUE.equals(req.orcamento()), req.observacao());
-
-    if (Boolean.TRUE.equals(req.orcamento()) && req.nome_solicitante() != null) {
-      reservaRepository.insertOrcamento(reservaId, req.nome_solicitante());
-    }
 
     if (req.pessoas() != null) {
       for (int i = 0; i < req.pessoas().size(); i++) {
@@ -250,53 +262,49 @@ public class ReservaService {
     return reservaRepository.ativar(id);
   }
 
+  @Transactional(readOnly = true)
+  public List<Reserva> buscarPorOrcamento(Long orcamentoId) {
+    if (orcamentoId == null) throw new IllegalArgumentException("Id do orçamento é obrigatório.");
+    return reservaRepository.findByOrcamentoId(orcamentoId);
+  }
+
+  @Transactional
+  public void atualizarStatus(Reserva.AtualizarStatusRequest request) {
+    if (request.ids() == null || request.ids().isEmpty())
+      throw new IllegalArgumentException("Informe ao menos um id.");
+    reservaRepository.atualizarStatus(request.ids(), request.status());
+  }
+
   // ── Cálculo de preços ─────────────────────────────────────────────────────
 
   @Transactional(readOnly = true)
-  public Reserva.ResultadoPreco calcularPrecoPorPessoas(
-      Long fkQuarto,
-      LocalDate dataEntrada,
-      LocalDate dataSaida,
-      List<LocalDate> datasNascimento,
-      LocalDateTime horaInicio,
-      LocalDateTime horaFim) {
+  public List<Reserva.ResultadoPreco> calcularPreco(List<Reserva.CalcularPrecoRequest> requests) {
+    if (requests == null || requests.isEmpty())
+      throw new IllegalArgumentException("Lista vazia.");
+    return requests.stream().map(this::calcularPrecoItem).toList();
+  }
 
-    if (fkQuarto == null) throw new IllegalArgumentException("fk_quarto é obrigatório.");
-    if (datasNascimento == null || datasNascimento.isEmpty())
+  private Reserva.ResultadoPreco calcularPrecoItem(Reserva.CalcularPrecoRequest req) {
+    if (req.datas_nascimento() == null || req.datas_nascimento().isEmpty())
       throw new IllegalArgumentException("Informe ao menos uma data de nascimento.");
 
-    // Referência de data para calcular idades: hora_inicio (day use) ou data_entrada (pernoite)
-    LocalDate dataRef =
-        horaInicio != null ? horaInicio.toLocalDate() : dataEntrada != null ? dataEntrada : null;
+    LocalDate dataRef = req.hora_inicio() != null ? req.hora_inicio().toLocalDate() : req.data_entrada();
     if (dataRef == null) throw new IllegalArgumentException("Informe data_entrada ou hora_inicio.");
 
-    List<Integer> idadesCriancas = new ArrayList<>();
-    int qtdAdultos = 0;
-
-    for (LocalDate nascimento : datasNascimento) {
+    List<Integer> criancas = new ArrayList<>();
+    int adultos = 0;
+    for (LocalDate nascimento : req.datas_nascimento()) {
       int idade = java.time.Period.between(nascimento, dataRef).getYears();
-      if (idade >= 18) {
-        qtdAdultos++;
-      } else {
-        idadesCriancas.add(idade);
-      }
+      if (idade >= 18) adultos++;
+      else criancas.add(idade);
     }
-
-    if (qtdAdultos == 0) {
+    if (adultos == 0)
       throw new BusinessException("É necessário ao menos um adulto (18 anos ou mais) na reserva.");
-    }
 
     return calcularPrecoUnico(
         new Reserva.CalculoPrecosRequest(
-            fkQuarto, dataEntrada, dataSaida, qtdAdultos, idadesCriancas, horaInicio, horaFim));
-  }
-
-  @Transactional(readOnly = true)
-  public List<Reserva.ResultadoPreco> calcularPrecos(List<Reserva.CalculoPrecosRequest> requests) {
-    if (requests == null || requests.isEmpty()) {
-      throw new IllegalArgumentException("Lista de solicitações é obrigatória.");
-    }
-    return requests.stream().map(this::calcularPrecoUnico).toList();
+            req.fk_quarto(), req.data_entrada(), req.data_saida(), adultos, criancas,
+            req.hora_inicio(), req.hora_fim()));
   }
 
   private Reserva.ResultadoPreco calcularPrecoUnico(Reserva.CalculoPrecosRequest req) {
@@ -455,7 +463,7 @@ public class ReservaService {
                   + adultoLabel);
       if (!criancasComTaxa.isEmpty()) {
         if (criancasComTaxa.size() == 1) {
-          desc.append(" + Criança de ").append(criancasComTaxa.get(0)).append(" anos");
+          desc.append(" + Criança de ").append(criancasComTaxa.getFirst()).append(" anos");
         } else {
           desc.append(" + Crianças de ")
               .append(
@@ -466,7 +474,7 @@ public class ReservaService {
       if (!criancasGratuitas.isEmpty()) {
         if (criancasGratuitas.size() == 1) {
           desc.append(" + Criança de ")
-              .append(criancasGratuitas.get(0))
+              .append(criancasGratuitas.getFirst())
               .append(" anos (gratuidade)");
         } else {
           desc.append(" + Crianças de ")
@@ -476,9 +484,13 @@ public class ReservaService {
         }
       }
 
+      Sazonalidade.Nome sazonNomeItem =
+          activeSazonId != null ? sazonAplicadasMap.get(activeSazonId) : null;
+
       detalhes.add(
           new Reserva.ItemPreco(
               desc.toString(),
+              sazonNomeItem,
               precoBase,
               acrescimo,
               noiteCriancasPreco > 0 ? noiteCriancasPreco : null,
@@ -487,7 +499,7 @@ public class ReservaService {
     }
 
     List<Sazonalidade.Nome> sazonAplicadas =
-        sazonAplicadasMap.values().stream().filter(s -> s != null).toList();
+        sazonAplicadasMap.values().stream().filter(Objects::nonNull).toList();
 
     return new Reserva.ResultadoPreco(
         quartoObj,
@@ -620,7 +632,7 @@ public class ReservaService {
         0,
         valorTotal,
         sazonNome != null ? List.of(sazonNome) : null,
-        List.of(new Reserva.ItemPreco(descricao, valorBase, acrescimo, null, valorTotal)));
+        List.of(new Reserva.ItemPreco(descricao, sazonNome, valorBase, acrescimo, null, valorTotal)));
   }
 
   // ── Helpers de preço ──────────────────────────────────────────────────────
@@ -829,6 +841,25 @@ public class ReservaService {
   }
 
   // ── Validações ─────────────────────────────────────────────────────────────
+
+  private String resolverNomeSolicitante(List<Reserva.Request> reservas) {
+    for (Reserva.Request req : reservas) {
+      if (!Boolean.TRUE.equals(req.orcamento())) continue;
+      if (req.pessoas_orcamento() != null && !req.pessoas_orcamento().isEmpty()) {
+        return req.pessoas_orcamento().get(0).nome();
+      }
+      if (req.pessoas() != null && !req.pessoas().isEmpty()) {
+        try {
+          return pessoaRepository.findById(req.pessoas().get(0).fk_pessoa()).nome();
+        } catch (Exception ignored) {}
+      }
+      if (req.nome_solicitante() != null && !req.nome_solicitante().isBlank()) {
+        return req.nome_solicitante();
+      }
+    }
+    throw new BusinessException(
+        "Informe nome_solicitante ou ao menos um hóspede para o orçamento.");
+  }
 
   private void validarRequest(Reserva.Request req) {
     if (req == null) throw new IllegalArgumentException("Dados da reserva são obrigatórios.");
