@@ -120,6 +120,20 @@ public record Reserva(
 
   // ── Requests ──────────────────────────────────────────────────────────────
 
+  public record MotivoCancelamento(
+      @NotNull Long id,
+      @NotNull String motivo_cancelamento,
+      Funcionario.Nome funcionario,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro) {}
+
+  public record CancelamentoRequest(@NotNull String motivo_cancelamento) {}
+
+  public record Disponibilidade(
+      @NotNull Long fk_quarto,
+      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
+      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
+      boolean disponivel) {}
+
   public record AtualizarStatusRequest(@NotNull List<Long> ids, @NotNull Status status) {}
 
   public record OrcamentoPessoaRequest(
@@ -127,6 +141,8 @@ public record Reserva(
       @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_nascimento) {}
 
   public record PessoaRequest(@JsonAlias("id") @NotNull Long fk_pessoa, Boolean representante) {}
+
+  public record PessoaToggleRequest(@NotNull Boolean vincular, Boolean representante) {}
 
   public record PagamentoReservaRequest(
       @NotNull Pagamento.TipoPagamento.Id tipo_pagamento,

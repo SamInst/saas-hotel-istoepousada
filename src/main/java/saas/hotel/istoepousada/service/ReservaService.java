@@ -47,8 +47,8 @@ public class ReservaService {
   // ── Consultas ──────────────────────────────────────────────────────────────
 
   @Transactional(readOnly = true)
-  public List<Reserva.PorDia> buscarPorMesAno(int mes, int ano, Long id, String nome) {
-    List<Reserva> reservas = reservaRepository.buscarPorMesAno(mes, ano, id, nome);
+  public List<Reserva.PorDia> buscarPorMesAno(int mes, int ano, Long id, String nome, List<Reserva.Status> status) {
+    List<Reserva> reservas = reservaRepository.buscarPorMesAno(mes, ano, id, nome, status);
     return agruparPorDia(reservas);
   }
 
@@ -213,6 +213,19 @@ public class ReservaService {
   // ── Adição avulsa ─────────────────────────────────────────────────────────
 
   @Transactional
+  public List<Reserva.ReservaPessoa> togglePessoa(Long reservaId, Long pessoaId, Reserva.PessoaToggleRequest request) {
+    if (reservaId == null) throw new IllegalArgumentException("Id da reserva é obrigatório.");
+    if (pessoaId == null) throw new IllegalArgumentException("Id da pessoa é obrigatório.");
+    reservaRepository.findById(reservaId);
+    if (Boolean.TRUE.equals(request.vincular())) {
+      reservaRepository.vincularPessoa(reservaId, pessoaId, Boolean.TRUE.equals(request.representante()));
+    } else {
+      reservaRepository.desvincularPessoa(reservaId, pessoaId);
+    }
+    return reservaRepository.findById(reservaId).pessoas();
+  }
+
+  @Transactional
   public Reserva adicionarPessoa(Long reservaId, Reserva.PessoaRequest request) {
     if (reservaId == null) throw new IllegalArgumentException("Id da reserva é obrigatório.");
     if (request == null || request.fk_pessoa() == null)
@@ -257,6 +270,18 @@ public class ReservaService {
   }
 
   @Transactional
+  public Reserva.MotivoCancelamento cancelarComMotivo(Long id, String motivo) {
+    if (id == null) throw new IllegalArgumentException("Id é obrigatório.");
+    if (motivo == null || motivo.isBlank())
+      throw new IllegalArgumentException("Motivo de cancelamento é obrigatório.");
+    Reserva reserva = reservaRepository.findById(id);
+    if (reserva.status() == Reserva.Status.CANCELADO)
+      throw new BusinessException("Reserva já está cancelada.");
+    reservaRepository.cancelarComMotivo(id, motivo);
+    return reservaRepository.findMotivoCancelamento(id);
+  }
+
+  @Transactional
   public Reserva ativarOrcamento(Long id) {
     if (id == null) throw new IllegalArgumentException("Id é obrigatório.");
     return reservaRepository.ativar(id);
@@ -276,6 +301,28 @@ public class ReservaService {
   }
 
   // ── Cálculo de preços ─────────────────────────────────────────────────────
+
+  @Transactional(readOnly = true)
+  public List<Reserva.Disponibilidade> verificarDisponibilidade(
+      List<Long> quartoIds, LocalDate dataEntrada, LocalDate dataSaida) {
+    if (quartoIds == null || quartoIds.isEmpty())
+      throw new IllegalArgumentException("Informe ao menos um quarto.");
+    if (dataEntrada == null) throw new IllegalArgumentException("Data de entrada é obrigatória.");
+    if (dataSaida == null) throw new IllegalArgumentException("Data de saída é obrigatória.");
+    if (!dataEntrada.isBefore(dataSaida))
+      throw new IllegalArgumentException("Data de saída deve ser posterior à de entrada.");
+
+    return quartoIds.stream()
+        .map(quartoId -> {
+          ReservaRepository.CategoriaCheckin catInfo =
+              reservaRepository.findCategoriaCheckinByQuartoId(quartoId);
+          LocalDateTime entrada = buildDateTime(dataEntrada, catInfo != null ? catInfo.hora_checkin() : null);
+          LocalDateTime saida = buildDateTime(dataSaida, catInfo != null ? catInfo.hora_checkout() : null);
+          boolean disponivel = !reservaRepository.hasConflito(quartoId, entrada, saida, null);
+          return new Reserva.Disponibilidade(quartoId, dataEntrada, dataSaida, disponivel);
+        })
+        .toList();
+  }
 
   @Transactional(readOnly = true)
   public List<Reserva.ResultadoPreco> calcularPreco(List<Reserva.CalcularPrecoRequest> requests) {

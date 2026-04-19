@@ -36,8 +36,9 @@ public class ReservaController {
       @RequestParam int mes,
       @RequestParam int ano,
       @RequestParam(required = false) Long id,
-      @RequestParam(required = false) String nome) {
-    return reservaService.buscarPorMesAno(mes, ano, id, nome);
+      @RequestParam(required = false) String nome,
+      @RequestParam(required = false) List<Reserva.Status> status) {
+    return reservaService.buscarPorMesAno(mes, ano, id, nome, status);
   }
 
   /**
@@ -78,12 +79,13 @@ public class ReservaController {
     return reservaService.atualizar(update);
   }
 
-  /** Adiciona uma pessoa a uma reserva existente. */
-  @PostMapping("/{id}/pessoa")
-  @ResponseStatus(HttpStatus.CREATED)
-  public Reserva adicionarPessoa(
-      @PathVariable Long id, @RequestBody @Valid Reserva.PessoaRequest request) {
-    return reservaService.adicionarPessoa(id, request);
+  /** Vincula ou desvincula uma pessoa da reserva conforme o campo `vincular`. */
+  @PostMapping("/{id}/pessoa/{pessoaId}")
+  public List<Reserva.ReservaPessoa> togglePessoa(
+      @PathVariable Long id,
+      @PathVariable Long pessoaId,
+      @RequestBody @Valid Reserva.PessoaToggleRequest request) {
+    return reservaService.togglePessoa(id, pessoaId, request);
   }
 
   /** Adiciona um pagamento a uma reserva existente. */
@@ -105,6 +107,24 @@ public class ReservaController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void atualizarStatus(@RequestBody Reserva.AtualizarStatusRequest request) {
     reservaService.atualizarStatus(request);
+  }
+
+  /** Verifica disponibilidade de uma lista de quartos em um período. */
+  @GetMapping("/disponibilidade")
+  public List<Reserva.Disponibilidade> verificarDisponibilidade(
+      @RequestParam List<Long> fk_quartos,
+      @RequestParam @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
+      @RequestParam @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate data_saida) {
+    return reservaService.verificarDisponibilidade(fk_quartos, data_entrada, data_saida);
+  }
+
+  /** Cancela uma reserva registrando o motivo. Retorna o motivo de cancelamento registrado. */
+  @PutMapping("/{id}/cancelar")
+  @ResponseStatus(HttpStatus.CREATED)
+  public Reserva.MotivoCancelamento cancelar(
+      @PathVariable Long id,
+      @RequestBody @Valid Reserva.CancelamentoRequest request) {
+    return reservaService.cancelarComMotivo(id, request.motivo_cancelamento());
   }
 
   /** Calcula o preço para um ou mais quartos. Cada item tem seu próprio quarto, datas e pessoas. */

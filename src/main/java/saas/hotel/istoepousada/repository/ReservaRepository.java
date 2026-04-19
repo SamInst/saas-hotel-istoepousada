@@ -137,15 +137,19 @@ public class ReservaRepository {
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
-  public List<Reserva> buscarPorMesAno(int mes, int ano, Long idFiltro, String nome) {
-    StringBuilder where =
-        new StringBuilder(
-            """
-            WHERE r.status NOT IN ('CANCELADO', 'ORCAMENTO')
-              AND EXTRACT(MONTH FROM r.data_hora_entrada) = ?
-              AND EXTRACT(YEAR FROM r.data_hora_entrada) = ?
-            """);
+  public List<Reserva> buscarPorMesAno(int mes, int ano, Long idFiltro, String nome, List<Reserva.Status> status) {
+    List<Reserva.Status> statusFiltro = (status == null || status.isEmpty())
+        ? List.of(Reserva.Status.HOSPEDADO, Reserva.Status.ATIVO, Reserva.Status.FINALIZADO)
+        : status;
+
+    String inStatus = String.join(",", Collections.nCopies(statusFiltro.size(), "?::public.status_reserva"));
+    StringBuilder where = new StringBuilder(
+        "WHERE r.status IN (" + inStatus + ")\n" +
+        "  AND EXTRACT(MONTH FROM r.data_hora_entrada) = ?\n" +
+        "  AND EXTRACT(YEAR FROM r.data_hora_entrada) = ?\n");
+
     List<Object> params = new ArrayList<>();
+    statusFiltro.forEach(s -> params.add(s.name()));
     params.add(mes);
     params.add(ano);
 
@@ -165,7 +169,7 @@ public class ReservaRepository {
       params.add("%" + nome.trim() + "%");
     }
 
-    String sql = SELECT_RESERVA_BASE + where + " ORDER BY r.data_hora_entrada ASC ";
+    String sql = SELECT_RESERVA_BASE + where + " ORDER BY r.data_hora_entrada DESC ";
     List<Reserva> bases = jdbcTemplate.query(sql, Reserva.ROW_MAPPER, params.toArray());
     return enriquecer(bases);
   }
@@ -489,8 +493,21 @@ public class ReservaRepository {
     params.add(status.name());
     params.addAll(ids);
     jdbcTemplate.update(
-        "UPDATE public.reserva SET status = ? WHERE id IN (" + inClause + ")",
+        "UPDATE public.reserva SET status = ?::status_reserva WHERE id IN (" + inClause + ")",
         params.toArray());
+  }
+
+  public boolean isPessoaVinculada(Long reservaId, Long pessoaId) {
+    return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+        "SELECT COUNT(*) > 0 FROM public.reserva_pessoa WHERE fk_reserva = ? AND fk_pessoa = ?",
+        Boolean.class, reservaId, pessoaId));
+  }
+
+  @Transactional
+  public void desvincularPessoa(Long reservaId, Long pessoaId) {
+    jdbcTemplate.update(
+        "DELETE FROM public.reserva_pessoa WHERE fk_reserva = ? AND fk_pessoa = ?",
+        reservaId, pessoaId);
   }
 
   @Transactional
@@ -561,6 +578,51 @@ public class ReservaRepository {
             "UPDATE public.reserva SET status = 'CANCELADO'::public.status_reserva WHERE id = ?",
             id);
     if (rows == 0) throw new NotFoundException("Reserva não encontrada: " + id);
+  }
+
+  @Transactional
+  public void cancelarComMotivo(Long id, String motivo) {
+    int rows =
+        jdbcTemplate.update(
+            "UPDATE public.reserva SET status = 'CANCELADO'::public.status_reserva WHERE id = ?",
+            id);
+    if (rows == 0) throw new NotFoundException("Reserva não encontrada: " + id);
+    jdbcTemplate.update(
+        """
+        INSERT INTO public.reserva_motivo_cancelamento
+          (fk_reserva, fk_funcionario, motivo_cancelamento, data_hora_registro)
+        VALUES (?, ?, ?, NOW())
+        """,
+        id,
+        getFuncionarioId(),
+        motivo);
+  }
+
+  public Reserva.MotivoCancelamento findMotivoCancelamento(Long reservaId) {
+    try {
+      return jdbcTemplate.queryForObject(
+          """
+          SELECT rmc.id, rmc.motivo_cancelamento, rmc.data_hora_registro,
+                 f.id AS funcionario_id, p.nome AS funcionario_nome
+          FROM public.reserva_motivo_cancelamento rmc
+          LEFT JOIN public.funcionario f ON f.id = rmc.fk_funcionario
+          LEFT JOIN public.pessoa p ON p.id = f.fk_pessoa
+          WHERE rmc.fk_reserva = ?
+          ORDER BY rmc.data_hora_registro DESC
+          LIMIT 1
+          """,
+          (rs, rowNum) -> {
+            Long funcId = rs.getObject("funcionario_id", Long.class);
+            return new Reserva.MotivoCancelamento(
+                rs.getLong("id"),
+                rs.getString("motivo_cancelamento"),
+                funcId == null ? null : new saas.hotel.istoepousada.dto.Funcionario.Nome(funcId, rs.getString("funcionario_nome")),
+                rs.getObject("data_hora_registro", java.time.LocalDateTime.class));
+          },
+          reservaId);
+    } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+      return null;
+    }
   }
 
   @Transactional
