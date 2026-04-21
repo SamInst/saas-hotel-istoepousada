@@ -893,11 +893,11 @@ public class ReservaService {
     for (Reserva.Request req : reservas) {
       if (!Boolean.TRUE.equals(req.orcamento())) continue;
       if (req.pessoas_orcamento() != null && !req.pessoas_orcamento().isEmpty()) {
-        return req.pessoas_orcamento().get(0).nome();
+        return req.pessoas_orcamento().getFirst().nome();
       }
       if (req.pessoas() != null && !req.pessoas().isEmpty()) {
         try {
-          return pessoaRepository.findById(req.pessoas().get(0).fk_pessoa()).nome();
+          return pessoaRepository.findById(req.pessoas().getFirst().fk_pessoa()).nome();
         } catch (Exception ignored) {}
       }
       if (req.nome_solicitante() != null && !req.nome_solicitante().isBlank()) {

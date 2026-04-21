@@ -178,7 +178,7 @@ public class ReservaRepository {
     StringBuilder where =
         new StringBuilder(
             """
-            WHERE r.status NOT IN ('CANCELADO', 'ORCAMENTO')
+            WHERE r.status NOT IN ('CANCELADO')
               AND r.data_hora_entrada::date = ?
             """);
     List<Object> params = new ArrayList<>();
@@ -210,10 +210,10 @@ public class ReservaRepository {
         SELECT_RESERVA_BASE
             + """
             WHERE r.fk_quarto = ?
-              AND r.status NOT IN ('CANCELADO', 'ORCAMENTO')
+              AND r.status NOT IN ('CANCELADO')
               AND EXTRACT(MONTH FROM r.data_hora_entrada) = ?
               AND EXTRACT(YEAR FROM r.data_hora_entrada) = ?
-            ORDER BY r.data_hora_entrada ASC
+            ORDER BY r.data_hora_entrada
             """;
     List<Reserva> bases = jdbcTemplate.query(sql, Reserva.ROW_MAPPER, quartoId, mes, ano);
     return enriquecer(bases);
@@ -495,12 +495,6 @@ public class ReservaRepository {
     jdbcTemplate.update(
         "UPDATE public.reserva SET status = ?::status_reserva WHERE id IN (" + inClause + ")",
         params.toArray());
-  }
-
-  public boolean isPessoaVinculada(Long reservaId, Long pessoaId) {
-    return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
-        "SELECT COUNT(*) > 0 FROM public.reserva_pessoa WHERE fk_reserva = ? AND fk_pessoa = ?",
-        Boolean.class, reservaId, pessoaId));
   }
 
   @Transactional
