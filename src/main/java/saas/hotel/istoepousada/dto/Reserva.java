@@ -24,7 +24,8 @@ public record Reserva(
     Orcamento orcamento_info,
     List<ReservaPessoa> pessoas,
     List<OrcamentoPessoa> pessoas_orcamento,
-    List<ReservaPagamento> pagamentos) {
+    List<ReservaPagamento> pagamentos,
+    MotivoCancelamento motivo_cancelamento) {
 
   public enum Status {
     SOLICITADA,
@@ -114,6 +115,13 @@ public record Reserva(
               rs.getObject("orcamento_data_hora_registro", LocalDateTime.class));
         };
   }
+
+  public record OrcamentoDetalhe(
+      @NotNull Long id,
+      @NotNull String nome_solicitante,
+      Funcionario.Nome funcionario,
+      @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
+      List<Reserva> reservas) {}
 
   public record PorDia(
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data, List<Reserva> reservas) {}
@@ -241,6 +249,7 @@ public record Reserva(
             rs.getObject("reserva_valor_total", Float.class),
             rs.getString("reserva_observacao"),
             Reserva.Orcamento.ROW_MAPPER.mapRow(rs, rowNum),
+            null,
             null,
             null,
             null);

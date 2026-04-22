@@ -32,13 +32,19 @@ public class ReservaController {
    * pessoa.
    */
   @GetMapping
-  public List<Reserva.PorDia> buscarPorMesAno(
-      @RequestParam int mes,
-      @RequestParam int ano,
+  public List<Reserva.PorDia> buscarReservas(
+      @RequestParam(required = false) Integer mes,
+      @RequestParam(required = false) Integer ano,
       @RequestParam(required = false) Long id,
       @RequestParam(required = false) String nome,
       @RequestParam(required = false) List<Reserva.Status> status) {
-    return reservaService.buscarPorMesAno(mes, ano, id, nome, status);
+    if (mes != null && ano != null) {
+      return reservaService.buscarPorMesAno(mes, ano, id, nome, status);
+    }
+    if ((nome != null && !nome.isBlank()) || (status != null && !status.isEmpty())) {
+      return reservaService.buscarPorFiltro(nome, status);
+    }
+    throw new IllegalArgumentException("Informe mes e ano, ou nome/status para busca.");
   }
 
   /**
@@ -96,9 +102,9 @@ public class ReservaController {
     return reservaService.adicionarPagamento(id, request);
   }
 
-  /** Retorna todas as reservas vinculadas a um orçamento. */
+  /** Retorna um orçamento com suas reservas vinculadas. */
   @GetMapping("/orcamento/{orcamentoId}")
-  public List<Reserva> buscarPorOrcamento(@PathVariable Long orcamentoId) {
+  public Reserva.OrcamentoDetalhe buscarPorOrcamento(@PathVariable Long orcamentoId) {
     return reservaService.buscarPorOrcamento(orcamentoId);
   }
 
@@ -122,8 +128,7 @@ public class ReservaController {
   @PutMapping("/{id}/cancelar")
   @ResponseStatus(HttpStatus.CREATED)
   public Reserva.MotivoCancelamento cancelar(
-      @PathVariable Long id,
-      @RequestBody @Valid Reserva.CancelamentoRequest request) {
+      @PathVariable Long id, @RequestBody @Valid Reserva.CancelamentoRequest request) {
     return reservaService.cancelarComMotivo(id, request.motivo_cancelamento());
   }
 

@@ -7,12 +7,15 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Categoria;
@@ -57,6 +60,30 @@ public class ReservaRepository {
     }
   }
 
+  public Map<Long, CategoriaCheckin> findCategoriasCheckinByQuartoIds(List<Long> quartoIds) {
+    String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
+    Map<Long, CategoriaCheckin> map = new HashMap<>();
+    jdbcTemplate.query(
+        ("""
+        SELECT qc.fk_quarto, c.id, c.nome, c.hora_checkin, c.hora_checkout
+        FROM public.quarto_categoria qc
+        JOIN public.categoria c ON c.id = qc.fk_categoria
+        WHERE qc.fk_quarto IN (%s)
+        """)
+            .formatted(in),
+        (RowCallbackHandler)
+            rs ->
+                map.put(
+                    rs.getLong("fk_quarto"),
+                    new CategoriaCheckin(
+                        rs.getLong("id"),
+                        rs.getString("nome"),
+                        rs.getObject("hora_checkin", LocalTime.class),
+                        rs.getObject("hora_checkout", LocalTime.class))),
+        quartoIds.toArray());
+    return map;
+  }
+
   // ── Sazonalidades ativas para uma categoria ────────────────────────────────
 
   public record SazonInfo(
@@ -71,27 +98,39 @@ public class ReservaRepository {
       List<Integer> anual) {}
 
   public List<SazonInfo> findSazonalidades(Long categoriaId) {
-    return jdbcTemplate.query(
-        """
-        SELECT s.id, s.descricao, s.data_inicio, s.data_fim,
+    return findSazonalidades(List.of(categoriaId)).getOrDefault(categoriaId, List.of());
+  }
+
+  public Map<Long, List<SazonInfo>> findSazonalidades(List<Long> categoriaIds) {
+    if (categoriaIds == null || categoriaIds.isEmpty()) return Map.of();
+    String in = String.join(",", Collections.nCopies(categoriaIds.size(), "?"));
+    Map<Long, List<SazonInfo>> map = new LinkedHashMap<>();
+    jdbcTemplate.query(
+        ("""
+        SELECT cs.fk_categoria, s.id, s.descricao, s.data_inicio, s.data_fim,
                s.hora_checkin, s.hora_checkout, s.semanal, s.mensal, s.anual
         FROM public.categoria_sazonalidade cs
         JOIN public.sazonalidade s ON s.id = cs.fk_sazonalidade
-        WHERE cs.fk_categoria = ? AND cs.ativo = true
-        ORDER BY s.id
-        """,
-        (rs, rowNum) ->
-            new SazonInfo(
-                rs.getLong("id"),
-                rs.getString("descricao"),
-                rs.getObject("data_inicio", LocalDate.class),
-                rs.getObject("data_fim", LocalDate.class),
-                rs.getObject("hora_checkin", LocalTime.class),
-                rs.getObject("hora_checkout", LocalTime.class),
-                parseIntArray(rs.getArray("semanal")),
-                parseIntArray(rs.getArray("mensal")),
-                parseIntArray(rs.getArray("anual"))),
-        categoriaId);
+        WHERE cs.fk_categoria IN (%s) AND cs.ativo = true
+        ORDER BY cs.fk_categoria, s.id
+        """)
+            .formatted(in),
+        (RowCallbackHandler)
+            rs ->
+                map.computeIfAbsent(rs.getLong("fk_categoria"), k -> new ArrayList<>())
+                    .add(
+                        new SazonInfo(
+                            rs.getLong("id"),
+                            rs.getString("descricao"),
+                            rs.getObject("data_inicio", LocalDate.class),
+                            rs.getObject("data_fim", LocalDate.class),
+                            rs.getObject("hora_checkin", LocalTime.class),
+                            rs.getObject("hora_checkout", LocalTime.class),
+                            parseIntArray(rs.getArray("semanal")),
+                            parseIntArray(rs.getArray("mensal")),
+                            parseIntArray(rs.getArray("anual")))),
+        categoriaIds.toArray());
+    return map;
   }
 
   private static List<Integer> parseIntArray(java.sql.Array arr) {
@@ -137,16 +176,22 @@ public class ReservaRepository {
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
-  public List<Reserva> buscarPorMesAno(int mes, int ano, Long idFiltro, String nome, List<Reserva.Status> status) {
-    List<Reserva.Status> statusFiltro = (status == null || status.isEmpty())
-        ? List.of(Reserva.Status.HOSPEDADO, Reserva.Status.ATIVO, Reserva.Status.FINALIZADO)
-        : status;
+  public List<Reserva> buscarPorMesAno(
+      int mes, int ano, Long idFiltro, String nome, List<Reserva.Status> status) {
+    List<Reserva.Status> statusFiltro =
+        (status == null || status.isEmpty())
+            ? List.of(Reserva.Status.HOSPEDADO, Reserva.Status.ATIVO, Reserva.Status.FINALIZADO)
+            : status;
 
-    String inStatus = String.join(",", Collections.nCopies(statusFiltro.size(), "?::public.status_reserva"));
-    StringBuilder where = new StringBuilder(
-        "WHERE r.status IN (" + inStatus + ")\n" +
-        "  AND EXTRACT(MONTH FROM r.data_hora_entrada) = ?\n" +
-        "  AND EXTRACT(YEAR FROM r.data_hora_entrada) = ?\n");
+    String inStatus =
+        String.join(",", Collections.nCopies(statusFiltro.size(), "?::public.status_reserva"));
+    StringBuilder where =
+        new StringBuilder(
+            "WHERE r.status IN ("
+                + inStatus
+                + ")\n"
+                + "  AND EXTRACT(MONTH FROM r.data_hora_entrada) = ?\n"
+                + "  AND EXTRACT(YEAR FROM r.data_hora_entrada) = ?\n");
 
     List<Object> params = new ArrayList<>();
     statusFiltro.forEach(s -> params.add(s.name()));
@@ -205,6 +250,33 @@ public class ReservaRepository {
     return enriquecer(bases);
   }
 
+  public List<Reserva> buscarPorFiltro(String nome, List<Reserva.Status> status) {
+    StringBuilder where = new StringBuilder("WHERE 1=1\n");
+    List<Object> params = new ArrayList<>();
+
+    if (status != null && !status.isEmpty()) {
+      String inStatus =
+          String.join(",", Collections.nCopies(status.size(), "?::public.status_reserva"));
+      where.append("  AND r.status IN (").append(inStatus).append(")\n");
+      status.forEach(s -> params.add(s.name()));
+    }
+    if (nome != null && !nome.isBlank()) {
+      where.append(
+          """
+            AND EXISTS (
+              SELECT 1 FROM public.reserva_pessoa rp2
+              JOIN public.pessoa p2 ON p2.id = rp2.fk_pessoa
+              WHERE rp2.fk_reserva = r.id AND p2.nome ILIKE ?
+            )
+          """);
+      params.add("%" + nome.trim() + "%");
+    }
+
+    String sql = SELECT_RESERVA_BASE + where + " ORDER BY r.data_hora_entrada DESC ";
+    List<Reserva> bases = jdbcTemplate.query(sql, Reserva.ROW_MAPPER, params.toArray());
+    return enriquecer(bases);
+  }
+
   public List<Reserva> buscarPorQuartoMes(Long quartoId, int mes, int ano) {
     String sql =
         SELECT_RESERVA_BASE
@@ -237,8 +309,17 @@ public class ReservaRepository {
 
     List<Long> ids = bases.stream().map(Reserva::id).toList();
     Map<Long, List<Reserva.ReservaPessoa>> pessoasMap = buscarPessoasPorReservas(ids);
-    Map<Long, List<Reserva.OrcamentoPessoa>> orcamentoPessoasMap = buscarOrcamentoPessoasPorReservas(ids);
+    Map<Long, List<Reserva.OrcamentoPessoa>> orcamentoPessoasMap =
+        buscarOrcamentoPessoasPorReservas(ids);
     Map<Long, List<Reserva.ReservaPagamento>> pagamentosMap = buscarPagamentosPorReservas(ids);
+
+    List<Long> canceladosIds =
+        bases.stream()
+            .filter(r -> r.status() == Reserva.Status.CANCELADO)
+            .map(Reserva::id)
+            .toList();
+    Map<Long, Reserva.MotivoCancelamento> motivosMap =
+        canceladosIds.isEmpty() ? Map.of() : buscarMotivosCancelamentoPorReservas(canceladosIds);
 
     return bases.stream()
         .map(
@@ -257,8 +338,42 @@ public class ReservaRepository {
                     r.orcamento_info(),
                     pessoasMap.getOrDefault(r.id(), List.of()),
                     orcamentoPessoasMap.getOrDefault(r.id(), List.of()),
-                    pagamentosMap.getOrDefault(r.id(), List.of())))
+                    pagamentosMap.getOrDefault(r.id(), List.of()),
+                    motivosMap.get(r.id())))
         .toList();
+  }
+
+  private Map<Long, Reserva.MotivoCancelamento> buscarMotivosCancelamentoPorReservas(
+      List<Long> reservaIds) {
+    String in = String.join(",", Collections.nCopies(reservaIds.size(), "?"));
+    Map<Long, Reserva.MotivoCancelamento> map = new HashMap<>();
+    jdbcTemplate.query(
+        ("""
+        SELECT DISTINCT ON (rmc.fk_reserva)
+               rmc.id, rmc.fk_reserva, rmc.motivo_cancelamento, rmc.data_hora_registro,
+               f.id AS funcionario_id, p.nome AS funcionario_nome
+        FROM public.reserva_motivo_cancelamento rmc
+        LEFT JOIN public.funcionario f ON f.id = rmc.fk_funcionario
+        LEFT JOIN public.pessoa p ON p.id = f.fk_pessoa
+        WHERE rmc.fk_reserva IN (%s)
+        ORDER BY rmc.fk_reserva, rmc.data_hora_registro DESC
+        """)
+            .formatted(in),
+        rs -> {
+          Long funcId = rs.getObject("funcionario_id", Long.class);
+          map.put(
+              rs.getLong("fk_reserva"),
+              new Reserva.MotivoCancelamento(
+                  rs.getLong("id"),
+                  rs.getString("motivo_cancelamento"),
+                  funcId == null
+                      ? null
+                      : new saas.hotel.istoepousada.dto.Funcionario.Nome(
+                          funcId, rs.getString("funcionario_nome")),
+                  rs.getObject("data_hora_registro", java.time.LocalDateTime.class)));
+        },
+        reservaIds.toArray());
+    return map;
   }
 
   private Map<Long, List<Reserva.ReservaPessoa>> buscarPessoasPorReservas(List<Long> reservaIds) {
@@ -374,6 +489,34 @@ public class ReservaRepository {
 
   // ── Verificação de conflito ────────────────────────────────────────────────
 
+  public Set<Long> findQuartosComConflito(Map<Long, LocalDateTime[]> quartoEntradaSaida) {
+    if (quartoEntradaSaida.isEmpty()) return Set.of();
+
+    List<Object> params = new ArrayList<>();
+    List<String> valueParts = new ArrayList<>();
+    for (Map.Entry<Long, LocalDateTime[]> entry : quartoEntradaSaida.entrySet()) {
+      valueParts.add("(?::bigint, ?::timestamp, ?::timestamp)");
+      params.add(entry.getKey());
+      params.add(entry.getValue()[0]);
+      params.add(entry.getValue()[1]);
+    }
+
+    String sql = ("""
+        SELECT DISTINCT r.fk_quarto
+        FROM public.reserva r
+        JOIN (VALUES %s) AS v(quarto_id, entrada, saida)
+          ON r.fk_quarto = v.quarto_id
+        WHERE r.status != 'CANCELADO'
+          AND r.data_hora_entrada < v.saida
+          AND r.data_hora_saida > v.entrada
+        """).formatted(String.join(", ", valueParts));
+
+    Set<Long> result = new HashSet<>();
+    jdbcTemplate.query(sql, (RowCallbackHandler) rs -> result.add(rs.getLong("fk_quarto")),
+        params.toArray());
+    return result;
+  }
+
   public boolean hasConflito(
       Long quartoId, LocalDateTime entrada, LocalDateTime saida, Long excludeReservaId) {
     String sql =
@@ -405,6 +548,16 @@ public class ReservaRepository {
     } catch (EmptyResultDataAccessException e) {
       return null;
     }
+  }
+
+  public Map<Long, String> findQuartosDescricao(List<Long> quartoIds) {
+    String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
+    Map<Long, String> map = new HashMap<>();
+    jdbcTemplate.query(
+        "SELECT id, descricao FROM public.quarto WHERE id IN (%s)".formatted(in),
+        (RowCallbackHandler) rs -> map.put(rs.getLong("id"), rs.getString("descricao")),
+        quartoIds.toArray());
+    return map;
   }
 
   // ── Insert ────────────────────────────────────────────────────────────────
@@ -452,22 +605,29 @@ public class ReservaRepository {
   public void insertOrcamentoPessoa(Long reservaId, String nome, LocalDate dataNascimento) {
     jdbcTemplate.update(
         "INSERT INTO public.orcamento_reserva_pessoa (fk_reserva, nome, data_nascimento) VALUES (?, ?, ?)",
-        reservaId, nome, dataNascimento);
+        reservaId,
+        nome,
+        dataNascimento);
   }
 
-  private Map<Long, List<Reserva.OrcamentoPessoa>> buscarOrcamentoPessoasPorReservas(List<Long> reservaIds) {
+  private Map<Long, List<Reserva.OrcamentoPessoa>> buscarOrcamentoPessoasPorReservas(
+      List<Long> reservaIds) {
     String in = String.join(",", Collections.nCopies(reservaIds.size(), "?"));
-    List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-        "SELECT id, fk_reserva, nome, data_nascimento FROM public.orcamento_reserva_pessoa WHERE fk_reserva IN (" + in + ")",
-        reservaIds.toArray());
+    List<Map<String, Object>> rows =
+        jdbcTemplate.queryForList(
+            "SELECT id, fk_reserva, nome, data_nascimento FROM public.orcamento_reserva_pessoa WHERE fk_reserva IN ("
+                + in
+                + ")",
+            reservaIds.toArray());
     Map<Long, List<Reserva.OrcamentoPessoa>> map = new HashMap<>();
     for (Map<String, Object> row : rows) {
       Long resId = ((Number) row.get("fk_reserva")).longValue();
-      map.computeIfAbsent(resId, k -> new ArrayList<>()).add(
-          new Reserva.OrcamentoPessoa(
-              ((Number) row.get("id")).longValue(),
-              (String) row.get("nome"),
-              ((java.sql.Date) row.get("data_nascimento")).toLocalDate()));
+      map.computeIfAbsent(resId, k -> new ArrayList<>())
+          .add(
+              new Reserva.OrcamentoPessoa(
+                  ((Number) row.get("id")).longValue(),
+                  (String) row.get("nome"),
+                  ((java.sql.Date) row.get("data_nascimento")).toLocalDate()));
     }
     return map;
   }
@@ -481,9 +641,40 @@ public class ReservaRepository {
   }
 
   public List<Reserva> findByOrcamentoId(Long orcamentoId) {
-    String sql = SELECT_RESERVA_BASE + " WHERE orv.fk_orcamento = ? ORDER BY r.data_hora_entrada ASC ";
+    String sql = SELECT_RESERVA_BASE
+        + " WHERE orv.fk_orcamento = ? AND r.status = 'ORCAMENTO'::public.status_reserva ORDER BY r.data_hora_entrada ASC ";
     List<Reserva> bases = jdbcTemplate.query(sql, Reserva.ROW_MAPPER, orcamentoId);
     return enriquecer(bases);
+  }
+
+  public Reserva.OrcamentoDetalhe findOrcamentoDetalhe(Long orcamentoId) {
+    Reserva.OrcamentoDetalhe info;
+    try {
+      info = jdbcTemplate.queryForObject(
+          """
+          SELECT o.id, o.nome_solicitante, o.data_hora_registro,
+                 f.id AS funcionario_id, p.nome AS funcionario_nome
+          FROM public.orcamento o
+          LEFT JOIN public.funcionario f ON f.id = o.fk_funcionario
+          LEFT JOIN public.pessoa p ON p.id = f.fk_pessoa
+          WHERE o.id = ?
+          """,
+          (rs, rowNum) -> {
+            Long funcId = rs.getObject("funcionario_id", Long.class);
+            return new Reserva.OrcamentoDetalhe(
+                rs.getLong("id"),
+                rs.getString("nome_solicitante"),
+                funcId == null ? null : new saas.hotel.istoepousada.dto.Funcionario.Nome(funcId, rs.getString("funcionario_nome")),
+                rs.getObject("data_hora_registro", java.time.LocalDateTime.class),
+                null);
+          },
+          orcamentoId);
+    } catch (EmptyResultDataAccessException e) {
+      throw new NotFoundException("Orçamento não encontrado: " + orcamentoId);
+    }
+    List<Reserva> reservas = findByOrcamentoId(orcamentoId);
+    return new Reserva.OrcamentoDetalhe(
+        info.id(), info.nome_solicitante(), info.funcionario(), info.data_hora_registro(), reservas);
   }
 
   @Transactional
@@ -501,7 +692,8 @@ public class ReservaRepository {
   public void desvincularPessoa(Long reservaId, Long pessoaId) {
     jdbcTemplate.update(
         "DELETE FROM public.reserva_pessoa WHERE fk_reserva = ? AND fk_pessoa = ?",
-        reservaId, pessoaId);
+        reservaId,
+        pessoaId);
   }
 
   @Transactional
@@ -610,7 +802,10 @@ public class ReservaRepository {
             return new Reserva.MotivoCancelamento(
                 rs.getLong("id"),
                 rs.getString("motivo_cancelamento"),
-                funcId == null ? null : new saas.hotel.istoepousada.dto.Funcionario.Nome(funcId, rs.getString("funcionario_nome")),
+                funcId == null
+                    ? null
+                    : new saas.hotel.istoepousada.dto.Funcionario.Nome(
+                        funcId, rs.getString("funcionario_nome")),
                 rs.getObject("data_hora_registro", java.time.LocalDateTime.class));
           },
           reservaId);

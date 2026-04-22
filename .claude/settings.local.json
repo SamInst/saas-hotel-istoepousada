@@ -19,7 +19,8 @@
       "Bash(cmd.exe /c \"gradlew.bat compileJava 2>&1\")",
       "Bash(cmd.exe /c \"gradlew.bat compileJava\")",
       "Bash(cmd.exe:*)",
-      "Bash(cmd *)"
+      "Bash(cmd *)",
+      "Bash(./gradlew compileJava --offline)"
     ]
   }
 }

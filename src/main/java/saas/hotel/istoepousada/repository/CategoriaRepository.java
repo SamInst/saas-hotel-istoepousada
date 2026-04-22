@@ -141,6 +141,38 @@ public class CategoriaRepository {
     return enriquecerCategoria(Objects.requireNonNull(base));
   }
 
+  public Map<Long, Categoria> findCategoriasParaCalculo(List<Long> categoriaIds) {
+    if (categoriaIds == null || categoriaIds.isEmpty()) return Map.of();
+    String in = String.join(",", Collections.nCopies(categoriaIds.size(), "?"));
+    Object[] idsArr = categoriaIds.toArray();
+
+    Map<Long, List<Categoria.ModeloOcupacao>> ocupacaoMap = carregarModelosOcupacao(in, idsArr);
+    Map<Long, List<Categoria.ModeloFixo>> fixoMap = carregarModelosFixo(in, idsArr);
+    Map<Long, List<Categoria.DayUseOperacao>> dayUseMap = carregarDayUseOperacoes(in, idsArr);
+    Map<Long, List<Categoria.MenorIdade>> menoresMap = carregarMenoresIdade(in, idsArr);
+
+    Map<Long, Categoria> result = new LinkedHashMap<>();
+    for (Long id : categoriaIds) {
+      result.put(
+          id,
+          new Categoria(
+              id,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              ocupacaoMap.getOrDefault(id, List.of()),
+              fixoMap.getOrDefault(id, List.of()),
+              dayUseMap.getOrDefault(id, List.of()),
+              List.of(),
+              List.of(),
+              menoresMap.getOrDefault(id, List.of())));
+    }
+    return result;
+  }
+
   public Categoria findByQuartoId(Long quartoId) {
     try {
       Long categoriaId =

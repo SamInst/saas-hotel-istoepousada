@@ -47,9 +47,15 @@ public class ReservaService {
   // ── Consultas ──────────────────────────────────────────────────────────────
 
   @Transactional(readOnly = true)
-  public List<Reserva.PorDia> buscarPorMesAno(int mes, int ano, Long id, String nome, List<Reserva.Status> status) {
+  public List<Reserva.PorDia> buscarPorMesAno(
+      int mes, int ano, Long id, String nome, List<Reserva.Status> status) {
     List<Reserva> reservas = reservaRepository.buscarPorMesAno(mes, ano, id, nome, status);
     return agruparPorDia(reservas);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Reserva.PorDia> buscarPorFiltro(String nome, List<Reserva.Status> status) {
+    return agruparPorDia(reservaRepository.buscarPorFiltro(nome, status));
   }
 
   @Transactional(readOnly = true)
@@ -78,7 +84,8 @@ public class ReservaService {
       throw new IllegalArgumentException("Lista de reservas é obrigatória.");
     }
 
-    boolean isOrcamento = request.reservas().stream().anyMatch(r -> Boolean.TRUE.equals(r.orcamento()));
+    boolean isOrcamento =
+        request.reservas().stream().anyMatch(r -> Boolean.TRUE.equals(r.orcamento()));
     Long orcamentoId = null;
     if (isOrcamento) {
       String nome = resolverNomeSolicitante(request.reservas());
@@ -127,8 +134,12 @@ public class ReservaService {
 
     Long reservaId =
         reservaRepository.insertAndGetId(
-            req.fk_quarto(), entrada, saida, valorTotal,
-            Boolean.TRUE.equals(req.orcamento()), req.observacao());
+            req.fk_quarto(),
+            entrada,
+            saida,
+            valorTotal,
+            Boolean.TRUE.equals(req.orcamento()),
+            req.observacao());
 
     if (req.pessoas() != null) {
       for (int i = 0; i < req.pessoas().size(); i++) {
@@ -150,9 +161,7 @@ public class ReservaService {
                     null));
         reservaRepository.vincularPagamento(reservaId, criado.uuid());
         relatorioRepository.registrarRelatorioDeConsumo(
-            criado,
-            relatorioRepository.getFuncionarioId(),
-            "Reserva - Quarto " + req.fk_quarto());
+            criado, relatorioRepository.getFuncionarioId(), "Reserva - Quarto " + req.fk_quarto());
       }
     }
 
@@ -207,18 +216,25 @@ public class ReservaService {
     }
 
     return reservaRepository.update(
-        update.id(), update.fk_quarto(), novaEntrada, novaSaida, update.valor_total(), update.observacao());
+        update.id(),
+        update.fk_quarto(),
+        novaEntrada,
+        novaSaida,
+        update.valor_total(),
+        update.observacao());
   }
 
   // ── Adição avulsa ─────────────────────────────────────────────────────────
 
   @Transactional
-  public List<Reserva.ReservaPessoa> togglePessoa(Long reservaId, Long pessoaId, Reserva.PessoaToggleRequest request) {
+  public List<Reserva.ReservaPessoa> togglePessoa(
+      Long reservaId, Long pessoaId, Reserva.PessoaToggleRequest request) {
     if (reservaId == null) throw new IllegalArgumentException("Id da reserva é obrigatório.");
     if (pessoaId == null) throw new IllegalArgumentException("Id da pessoa é obrigatório.");
     reservaRepository.findById(reservaId);
     if (Boolean.TRUE.equals(request.vincular())) {
-      reservaRepository.vincularPessoa(reservaId, pessoaId, Boolean.TRUE.equals(request.representante()));
+      reservaRepository.vincularPessoa(
+          reservaId, pessoaId, Boolean.TRUE.equals(request.representante()));
     } else {
       reservaRepository.desvincularPessoa(reservaId, pessoaId);
     }
@@ -254,7 +270,8 @@ public class ReservaService {
     relatorioRepository.registrarRelatorioDeConsumo(
         criado,
         relatorioRepository.getFuncionarioId(),
-        "Reserva - Quarto " + (reserva.quarto() != null ? reserva.quarto().descricao() : reservaId));
+        "Reserva - Quarto "
+            + (reserva.quarto() != null ? reserva.quarto().descricao() : reservaId));
     return reservaRepository.findById(reservaId);
   }
 
@@ -288,9 +305,9 @@ public class ReservaService {
   }
 
   @Transactional(readOnly = true)
-  public List<Reserva> buscarPorOrcamento(Long orcamentoId) {
+  public Reserva.OrcamentoDetalhe buscarPorOrcamento(Long orcamentoId) {
     if (orcamentoId == null) throw new IllegalArgumentException("Id do orçamento é obrigatório.");
-    return reservaRepository.findByOrcamentoId(orcamentoId);
+    return reservaRepository.findOrcamentoDetalhe(orcamentoId);
   }
 
   @Transactional
@@ -312,30 +329,112 @@ public class ReservaService {
     if (!dataEntrada.isBefore(dataSaida))
       throw new IllegalArgumentException("Data de saída deve ser posterior à de entrada.");
 
+    Map<Long, ReservaRepository.CategoriaCheckin> catInfoMap =
+        reservaRepository.findCategoriasCheckinByQuartoIds(quartoIds);
+
+    Map<Long, LocalDateTime[]> quartoEntradaSaida = new LinkedHashMap<>();
+    for (Long quartoId : quartoIds) {
+      ReservaRepository.CategoriaCheckin catInfo = catInfoMap.get(quartoId);
+      quartoEntradaSaida.put(quartoId, new LocalDateTime[]{
+          buildDateTime(dataEntrada, catInfo != null ? catInfo.hora_checkin() : null),
+          buildDateTime(dataSaida, catInfo != null ? catInfo.hora_checkout() : null)
+      });
+    }
+
+    Set<Long> comConflito = reservaRepository.findQuartosComConflito(quartoEntradaSaida);
+
     return quartoIds.stream()
-        .map(quartoId -> {
-          ReservaRepository.CategoriaCheckin catInfo =
-              reservaRepository.findCategoriaCheckinByQuartoId(quartoId);
-          LocalDateTime entrada = buildDateTime(dataEntrada, catInfo != null ? catInfo.hora_checkin() : null);
-          LocalDateTime saida = buildDateTime(dataSaida, catInfo != null ? catInfo.hora_checkout() : null);
-          boolean disponivel = !reservaRepository.hasConflito(quartoId, entrada, saida, null);
-          return new Reserva.Disponibilidade(quartoId, dataEntrada, dataSaida, disponivel);
-        })
+        .map(quartoId -> new Reserva.Disponibilidade(
+            quartoId, dataEntrada, dataSaida, !comConflito.contains(quartoId)))
         .toList();
   }
 
   @Transactional(readOnly = true)
   public List<Reserva.ResultadoPreco> calcularPreco(List<Reserva.CalcularPrecoRequest> requests) {
-    if (requests == null || requests.isEmpty())
-      throw new IllegalArgumentException("Lista vazia.");
-    return requests.stream().map(this::calcularPrecoItem).toList();
+    if (requests == null || requests.isEmpty()) throw new IllegalArgumentException("Lista vazia.");
+
+    List<Reserva.CalculoPrecosRequest> resolved =
+        requests.stream().map(this::resolverIdades).toList();
+
+    // Batch: catInfo por quarto
+    List<Long> quartoIds = resolved.stream().map(Reserva.CalculoPrecosRequest::fk_quarto).toList();
+    Map<Long, ReservaRepository.CategoriaCheckin> catInfoMap =
+        reservaRepository.findCategoriasCheckinByQuartoIds(quartoIds);
+
+    for (Reserva.CalculoPrecosRequest req : resolved) {
+      if (catInfoMap.get(req.fk_quarto()) == null)
+        throw new BusinessException(
+            "O quarto " + req.fk_quarto() + " não possui categoria configurada.");
+    }
+
+    // Batch: categorias (apenas modelos de preço, sem quartos/sazonalidades)
+    List<Long> categoriaIds =
+        catInfoMap.values().stream()
+            .map(ReservaRepository.CategoriaCheckin::id)
+            .distinct()
+            .toList();
+    Map<Long, Categoria> categoriasMap =
+        categoriaRepository.findCategoriasParaCalculo(categoriaIds);
+
+    // Batch: sazonalidades por categoria
+    Map<Long, List<ReservaRepository.SazonInfo>> sazonPorCategoria =
+        reservaRepository.findSazonalidades(categoriaIds);
+
+    List<Long> allSazonIds =
+        sazonPorCategoria.values().stream()
+            .flatMap(List::stream)
+            .map(ReservaRepository.SazonInfo::id)
+            .distinct()
+            .toList();
+
+    // Batch: modelos próprios de sazonalidade
+    Map<Long, List<Categoria.ModeloOcupacao>> sazonModelosOcupacao =
+        allSazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosOcupacao(allSazonIds);
+    Map<Long, List<Categoria.ModeloFixo>> sazonModelosFixo =
+        allSazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosFixo(allSazonIds);
+
+    boolean temCriancas =
+        resolved.stream()
+            .anyMatch(r -> r.idades_criancas() != null && !r.idades_criancas().isEmpty());
+    Map<Long, List<Categoria.MenorIdade>> sazonMenoresIdade =
+        (temCriancas && !allSazonIds.isEmpty())
+            ? categoriaRepository.findSazonMenoresIdade(allSazonIds)
+            : Map.of();
+
+    boolean temDayUse =
+        resolved.stream().anyMatch(r -> r.hora_inicio() != null && r.hora_fim() != null);
+    Map<Long, Categoria.DayUseOperacao> sazonDayUse =
+        (temDayUse && !allSazonIds.isEmpty())
+            ? reservaRepository.findSazonDayUse(allSazonIds)
+            : Map.of();
+
+    // Batch: descrições dos quartos
+    Map<Long, String> quartosDescricao = reservaRepository.findQuartosDescricao(quartoIds);
+
+    return resolved.stream()
+        .map(
+            req -> {
+              ReservaRepository.CategoriaCheckin catInfo = catInfoMap.get(req.fk_quarto());
+              return calcularPrecoUnico(
+                  req,
+                  catInfo,
+                  categoriasMap.get(catInfo.id()),
+                  sazonPorCategoria.getOrDefault(catInfo.id(), List.of()),
+                  sazonModelosOcupacao,
+                  sazonModelosFixo,
+                  sazonMenoresIdade,
+                  sazonDayUse,
+                  quartosDescricao.get(req.fk_quarto()));
+            })
+        .toList();
   }
 
-  private Reserva.ResultadoPreco calcularPrecoItem(Reserva.CalcularPrecoRequest req) {
+  private Reserva.CalculoPrecosRequest resolverIdades(Reserva.CalcularPrecoRequest req) {
     if (req.datas_nascimento() == null || req.datas_nascimento().isEmpty())
       throw new IllegalArgumentException("Informe ao menos uma data de nascimento.");
 
-    LocalDate dataRef = req.hora_inicio() != null ? req.hora_inicio().toLocalDate() : req.data_entrada();
+    LocalDate dataRef =
+        req.hora_inicio() != null ? req.hora_inicio().toLocalDate() : req.data_entrada();
     if (dataRef == null) throw new IllegalArgumentException("Informe data_entrada ou hora_inicio.");
 
     List<Integer> criancas = new ArrayList<>();
@@ -348,13 +447,26 @@ public class ReservaService {
     if (adultos == 0)
       throw new BusinessException("É necessário ao menos um adulto (18 anos ou mais) na reserva.");
 
-    return calcularPrecoUnico(
-        new Reserva.CalculoPrecosRequest(
-            req.fk_quarto(), req.data_entrada(), req.data_saida(), adultos, criancas,
-            req.hora_inicio(), req.hora_fim()));
+    return new Reserva.CalculoPrecosRequest(
+        req.fk_quarto(),
+        req.data_entrada(),
+        req.data_saida(),
+        adultos,
+        criancas,
+        req.hora_inicio(),
+        req.hora_fim());
   }
 
-  private Reserva.ResultadoPreco calcularPrecoUnico(Reserva.CalculoPrecosRequest req) {
+  private Reserva.ResultadoPreco calcularPrecoUnico(
+      Reserva.CalculoPrecosRequest req,
+      ReservaRepository.CategoriaCheckin catInfo,
+      Categoria categoria,
+      List<ReservaRepository.SazonInfo> sazonalidades,
+      Map<Long, List<Categoria.ModeloOcupacao>> sazonModelosOcupacao,
+      Map<Long, List<Categoria.ModeloFixo>> sazonModelosFixo,
+      Map<Long, List<Categoria.MenorIdade>> sazonMenoresIdade,
+      Map<Long, Categoria.DayUseOperacao> sazonDayUse,
+      String quartoDesc) {
     if (req.fk_quarto() == null) throw new IllegalArgumentException("fk_quarto é obrigatório.");
     if (req.quantidade_adultos() == null || req.quantidade_adultos() <= 0) {
       throw new IllegalArgumentException("quantidade_adultos deve ser maior que zero.");
@@ -362,7 +474,7 @@ public class ReservaService {
 
     // Day Use: quando hora_inicio e hora_fim são informados
     if (req.hora_inicio() != null && req.hora_fim() != null) {
-      return calcularDayUseUnico(req);
+      return calcularDayUseUnico(req, catInfo, categoria, sazonalidades, sazonDayUse, quartoDesc);
     }
 
     if (req.data_entrada() == null)
@@ -379,27 +491,6 @@ public class ReservaService {
     int noites =
         mesmaData ? 1 : (int) ChronoUnit.DAYS.between(req.data_entrada(), req.data_saida());
 
-    ReservaRepository.CategoriaCheckin catInfo =
-        reservaRepository.findCategoriaCheckinByQuartoId(req.fk_quarto());
-    if (catInfo == null) {
-      throw new BusinessException(
-          "O quarto " + req.fk_quarto() + " não possui categoria configurada.");
-    }
-
-    Categoria categoria = categoriaRepository.findByIdOrThrow(catInfo.id());
-    List<ReservaRepository.SazonInfo> sazonalidades =
-        reservaRepository.findSazonalidades(catInfo.id());
-
-    // Pré-carrega modelos próprios das sazonalidades (fk_categoria IS NULL)
-    List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.SazonInfo::id).toList();
-    Map<Long, List<Categoria.ModeloOcupacao>> sazonModelosOcupacao =
-        reservaRepository.findSazonModelosOcupacao(sazonIds);
-    Map<Long, List<Categoria.ModeloFixo>> sazonModelosFixo =
-        reservaRepository.findSazonModelosFixo(sazonIds);
-    Map<Long, List<Categoria.MenorIdade>> sazonMenoresIdade =
-        categoriaRepository.findSazonMenoresIdade(sazonIds);
-
-    String quartoDesc = reservaRepository.findQuartoDescricao(req.fk_quarto());
     Quarto.Descricao quartoObj = new Quarto.Descricao(req.fk_quarto(), quartoDesc);
     Categoria.Nome categoriaObj = new Categoria.Nome(catInfo.id(), catInfo.nome());
 
@@ -561,7 +652,13 @@ public class ReservaService {
 
   // ── Cálculo Day Use ───────────────────────────────────────────────────────
 
-  private Reserva.ResultadoPreco calcularDayUseUnico(Reserva.CalculoPrecosRequest req) {
+  private Reserva.ResultadoPreco calcularDayUseUnico(
+      Reserva.CalculoPrecosRequest req,
+      ReservaRepository.CategoriaCheckin catInfo,
+      Categoria categoria,
+      List<ReservaRepository.SazonInfo> sazonalidades,
+      Map<Long, Categoria.DayUseOperacao> sazonDayUse,
+      String quartoDesc) {
     LocalDateTime horaInicio = req.hora_inicio();
     LocalDateTime horaFim = req.hora_fim();
 
@@ -569,22 +666,8 @@ public class ReservaService {
       throw new BusinessException("hora_fim deve ser posterior a hora_inicio.");
     }
 
-    ReservaRepository.CategoriaCheckin catInfo =
-        reservaRepository.findCategoriaCheckinByQuartoId(req.fk_quarto());
-    if (catInfo == null) {
-      throw new BusinessException(
-          "O quarto " + req.fk_quarto() + " não possui categoria configurada.");
-    }
-
-    Categoria categoria = categoriaRepository.findByIdOrThrow(catInfo.id());
-    List<ReservaRepository.SazonInfo> sazonalidades =
-        reservaRepository.findSazonalidades(catInfo.id());
-
     LocalDate diaUso = horaInicio.toLocalDate();
     Long activeSazonId = findActiveSazonalidade(sazonalidades, diaUso);
-
-    List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.SazonInfo::id).toList();
-    Map<Long, Categoria.DayUseOperacao> sazonDayUse = reservaRepository.findSazonDayUse(sazonIds);
 
     // Base (sem sazonalidade) — sempre calculado para derivar o acréscimo
     Categoria.DayUseOperacao operacaoBase =
@@ -658,7 +741,6 @@ public class ReservaService {
     String descricao =
         "Day Use " + periodoDesc + " - " + totalPessoas + " pessoa(s) - " + tipoModelo;
 
-    String quartoDesc = reservaRepository.findQuartoDescricao(req.fk_quarto());
     Quarto.Descricao quartoObj = new Quarto.Descricao(req.fk_quarto(), quartoDesc);
     Categoria.Nome categoriaObj = new Categoria.Nome(catInfo.id(), catInfo.nome());
 
@@ -679,7 +761,8 @@ public class ReservaService {
         0,
         valorTotal,
         sazonNome != null ? List.of(sazonNome) : null,
-        List.of(new Reserva.ItemPreco(descricao, sazonNome, valorBase, acrescimo, null, valorTotal)));
+        List.of(
+            new Reserva.ItemPreco(descricao, sazonNome, valorBase, acrescimo, null, valorTotal)));
   }
 
   // ── Helpers de preço ──────────────────────────────────────────────────────
@@ -898,7 +981,8 @@ public class ReservaService {
       if (req.pessoas() != null && !req.pessoas().isEmpty()) {
         try {
           return pessoaRepository.findById(req.pessoas().getFirst().fk_pessoa()).nome();
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
       }
       if (req.nome_solicitante() != null && !req.nome_solicitante().isBlank()) {
         return req.nome_solicitante();
