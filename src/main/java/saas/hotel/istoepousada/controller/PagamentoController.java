@@ -32,9 +32,10 @@ public class PagamentoController {
     return service.atualizar(pagamento);
   }
 
-  @DeleteMapping("/cancelar/{id}")
+  @PutMapping("/{id}/cancelar")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void cancelarPagamento(@PathVariable UUID id) {
-    service.cancelarPagamento(id);
+  public void cancelarPagamento(
+      @PathVariable UUID id, @RequestBody Pagamento.CancelamentoRequest request) {
+    service.cancelarPagamento(id, request.motivo_cancelamento());
   }
 }

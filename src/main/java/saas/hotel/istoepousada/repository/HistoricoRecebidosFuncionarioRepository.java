@@ -56,7 +56,8 @@ public class HistoricoRecebidosFuncionarioRepository {
                       rs.getFloat("pagamento_desconto_porcentagem"),
                       rs.getFloat("pagamento_desconto_valor"),
                       rs.getTimestamp("pagamento_desconto_data_hora_registro").toLocalDateTime()),
-                  rs.getString("")),
+                  rs.getString(""),
+                  null),
               rs.getString("path_arquivo"));
 
   public List<Funcionario.Historico.Recebido> buscar(Long historicoFuncionarioId) {

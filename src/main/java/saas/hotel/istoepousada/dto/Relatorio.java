@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.data.domain.Page;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.web.bind.annotation.RequestParam;
 
 public record Relatorio(
     @NotNull Long id,
@@ -72,7 +71,8 @@ public record Relatorio(
           Float valorOriginal = valorPagamento == null ? 0F : valorPagamento;
 
           // Calcula o valor com desconto
-          Integer descontoPorcentagem = rs.getObject("pagamento_desconto_porcentagem", Integer.class);
+          Integer descontoPorcentagem =
+              rs.getObject("pagamento_desconto_porcentagem", Integer.class);
           Float descontoValor = rs.getObject("pagamento_desconto_valor", Float.class);
 
           Float valorFinal = valorOriginal;

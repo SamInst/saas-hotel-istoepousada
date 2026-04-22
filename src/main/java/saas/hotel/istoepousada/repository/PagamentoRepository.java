@@ -2,7 +2,6 @@ package saas.hotel.istoepousada.repository;
 
 import java.util.List;
 import java.util.UUID;
-
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -41,7 +40,13 @@ public class PagamentoRepository {
                       pde.nome             AS pagamento_desconto_funcionario_nome,
                       d.porcentagem        AS pagamento_desconto_porcentagem,
                       d.valor              AS pagamento_desconto_valor,
-                      d.data_hora_registro AS pagamento_desconto_data_hora_registro
+                      d.data_hora_registro AS pagamento_desconto_data_hora_registro,
+
+                      mc.id                AS pagamento_motivo_id,
+                      mc.motivo_cancelamento AS pagamento_motivo_cancelamento,
+                      mcf.id               AS pagamento_motivo_funcionario_id,
+                      mcp.nome             AS pagamento_motivo_funcionario_nome,
+                      mc.data_hora_registro AS pagamento_motivo_data_hora_registro
                     FROM pagamento p
                     JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
                     LEFT JOIN funcionario f ON f.id = p.fk_funcionario
@@ -55,12 +60,21 @@ public class PagamentoRepository {
                     ) d ON true
                     LEFT JOIN funcionario df ON df.id = d.fk_funcionario
                     LEFT JOIN pessoa pde ON pde.id = df.fk_pessoa
+                    LEFT JOIN LATERAL (
+                      SELECT *
+                      FROM pagamento_motivo_cancelamento mc
+                      WHERE mc.fk_pagamento = p.id
+                      ORDER BY mc.data_hora_registro DESC
+                      LIMIT 1
+                    ) mc ON true
+                    LEFT JOIN funcionario mcf ON mcf.id = mc.fk_funcionario
+                    LEFT JOIN pessoa mcp ON mcp.id = mcf.fk_pessoa
                     """;
 
   public Pagamento create(Pagamento.Request pagamento) {
     UUID uuid =
         jdbcTemplate.queryForObject(
-        """
+            """
             INSERT INTO pagamento (
               fk_tipo_pagamento,
               fk_funcionario,
@@ -83,16 +97,13 @@ public class PagamentoRepository {
       if (desconto != null) {
         updateDesconto(
             new Pagamento.Desconto.Update(
-                desconto.uuid(),
-                    pagamento.desconto().porcentagem(),
-                    pagamento.desconto().valor())
-        );
+                desconto.uuid(), pagamento.desconto().porcentagem(), pagamento.desconto().valor()));
       } else {
-        registrarDesconto(new Pagamento.Desconto.Request(
+        registrarDesconto(
+            new Pagamento.Desconto.Request(
                 new Pagamento.Uuid(uuid),
                 pagamento.desconto().porcentagem(),
-                pagamento.desconto().valor())
-        );
+                pagamento.desconto().valor()));
       }
     }
 
@@ -139,10 +150,10 @@ public class PagamentoRepository {
     if (pagamento.desconto() != null) {
       if (pagamento.desconto().uuid() != null && existsDescontoByPagamentoUuid(uuid)) {
         updateDesconto(
-                new Pagamento.Desconto.Update(
-                        pagamento.desconto().uuid(),
-                        pagamento.desconto().porcentagem(),
-                        pagamento.desconto().valor()));
+            new Pagamento.Desconto.Update(
+                pagamento.desconto().uuid(),
+                pagamento.desconto().porcentagem(),
+                pagamento.desconto().valor()));
       } else {
         registrarDesconto(
             new Pagamento.Desconto.Request(
@@ -157,6 +168,22 @@ public class PagamentoRepository {
 
   public void cancelarPagamento(UUID id) {
     jdbcTemplate.update("update pagamento set cancelado = true WHERE id = ?", id);
+  }
+
+  public void cancelarPagamento(UUID id, String motivo) {
+    int rows = jdbcTemplate.update("UPDATE pagamento SET cancelado = true WHERE id = ?", id);
+    if (rows == 0) {
+      throw new IllegalArgumentException("Pagamento com uuid " + id + " não encontrado");
+    }
+    jdbcTemplate.update(
+        """
+            INSERT INTO public.pagamento_motivo_cancelamento
+              (fk_pagamento, fk_funcionario, motivo_cancelamento, data_hora_registro)
+            VALUES (?, ?, ?, NOW())
+            """,
+        id,
+        getFuncionarioIdFromRequest(),
+        motivo);
   }
 
   public Pagamento.Desconto findDescontoById(UUID uuid) {
@@ -181,7 +208,7 @@ public class PagamentoRepository {
   public Pagamento.Desconto findDescontoByPagamentoUuid(UUID uuid) {
     try {
       return jdbcTemplate.queryForObject(
-              """
+          """
                   SELECT
                       pagamento_desconto.id                 AS pagamento_desconto_id,
                       pagamento_desconto.fk_funcionario     AS pagamento_desconto_funcionario_id,
@@ -195,8 +222,8 @@ public class PagamentoRepository {
                   Join pagamento ON pagamento.id = pagamento_desconto.fk_pagamento
                   WHERE pagamento.id = ?
                   """,
-              Pagamento.Desconto.ROW_MAPPER,
-              uuid);
+          Pagamento.Desconto.ROW_MAPPER,
+          uuid);
     } catch (EmptyResultDataAccessException e) {
       return null;
     }
@@ -214,19 +241,20 @@ public class PagamentoRepository {
   }
 
   public void updateDesconto(Pagamento.Desconto.Update desconto) {
-    int rowsAffected = jdbcTemplate.update(
-        """
+    int rowsAffected =
+        jdbcTemplate.update(
+            """
             UPDATE pagamento_desconto SET
                 porcentagem = ?,
                 valor = ?,
                 fk_funcionario = ?
             WHERE id = ?
             """,
-        desconto.porcentagem(),
-        desconto.valor(),
-        getFuncionarioIdFromRequest(),
-        desconto.uuid());
-    
+            desconto.porcentagem(),
+            desconto.valor(),
+            getFuncionarioIdFromRequest(),
+            desconto.uuid());
+
     if (rowsAffected == 0) {
       throw new IllegalArgumentException(
           "Desconto com uuid " + desconto.uuid() + " não encontrado");

@@ -167,7 +167,7 @@ public class FuncionarioRepository {
                             p.fk_titular                        AS pessoa_titular_id,
                             p.fk_funcionario                    AS pessoa_funcionario_id,
                             p.nome                              AS pessoa_funcionario_nome,
-                            
+
                             CASE WHEN p.fk_titular IS NOT NULL THEN TRUE ELSE FALSE END AS pessoa_titular,
 
                             c.id                                AS cargo_id,
@@ -426,7 +426,8 @@ public class FuncionarioRepository {
                 Permissao permissao = Permissao.ROW_MAPPER.mapRow(rs, rs.getRow());
                 if (permissao != null) {
                   List<Permissao> lista = permissoesPorTela.get(tela.id());
-                  boolean jaAdicionada = lista.stream().anyMatch(p -> p.id().equals(permissao.id()));
+                  boolean jaAdicionada =
+                      lista.stream().anyMatch(p -> p.id().equals(permissao.id()));
                   if (!jaAdicionada) {
                     lista.add(permissao);
                   }
@@ -440,11 +441,15 @@ public class FuncionarioRepository {
 
             List<Tela> telas =
                 telasMap.entrySet().stream()
-                    .map(e -> {
-                      Tela t = e.getValue();
-                      return new Tela(t.id(), t.nome(), t.descricao(),
-                          permissoesPorTela.getOrDefault(e.getKey(), List.of()));
-                    })
+                    .map(
+                        e -> {
+                          Tela t = e.getValue();
+                          return new Tela(
+                              t.id(),
+                              t.nome(),
+                              t.descricao(),
+                              permissoesPorTela.getOrDefault(e.getKey(), List.of()));
+                        })
                     .toList();
 
             Cargo cargo =

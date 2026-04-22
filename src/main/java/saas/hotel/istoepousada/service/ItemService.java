@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.service;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -7,8 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.CategoriaItem;
 import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.repository.ItemRepository;
-
-import java.util.List;
 
 @Service
 public class ItemService {
@@ -19,13 +18,8 @@ public class ItemService {
     this.itemRepository = itemRepository;
   }
 
-  public Page<Item> buscar(
-      Long id,
-      String termo,
-      Long categoriaId,
-      Pageable pageable) {
-    return itemRepository.buscar(
-        id, termo, categoriaId, pageable);
+  public Page<Item> buscar(Long id, String termo, Long categoriaId, Pageable pageable) {
+    return itemRepository.buscar(id, termo, categoriaId, pageable);
   }
 
   public Item buscarPorId(Long id) {

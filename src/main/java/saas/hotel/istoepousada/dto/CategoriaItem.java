@@ -13,21 +13,15 @@ public record CategoriaItem(
     @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro) {
   public record Id(@NotNull Long id) {}
 
-  public record Request(
-      @NotNull String nome,
-      String descricao) {}
+  public record Request(@NotNull String nome, String descricao) {}
 
-  public record Update(
-      @NotNull Long id,
-      String nome,
-      String descricao
-  ){}
+  public record Update(@NotNull Long id, String nome, String descricao) {}
 
   public static final RowMapper<CategoriaItem> ROW_MAPPER =
       (rs, rowNum) ->
           new CategoriaItem(
               rs.getLong("categoria_id"),
-          new Funcionario.Nome(
+              new Funcionario.Nome(
                   rs.getLong("categoria_funcionario_id"),
                   rs.getString("categoria_funcionario_nome")),
               rs.getString("categoria_nome"),

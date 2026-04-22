@@ -51,22 +51,33 @@ public class ObjectRepository {
             Long telaId = rs.getObject("tela_id", Long.class);
             if (telaId == null) continue;
 
-            telasMap.putIfAbsent(telaId,
+            telasMap.putIfAbsent(
+                telaId,
                 new Tela(telaId, rs.getString("tela_nome"), rs.getString("tela_descricao"), null));
             permissoesPorTela.putIfAbsent(telaId, new ArrayList<>());
 
             Long permissaoId = rs.getObject("permissao_id", Long.class);
             if (permissaoId != null) {
-              permissoesPorTela.get(telaId).add(
-                  new Permissao(permissaoId, rs.getString("permissao_permissao"), rs.getString("permissao_descricao")));
+              permissoesPorTela
+                  .get(telaId)
+                  .add(
+                      new Permissao(
+                          permissaoId,
+                          rs.getString("permissao_permissao"),
+                          rs.getString("permissao_descricao")));
             }
           }
 
           return telasMap.entrySet().stream()
-              .map(e -> {
-                Tela t = e.getValue();
-                return new Tela(t.id(), t.nome(), t.descricao(), permissoesPorTela.getOrDefault(e.getKey(), List.of()));
-              })
+              .map(
+                  e -> {
+                    Tela t = e.getValue();
+                    return new Tela(
+                        t.id(),
+                        t.nome(),
+                        t.descricao(),
+                        permissoesPorTela.getOrDefault(e.getKey(), List.of()));
+                  })
               .toList();
         });
   }

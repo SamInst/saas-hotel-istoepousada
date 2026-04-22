@@ -72,7 +72,9 @@ public record Categoria(
       @NotNull Integer quantidade,
       @NotNull Double valor) {
 
-    /** Usado dentro do Request/Update da Categoria (sem fk_categoria, fk_sazonalidade sempre null). */
+    /**
+     * Usado dentro do Request/Update da Categoria (sem fk_categoria, fk_sazonalidade sempre null).
+     */
     public record Input(@NotNull Integer quantidade, @NotNull Double valor) {}
 
     public static final RowMapper<ModeloOcupacao> ROW_MAPPER =
@@ -87,9 +89,12 @@ public record Categoria(
         };
   }
 
-  public record ModeloFixo(@NotNull Long id, Sazonalidade.Nome sazonalidade, @NotNull Double valor) {
+  public record ModeloFixo(
+      @NotNull Long id, Sazonalidade.Nome sazonalidade, @NotNull Double valor) {
 
-    /** Usado dentro do Request/Update da Categoria (sem fk_categoria, fk_sazonalidade sempre null). */
+    /**
+     * Usado dentro do Request/Update da Categoria (sem fk_categoria, fk_sazonalidade sempre null).
+     */
     public record Input(@NotNull Double valor) {}
 
     public static final RowMapper<ModeloFixo> ROW_MAPPER =
@@ -113,13 +118,11 @@ public record Categoria(
       List<DayUseOcupacao> ocupacoes) {
 
     /**
-     * Usado dentro do Request/Update da Categoria.
-     * Inclui padrao ou ocupacoes (mutuamente exclusivos pelo modelo escolhido).
+     * Usado dentro do Request/Update da Categoria. Inclui padrao ou ocupacoes (mutuamente
+     * exclusivos pelo modelo escolhido).
      */
     public record Input(
-        @NotNull Boolean ativo,
-        DayUsePadrao.Input padrao,
-        List<DayUseOcupacao.Input> ocupacoes) {}
+        @NotNull Boolean ativo, DayUsePadrao.Input padrao, List<DayUseOcupacao.Input> ocupacoes) {}
   }
 
   public record DayUsePadrao(
@@ -187,10 +190,7 @@ public record Categoria(
       List<MenorFaixaEtaria> faixas_etarias,
       List<MenorPorcentagemPorQuantidade> porcentagens_por_quantidade) {
 
-    /**
-     * Usado dentro do Request/Update da Categoria.
-     * Inclui o modelo e os dados correspondentes.
-     */
+    /** Usado dentro do Request/Update da Categoria. Inclui o modelo e os dados correspondentes. */
     public record Input(
         Integer idade_gratuidade,
         @NotNull ModeloMenorIdade modelo,
@@ -254,9 +254,7 @@ public record Categoria(
     public static final RowMapper<MenorPorcentagemPorQuantidade> ROW_MAPPER =
         (rs, rowNum) ->
             new MenorPorcentagemPorQuantidade(
-                rs.getLong("mpq_id"),
-                rs.getInt("mpq_quantidade"),
-                rs.getInt("mpq_porcentagem"));
+                rs.getLong("mpq_id"), rs.getInt("mpq_quantidade"), rs.getInt("mpq_porcentagem"));
   }
 
   public static final RowMapper<Categoria> ROW_MAPPER =

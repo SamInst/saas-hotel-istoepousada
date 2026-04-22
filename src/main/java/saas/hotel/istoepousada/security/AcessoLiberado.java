@@ -6,9 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Permite que múltiplas telas acessem um endpoint específico.
- * Quando presente em um método, sobrescreve o @RequireTela definido na classe.
- * O usuário precisa ter acesso a pelo menos UMA das telas listadas.
+ * Permite que múltiplas telas acessem um endpoint específico. Quando presente em um método,
+ * sobrescreve o @RequireTela definido na classe. O usuário precisa ter acesso a pelo menos UMA das
+ * telas listadas.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
