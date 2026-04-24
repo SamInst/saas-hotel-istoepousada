@@ -107,6 +107,16 @@ public record Pessoa(
                 rs.getObject("pessoa_titular", Boolean.class));
   }
 
+  public enum Ordenacao {
+    NOME,
+    DATA_CADASTRO
+  }
+
+  public enum Direcao {
+    ASC,
+    DESC
+  }
+
   public enum Status {
     ATIVO,
     BLOQUEADO,

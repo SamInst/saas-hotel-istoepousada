@@ -206,7 +206,13 @@ public class PessoaRepository {
           """;
 
   public Page<Pessoa> buscar(
-      Long id, String termo, String placa, Pessoa.Status status, Pageable pageable) {
+      Long id,
+      String termo,
+      String placa,
+      Pessoa.Status status,
+      Pessoa.Ordenacao ordenacao,
+      Pessoa.Direcao direcao,
+      Pageable pageable) {
 
     boolean hasId = id != null;
     boolean hasTermo = termo != null && !termo.isEmpty();
@@ -255,6 +261,12 @@ public class PessoaRepository {
       params.add(placaTrim);
     }
 
+    Pessoa.Ordenacao ord = ordenacao != null ? ordenacao : Pessoa.Ordenacao.NOME;
+    Pessoa.Direcao dir = direcao != null ? direcao : Pessoa.Direcao.ASC;
+    String orderByColumn =
+        ord == Pessoa.Ordenacao.DATA_CADASTRO ? "p.data_hora_registro" : "p.nome";
+    String direction = dir.name();
+
     long total;
     try {
       String countSql = "SELECT COUNT(*) FROM pessoa p" + where;
@@ -268,15 +280,13 @@ public class PessoaRepository {
     }
 
     String idsSql =
-        """
-                        SELECT p.id
-                        FROM pessoa p
-                        """
+        "SELECT p.id FROM pessoa p "
             + where
-            + """
-                        ORDER BY p.nome ASC
-                        LIMIT ? OFFSET ?
-                        """;
+            + " ORDER BY "
+            + orderByColumn
+            + " "
+            + direction
+            + " LIMIT ? OFFSET ?";
 
     List<Object> idsParams = new ArrayList<>(params);
     idsParams.add(pageable.getPageSize());
@@ -295,8 +305,11 @@ public class PessoaRepository {
         baseSelect
             + " WHERE p.id IN ("
             + inPlaceholders
-            + ") "
-            + " ORDER BY p.nome, e.razao_social, v.placa ";
+            + ") ORDER BY "
+            + orderByColumn
+            + " "
+            + direction
+            + ", e.razao_social, v.placa";
 
     List<Object> pageParams = new ArrayList<>(Arrays.asList(ids.toArray()));
     if (hasPlaca) {
