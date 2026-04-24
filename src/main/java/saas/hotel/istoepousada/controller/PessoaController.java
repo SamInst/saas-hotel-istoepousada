@@ -28,10 +28,12 @@ public class PessoaController {
       @RequestParam(required = false) String termo,
       @RequestParam(required = false) String placa,
       @RequestParam(required = false) Pessoa.Status status,
+      @RequestParam(defaultValue = "NOME") Pessoa.Ordenacao ordenacao,
+      @RequestParam(defaultValue = "ASC") Pessoa.Direcao direcao,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "10") int size) {
     Pageable pageable = PageRequest.of(page, size);
-    return pessoaService.buscar(id, termo, placa, status, pageable);
+    return pessoaService.buscar(id, termo, placa, status, ordenacao, direcao, pageable);
   }
 
   @PostMapping

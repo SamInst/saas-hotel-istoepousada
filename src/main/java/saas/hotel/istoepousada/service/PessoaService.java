@@ -34,10 +34,17 @@ public class PessoaService {
   }
 
   public Page<Pessoa> buscar(
-      Long id, String termo, String placa, Pessoa.Status status, Pageable pageable) {
+      Long id,
+      String termo,
+      String placa,
+      Pessoa.Status status,
+      Pessoa.Ordenacao ordenacao,
+      Pessoa.Direcao direcao,
+      Pageable pageable) {
     String termoNormalizado = StringUtils.hasText(termo) ? termo.trim() : null;
     String placaNormalizada = StringUtils.hasText(placa) ? placa.trim() : null;
-    return pessoaRepository.buscar(id, termoNormalizado, placaNormalizada, status, pageable);
+    return pessoaRepository.buscar(
+        id, termoNormalizado, placaNormalizada, status, ordenacao, direcao, pageable);
   }
 
   public Pessoa findById(Long id) {
