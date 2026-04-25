@@ -75,7 +75,6 @@ public record Quarto(
       @NotNull Boolean ativo) {
     public record Request(
         @NotNull Quarto.Id quarto,
-        @NotNull Funcionario.Id funcionario,
         @NotNull String descricao,
         String nome_responsavel,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
@@ -84,7 +83,6 @@ public record Quarto(
     public record Update(
         @NotNull Long id,
         @NotNull Quarto.Id quarto,
-        @NotNull Funcionario.Id funcionario,
         @NotNull String descricao,
         @NotNull String nome_responsavel,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
@@ -102,13 +100,11 @@ public record Quarto(
       Boolean ativo) {
     public record Request(
         @NotNull Quarto.Id quarto,
-        @NotNull Funcionario.Id funcionario,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim) {}
 
     public record Update(
         @NotNull Long id,
-        @NotNull Funcionario.Id funcionario,
         @NotNull String descricao,
         @NotNull String nome_responsavel,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
