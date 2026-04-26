@@ -1,0 +1,561 @@
+package saas.hotel.istoepousada.service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import saas.hotel.istoepousada.dto.Categoria;
+import saas.hotel.istoepousada.dto.Item;
+import saas.hotel.istoepousada.dto.Pagamento;
+import saas.hotel.istoepousada.dto.Pernoite;
+import saas.hotel.istoepousada.dto.Reserva;
+import saas.hotel.istoepousada.dto.Sazonalidade;
+import saas.hotel.istoepousada.handler.exceptions.BusinessException;
+import saas.hotel.istoepousada.handler.exceptions.ConflictException;
+import saas.hotel.istoepousada.repository.CategoriaRepository;
+import saas.hotel.istoepousada.repository.PagamentoRepository;
+import saas.hotel.istoepousada.repository.PernoiteRepository;
+import saas.hotel.istoepousada.repository.RelatorioRepository;
+import saas.hotel.istoepousada.repository.ReservaRepository;
+
+@Service
+public class PernoiteService {
+
+  private final PernoiteRepository pernoiteRepository;
+  private final ReservaRepository reservaRepository;
+  private final CategoriaRepository categoriaRepository;
+  private final PagamentoRepository pagamentoRepository;
+  private final RelatorioRepository relatorioRepository;
+
+  public PernoiteService(
+      PernoiteRepository pernoiteRepository,
+      ReservaRepository reservaRepository,
+      CategoriaRepository categoriaRepository,
+      PagamentoRepository pagamentoRepository,
+      RelatorioRepository relatorioRepository) {
+    this.pernoiteRepository = pernoiteRepository;
+    this.reservaRepository = reservaRepository;
+    this.categoriaRepository = categoriaRepository;
+    this.pagamentoRepository = pagamentoRepository;
+    this.relatorioRepository = relatorioRepository;
+  }
+
+  // ── Criação ─────────────────────────────────────────────────────────────────
+
+  @Transactional
+  public Pernoite create(Pernoite.CreateRequest request) {
+    if (request.reserva_id() != null) {
+      validarCamposNulosParaReserva(request);
+      return criarDeReserva(request.reserva_id());
+    }
+    validarCamposObrigatoriosSemReserva(request);
+    return criarSemReserva(request);
+  }
+
+  private void validarCamposNulosParaReserva(Pernoite.CreateRequest request) {
+    if (request.quarto_id() != null
+        || request.data_entrada() != null
+        || request.data_saida() != null
+        || (request.pessoas() != null && !request.pessoas().isEmpty())
+        || (request.pagamentos() != null && !request.pagamentos().isEmpty())) {
+      throw new BusinessException(
+          "Quando reserva_id é informado, os demais campos devem ser nulos.");
+    }
+  }
+
+  private void validarCamposObrigatoriosSemReserva(Pernoite.CreateRequest request) {
+    if (request.quarto_id() == null) throw new IllegalArgumentException("quarto_id é obrigatório.");
+    if (request.data_entrada() == null)
+      throw new IllegalArgumentException("data_entrada é obrigatória.");
+    if (request.data_saida() == null)
+      throw new IllegalArgumentException("data_saida é obrigatória.");
+    if (!request.data_entrada().isBefore(request.data_saida()))
+      throw new IllegalArgumentException("data_saida deve ser posterior a data_entrada.");
+    if (request.pessoas() == null || request.pessoas().isEmpty())
+      throw new IllegalArgumentException("pessoas é obrigatório.");
+    if (request.pagamentos() == null || request.pagamentos().isEmpty())
+      throw new IllegalArgumentException("pagamentos é obrigatório.");
+  }
+
+  private Pernoite criarDeReserva(Long reservaId) {
+    Reserva reserva = reservaRepository.findById(reservaId);
+    if (reserva.quarto() == null)
+      throw new BusinessException("Reserva não possui quarto vinculado.");
+
+    Long quartoId = reserva.quarto().id();
+    LocalDate dataEntrada = reserva.data_hora_entrada().toLocalDate();
+    LocalDate dataSaida = reserva.data_hora_saida().toLocalDate();
+    List<Long> pessoaIds =
+        reserva.pessoas() == null
+            ? List.of()
+            : reserva.pessoas().stream().map(rp -> rp.pessoa().id()).toList();
+
+    ReservaRepository.CategoriaCheckin catInfo =
+        reservaRepository.findCategoriaCheckinByQuartoId(quartoId);
+    if (catInfo == null)
+      throw new BusinessException("Quarto " + quartoId + " não possui categoria configurada.");
+
+    LocalDateTime entrada = buildDateTime(dataEntrada, catInfo.hora_checkin());
+    LocalDateTime saida = buildDateTime(dataSaida, catInfo.hora_checkout());
+
+    validarDisponibilidade(quartoId, entrada, saida, null);
+
+    int noites = (int) ChronoUnit.DAYS.between(dataEntrada, dataSaida);
+    if (noites <= 0) noites = 1;
+
+    Float valorTotal =
+        reserva.valor_total() != null ? reserva.valor_total() : calcularValorTotal(catInfo, dataEntrada, noites, pessoaIds.size());
+
+    Long pernoiteId =
+        pernoiteRepository.insertPernoite(quartoId, entrada, saida, valorTotal, reservaId, null);
+
+    if (!pessoaIds.isEmpty()) {
+      pernoiteRepository.addPessoasToPernoite(pernoiteId, pessoaIds);
+    }
+
+    List<Long> diariaIds =
+        criarDiarias(pernoiteId, catInfo, dataEntrada, noites, pessoaIds.size(), quartoId);
+
+    if (reserva.pagamentos() != null && !reserva.pagamentos().isEmpty() && !diariaIds.isEmpty()) {
+      for (Reserva.ReservaPagamento rp : reserva.pagamentos()) {
+        if (rp.pagamento() != null && rp.pagamento().uuid() != null) {
+          pernoiteRepository.addPagamentoToDiaria(diariaIds.getFirst(), rp.pagamento().uuid());
+        }
+      }
+    }
+
+    return pernoiteRepository.findById(pernoiteId);
+  }
+
+  private Pernoite criarSemReserva(Pernoite.CreateRequest request) {
+    ReservaRepository.CategoriaCheckin catInfo =
+        reservaRepository.findCategoriaCheckinByQuartoId(request.quarto_id());
+    if (catInfo == null)
+      throw new BusinessException(
+          "Quarto " + request.quarto_id() + " não possui categoria configurada.");
+
+    LocalDateTime entrada = buildDateTime(request.data_entrada(), catInfo.hora_checkin());
+    LocalDateTime saida = buildDateTime(request.data_saida(), catInfo.hora_checkout());
+
+    validarDisponibilidade(request.quarto_id(), entrada, saida, null);
+
+    int noites = (int) ChronoUnit.DAYS.between(request.data_entrada(), request.data_saida());
+    if (noites <= 0) noites = 1;
+
+    int qtdPessoas = request.pessoas().size();
+    float valorTotal = calcularValorTotal(catInfo, request.data_entrada(), noites, qtdPessoas);
+
+    Long pernoiteId =
+        pernoiteRepository.insertPernoite(
+            request.quarto_id(), entrada, saida, valorTotal, null, null);
+
+    pernoiteRepository.addPessoasToPernoite(pernoiteId, request.pessoas());
+
+    List<Long> diariaIds =
+        criarDiarias(
+            pernoiteId, catInfo, request.data_entrada(), noites, qtdPessoas, request.quarto_id());
+
+    if (!diariaIds.isEmpty()) {
+      for (Pagamento.Request pg : request.pagamentos()) {
+        Pagamento criado = pagamentoRepository.create(pg);
+        pernoiteRepository.addPagamentoToDiaria(diariaIds.getFirst(), criado.uuid());
+        relatorioRepository.registrarRelatorioDeConsumo(
+            criado,
+            relatorioRepository.getFuncionarioId(),
+            "Pernoite - Quarto " + request.quarto_id());
+      }
+    }
+
+    return pernoiteRepository.findById(pernoiteId);
+  }
+
+  private List<Long> criarDiarias(
+      Long pernoiteId,
+      ReservaRepository.CategoriaCheckin catInfo,
+      LocalDate dataEntrada,
+      int noites,
+      int qtdPessoas,
+      Long quartoId) {
+    List<ReservaRepository.SazonInfo> sazonalidades =
+        reservaRepository.findSazonalidades(catInfo.id());
+
+    List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.SazonInfo::id).toList();
+    Map<Long, List<Categoria.ModeloOcupacao>> modelosOcupacao =
+        sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosOcupacao(sazonIds);
+    Map<Long, List<Categoria.ModeloFixo>> modelosFixo =
+        sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosFixo(sazonIds);
+
+    Categoria categoria =
+        categoriaRepository.findCategoriasParaCalculo(List.of(catInfo.id()))
+            .getOrDefault(catInfo.id(), null);
+
+    List<Long> diariaIds = new ArrayList<>();
+    for (int i = 0; i < noites; i++) {
+      LocalDate noite = dataEntrada.plusDays(i);
+      LocalDateTime inicio = buildDateTime(noite, catInfo.hora_checkin());
+      LocalDateTime fim = buildDateTime(noite.plusDays(1), catInfo.hora_checkout());
+
+      float valor =
+          categoria != null
+              ? (float) calcularPrecoNoite(noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas)
+              : 0f;
+
+      Long diariaId =
+          pernoiteRepository.insertDiaria(pernoiteId, i + 1, inicio, fim, valor, quartoId);
+      diariaIds.add(diariaId);
+    }
+    return diariaIds;
+  }
+
+  // ── Edição ──────────────────────────────────────────────────────────────────
+
+  @Transactional
+  public Pernoite edit(Long id, Pernoite.EditRequest request) {
+    Pernoite existing = pernoiteRepository.findById(id);
+
+    Long quartoId =
+        request.quarto_id() != null
+            ? request.quarto_id()
+            : pernoiteRepository.getQuartoIdByPernoite(id);
+
+    ReservaRepository.CategoriaCheckin catInfo =
+        reservaRepository.findCategoriaCheckinByQuartoId(quartoId);
+    if (catInfo == null)
+      throw new BusinessException("Quarto " + quartoId + " não possui categoria configurada.");
+
+    LocalDate dataEntrada =
+        request.data_entrada() != null
+            ? request.data_entrada()
+            : existing.check_in().toLocalDate();
+    LocalDate dataSaida =
+        request.data_saida() != null
+            ? request.data_saida()
+            : existing.check_out().toLocalDate();
+
+    if (!dataEntrada.isBefore(dataSaida))
+      throw new BusinessException("data_saida deve ser posterior a data_entrada.");
+
+    LocalDateTime novaEntrada = buildDateTime(dataEntrada, catInfo.hora_checkin());
+    LocalDateTime novaSaida = buildDateTime(dataSaida, catInfo.hora_checkout());
+
+    validarDisponibilidade(quartoId, novaEntrada, novaSaida, id);
+
+    int novosNoites = (int) ChronoUnit.DAYS.between(dataEntrada, dataSaida);
+    if (novosNoites <= 0) novosNoites = 1;
+    int atuaisNoites = existing.quantidade_diarias();
+
+    List<ReservaRepository.SazonInfo> sazonalidades =
+        reservaRepository.findSazonalidades(catInfo.id());
+    List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.SazonInfo::id).toList();
+    Map<Long, List<Categoria.ModeloOcupacao>> modelosOcupacao =
+        sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosOcupacao(sazonIds);
+    Map<Long, List<Categoria.ModeloFixo>> modelosFixo =
+        sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosFixo(sazonIds);
+    Categoria categoria =
+        categoriaRepository.findCategoriasParaCalculo(List.of(catInfo.id()))
+            .getOrDefault(catInfo.id(), null);
+
+    int qtdPessoas = existing.pessoas().size();
+    if (qtdPessoas == 0) qtdPessoas = 1;
+
+    if (novosNoites < atuaisNoites) {
+      pernoiteRepository.deleteDiariasAPartirDoNumero(id, novosNoites + 1);
+    } else if (novosNoites > atuaisNoites) {
+      for (int i = atuaisNoites; i < novosNoites; i++) {
+        LocalDate noite = dataEntrada.plusDays(i);
+        LocalDateTime inicio = buildDateTime(noite, catInfo.hora_checkin());
+        LocalDateTime fim = buildDateTime(noite.plusDays(1), catInfo.hora_checkout());
+        float valor =
+            categoria != null
+                ? (float) calcularPrecoNoite(noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas)
+                : 0f;
+        pernoiteRepository.insertDiaria(id, i + 1, inicio, fim, valor, quartoId);
+      }
+    }
+
+    float novoValorTotal = 0f;
+    List<Pernoite.Diaria> diariasAtuais = pernoiteRepository.findDiariasByPernoite(id);
+    for (int i = 0; i < diariasAtuais.size(); i++) {
+      LocalDate noite = dataEntrada.plusDays(i);
+      if (categoria != null) {
+        float novoValor =
+            (float) calcularPrecoNoite(noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas);
+        pernoiteRepository.updateDiariaValor(diariasAtuais.get(i).id(), novoValor);
+        novoValorTotal += novoValor;
+      } else {
+        novoValorTotal += diariasAtuais.get(i).valor();
+      }
+    }
+
+    pernoiteRepository.updatePernoite(
+        id,
+        request.quarto_id(),
+        novaEntrada,
+        novaSaida,
+        request.hora_chegada(),
+        request.hora_saida(),
+        novoValorTotal);
+
+    return pernoiteRepository.findById(id);
+  }
+
+  // ── Alterar status ──────────────────────────────────────────────────────────
+
+  @Transactional
+  public Pernoite updateStatus(Long id, Pernoite.Status status) {
+    pernoiteRepository.findById(id);
+    pernoiteRepository.updateStatus(id, status);
+    return pernoiteRepository.findById(id);
+  }
+
+  @Transactional
+  public Pernoite.Diaria updateDiariaStatus(Long diariaId, Pernoite.Diaria.Status status) {
+    pernoiteRepository.getPernoiteIdByDiaria(diariaId);
+    pernoiteRepository.updateDiariaStatus(diariaId, status);
+    return pernoiteRepository.findDiariaById(diariaId);
+  }
+
+  // ── Diária – quarto ─────────────────────────────────────────────────────────
+
+  @Transactional
+  public Pernoite.Diaria updateDiariaQuarto(Long diariaId, Long quartoId) {
+    pernoiteRepository.findDiariaById(diariaId);
+    pernoiteRepository.updateDiariaQuarto(diariaId, quartoId);
+    return pernoiteRepository.findDiariaById(diariaId);
+  }
+
+  // ── Diária – pessoas ────────────────────────────────────────────────────────
+
+  @Transactional
+  public Pernoite.Diaria addPessoasToDiaria(Long diariaId, List<Long> pessoaIds) {
+    if (pessoaIds == null || pessoaIds.isEmpty())
+      throw new IllegalArgumentException("Lista de pessoas não pode ser vazia.");
+    pernoiteRepository.getPernoiteIdByDiaria(diariaId);
+    pernoiteRepository.addPessoasToDiaria(diariaId, pessoaIds);
+    return pernoiteRepository.findDiariaById(diariaId);
+  }
+
+  @Transactional
+  public Pernoite.Diaria removePessoaFromDiaria(Long diariaId, Long pessoaId) {
+    pernoiteRepository.getPernoiteIdByDiaria(diariaId);
+    pernoiteRepository.removePessoaFromDiaria(diariaId, pessoaId);
+    return pernoiteRepository.findDiariaById(diariaId);
+  }
+
+  // ── Diária – pagamentos ─────────────────────────────────────────────────────
+
+  @Transactional
+  public Pernoite.Diaria addPagamentosToDiaria(Long diariaId, List<Pagamento.Request> pagamentos) {
+    if (pagamentos == null || pagamentos.isEmpty())
+      throw new IllegalArgumentException("Lista de pagamentos não pode ser vazia.");
+    Long pernoiteId = pernoiteRepository.getPernoiteIdByDiaria(diariaId);
+    Long quartoId = pernoiteRepository.getQuartoIdByDiaria(diariaId);
+    for (Pagamento.Request pg : pagamentos) {
+      Pagamento criado = pagamentoRepository.create(pg);
+      pernoiteRepository.addPagamentoToDiaria(diariaId, criado.uuid());
+      relatorioRepository.registrarRelatorioDeConsumo(
+          criado,
+          relatorioRepository.getFuncionarioId(),
+          "Pernoite " + pernoiteId + " - Quarto " + quartoId);
+    }
+    return pernoiteRepository.findDiariaById(diariaId);
+  }
+
+  @Transactional
+  public Pernoite.Diaria cancelDiariaPagamento(
+      Long diariaId, Long diariaPagamentoId, String motivo) {
+    if (motivo == null || motivo.isBlank())
+      throw new IllegalArgumentException("Motivo de cancelamento é obrigatório.");
+    pernoiteRepository.getPernoiteIdByDiaria(diariaId);
+    pernoiteRepository.cancelDiariaPagamento(diariaPagamentoId, motivo);
+    return pernoiteRepository.findDiariaById(diariaId);
+  }
+
+  // ── Diária – consumos ───────────────────────────────────────────────────────
+
+  @Transactional
+  public Pernoite.Diaria addConsumosToDiaria(Long diariaId, List<Item.Consumo.Request> consumos) {
+    if (consumos == null || consumos.isEmpty())
+      throw new IllegalArgumentException("Lista de consumos não pode ser vazia.");
+    Long quartoId = pernoiteRepository.getQuartoIdByDiaria(diariaId);
+    for (Item.Consumo.Request req : consumos) {
+      UUID pagamentoId = null;
+      if (req.pagamento() != null) {
+        Pagamento criado = pagamentoRepository.create(req.pagamento());
+        pagamentoId = criado.uuid();
+        relatorioRepository.registrarRelatorioDeConsumo(
+            criado,
+            relatorioRepository.getFuncionarioId(),
+            "Consumo diária " + diariaId);
+      }
+      Long consumoQuartoId = req.quarto() != null ? req.quarto().id() : quartoId;
+      Long consumoId =
+          pernoiteRepository.insertConsumo(
+              pagamentoId,
+              req.item().id(),
+              req.quantidade(),
+              Boolean.TRUE.equals(req.despesa_pessoal()),
+              consumoQuartoId);
+      pernoiteRepository.addConsumoDiaria(diariaId, consumoId);
+    }
+    return pernoiteRepository.findDiariaById(diariaId);
+  }
+
+  @Transactional
+  public Pernoite.Diaria removeConsumoFromDiaria(Long diariaId, Long consumoId) {
+    pernoiteRepository.getPernoiteIdByDiaria(diariaId);
+    pernoiteRepository.removeConsumoFromDiaria(diariaId, consumoId);
+    return pernoiteRepository.findDiariaById(diariaId);
+  }
+
+  // ── Helpers de disponibilidade ──────────────────────────────────────────────
+
+  private void validarDisponibilidade(
+      Long quartoId, LocalDateTime entrada, LocalDateTime saida, Long excludePernoiteId) {
+    if (!pernoiteRepository.isQuartoDisponivel(quartoId)) {
+      throw new BusinessException("Quarto " + quartoId + " não está disponível.");
+    }
+    if (pernoiteRepository.hasConflito(quartoId, entrada, saida, excludePernoiteId)) {
+      throw new ConflictException(
+          "Quarto " + quartoId + " possui ocupação conflitante no período informado.");
+    }
+  }
+
+  // ── Cálculo de preço por noite ──────────────────────────────────────────────
+
+  private float calcularValorTotal(
+      ReservaRepository.CategoriaCheckin catInfo,
+      LocalDate dataEntrada,
+      int noites,
+      int qtdPessoas) {
+    List<ReservaRepository.SazonInfo> sazonalidades =
+        reservaRepository.findSazonalidades(catInfo.id());
+    List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.SazonInfo::id).toList();
+    Map<Long, List<Categoria.ModeloOcupacao>> modelosOcupacao =
+        sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosOcupacao(sazonIds);
+    Map<Long, List<Categoria.ModeloFixo>> modelosFixo =
+        sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosFixo(sazonIds);
+    Categoria categoria =
+        categoriaRepository.findCategoriasParaCalculo(List.of(catInfo.id()))
+            .getOrDefault(catInfo.id(), null);
+    if (categoria == null) return 0f;
+
+    float total = 0f;
+    for (int i = 0; i < noites; i++) {
+      total +=
+          (float) calcularPrecoNoite(
+              dataEntrada.plusDays(i), categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas);
+    }
+    return total;
+  }
+
+  private double calcularPrecoNoite(
+      LocalDate noite,
+      Categoria categoria,
+      List<ReservaRepository.SazonInfo> sazonalidades,
+      java.util.Map<Long, List<Categoria.ModeloOcupacao>> sazonModelosOcupacao,
+      java.util.Map<Long, List<Categoria.ModeloFixo>> sazonModelosFixo,
+      int qtdPessoas) {
+    Long activeSazonId = findActiveSazonalidade(sazonalidades, noite);
+
+    List<Categoria.ModeloOcupacao> modelosOcupacao =
+        activeSazonId != null
+            ? sazonModelosOcupacao.getOrDefault(activeSazonId, List.of())
+            : List.of();
+    List<Categoria.ModeloFixo> modelosFixo =
+        activeSazonId != null
+            ? sazonModelosFixo.getOrDefault(activeSazonId, List.of())
+            : List.of();
+
+    if (modelosOcupacao.isEmpty() && modelosFixo.isEmpty() && activeSazonId != null) {
+      modelosOcupacao = filtrarOcupacaoPorSazon(categoria.modelos_ocupacao(), activeSazonId);
+      modelosFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), activeSazonId);
+    }
+
+    if (modelosOcupacao.isEmpty() && modelosFixo.isEmpty()) {
+      modelosOcupacao = filtrarOcupacaoPorSazon(categoria.modelos_ocupacao(), null);
+      modelosFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), null);
+    }
+
+    return resolverPrecoAdultos(modelosOcupacao, modelosFixo, qtdPessoas);
+  }
+
+  private Long findActiveSazonalidade(
+      List<ReservaRepository.SazonInfo> sazonalidades, LocalDate date) {
+    for (ReservaRepository.SazonInfo s : sazonalidades) {
+      boolean isPeriodo = s.dataInicio() != null || s.dataFim() != null;
+      if (!isPeriodo) continue;
+      boolean inRange =
+          (s.dataInicio() == null || !date.isBefore(s.dataInicio()))
+              && (s.dataFim() == null || !date.isAfter(s.dataFim()));
+      if (inRange) return s.id();
+    }
+    for (ReservaRepository.SazonInfo s : sazonalidades) {
+      boolean semanal =
+          s.semanal() != null
+              && !s.semanal().isEmpty()
+              && s.semanal().contains(date.getDayOfWeek().getValue());
+      boolean mensal =
+          s.mensal() != null
+              && !s.mensal().isEmpty()
+              && s.mensal().contains(date.getDayOfMonth());
+      boolean anual =
+          s.anual() != null
+              && !s.anual().isEmpty()
+              && s.anual().contains(date.getMonthValue());
+      if (semanal || mensal || anual) return s.id();
+    }
+    return null;
+  }
+
+  private List<Categoria.ModeloOcupacao> filtrarOcupacaoPorSazon(
+      List<Categoria.ModeloOcupacao> modelos, Long sazonId) {
+    if (modelos == null) return List.of();
+    return modelos.stream()
+        .filter(m -> sazonIdMatch(m.sazonalidade(), sazonId))
+        .toList();
+  }
+
+  private List<Categoria.ModeloFixo> filtrarFixoPorSazon(
+      List<Categoria.ModeloFixo> modelos, Long sazonId) {
+    if (modelos == null) return List.of();
+    return modelos.stream()
+        .filter(m -> sazonIdMatch(m.sazonalidade(), sazonId))
+        .toList();
+  }
+
+  private boolean sazonIdMatch(Sazonalidade.Nome sazon, Long activeSazonId) {
+    if (activeSazonId == null) return sazon == null;
+    return sazon != null && sazon.id().equals(activeSazonId);
+  }
+
+  private double resolverPrecoAdultos(
+      List<Categoria.ModeloOcupacao> modelosOcupacao,
+      List<Categoria.ModeloFixo> modelosFixo,
+      int quantidade) {
+    if (!modelosOcupacao.isEmpty()) {
+      var modelo = modelosOcupacao.stream().filter(m -> m.quantidade() == quantidade).findFirst();
+      if (modelo.isEmpty()) {
+        modelo =
+            modelosOcupacao.stream()
+                .filter(m -> m.quantidade() <= quantidade)
+                .max(Comparator.comparingInt(Categoria.ModeloOcupacao::quantidade));
+      }
+      if (modelo.isPresent()) return modelo.get().valor();
+    } else if (!modelosFixo.isEmpty()) {
+      return modelosFixo.getFirst().valor();
+    }
+    return 0.0;
+  }
+
+  private LocalDateTime buildDateTime(LocalDate date, LocalTime time) {
+    return LocalDateTime.of(date, time != null ? time : LocalTime.MIDNIGHT);
+  }
+}
