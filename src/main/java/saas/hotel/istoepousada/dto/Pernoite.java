@@ -11,8 +11,8 @@ public record Pernoite(
     @NotNull Long id,
     @NotNull Funcionario.Nome funcionario,
     @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
-    @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime check_in,
-    @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime check_out,
+    @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate check_in,
+    @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate check_out,
     @JsonFormat(pattern = "HH:mm") LocalTime hora_chegada,
     @JsonFormat(pattern = "HH:mm") LocalTime hora_saida,
     @NotNull Status status,
@@ -20,7 +20,7 @@ public record Pernoite(
     @NotNull Integer quantidade_diarias,
     @NotNull Integer numero_diaria_atual,
     @NotNull List<Diaria> diarias,
-    @NotNull List<PernoitePessoa> pessoas) {
+    @NotNull List<Pessoa.DadosPrincipais> pessoas) {
 
   public record Id(Long id) {}
 

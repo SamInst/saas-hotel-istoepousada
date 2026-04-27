@@ -15,6 +15,7 @@ import saas.hotel.istoepousada.dto.Categoria;
 import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.dto.Pernoite;
+import saas.hotel.istoepousada.dto.Quarto;
 import saas.hotel.istoepousada.dto.Reserva;
 import saas.hotel.istoepousada.dto.Sazonalidade;
 import saas.hotel.istoepousada.handler.exceptions.BusinessException;
@@ -22,6 +23,7 @@ import saas.hotel.istoepousada.handler.exceptions.ConflictException;
 import saas.hotel.istoepousada.repository.CategoriaRepository;
 import saas.hotel.istoepousada.repository.PagamentoRepository;
 import saas.hotel.istoepousada.repository.PernoiteRepository;
+import saas.hotel.istoepousada.repository.QuartoRepository;
 import saas.hotel.istoepousada.repository.RelatorioRepository;
 import saas.hotel.istoepousada.repository.ReservaRepository;
 
@@ -33,18 +35,21 @@ public class PernoiteService {
   private final CategoriaRepository categoriaRepository;
   private final PagamentoRepository pagamentoRepository;
   private final RelatorioRepository relatorioRepository;
+  private final QuartoRepository quartoRepository;
 
   public PernoiteService(
       PernoiteRepository pernoiteRepository,
       ReservaRepository reservaRepository,
       CategoriaRepository categoriaRepository,
       PagamentoRepository pagamentoRepository,
-      RelatorioRepository relatorioRepository) {
+      RelatorioRepository relatorioRepository,
+      QuartoRepository quartoRepository) {
     this.pernoiteRepository = pernoiteRepository;
     this.reservaRepository = reservaRepository;
     this.categoriaRepository = categoriaRepository;
     this.pagamentoRepository = pagamentoRepository;
     this.relatorioRepository = relatorioRepository;
+    this.quartoRepository = quartoRepository;
   }
 
   // ── Criação ─────────────────────────────────────────────────────────────────
@@ -113,15 +118,18 @@ public class PernoiteService {
     Float valorTotal =
         reserva.valor_total() != null ? reserva.valor_total() : calcularValorTotal(catInfo, dataEntrada, noites, pessoaIds.size());
 
-    Long pernoiteId =
-        pernoiteRepository.insertPernoite(quartoId, entrada, saida, valorTotal, reservaId, null);
+    reservaRepository.atualizarStatus(List.of(reservaId), Reserva.Status.HOSPEDADO);
 
-    if (!pessoaIds.isEmpty()) {
-      pernoiteRepository.addPessoasToPernoite(pernoiteId, pessoaIds);
-    }
+    Long pernoiteId = pernoiteRepository.insertPernoite(dataEntrada, dataSaida, valorTotal);
 
     List<Long> diariaIds =
         criarDiarias(pernoiteId, catInfo, dataEntrada, noites, pessoaIds.size(), quartoId);
+
+    quartoRepository.updateStatus(quartoId, Quarto.Status.OCUPADO);
+
+    if (!pessoaIds.isEmpty() && !diariaIds.isEmpty()) {
+      pernoiteRepository.addPessoasToDiaria(diariaIds.getFirst(), pessoaIds);
+    }
 
     if (reserva.pagamentos() != null && !reserva.pagamentos().isEmpty() && !diariaIds.isEmpty()) {
       for (Reserva.ReservaPagamento rp : reserva.pagamentos()) {
@@ -152,17 +160,22 @@ public class PernoiteService {
     int qtdPessoas = request.pessoas().size();
     float valorTotal = calcularValorTotal(catInfo, request.data_entrada(), noites, qtdPessoas);
 
-    Long pernoiteId =
-        pernoiteRepository.insertPernoite(
-            request.quarto_id(), entrada, saida, valorTotal, null, null);
+    Long reservaId = reservaRepository.inserirHospedado(request.quarto_id(), entrada, saida, valorTotal);
+    for (Long pessoaId : request.pessoas()) {
+      reservaRepository.vincularPessoa(reservaId, pessoaId, false);
+    }
 
-    pernoiteRepository.addPessoasToPernoite(pernoiteId, request.pessoas());
+    Long pernoiteId =
+        pernoiteRepository.insertPernoite(request.data_entrada(), request.data_saida(), valorTotal);
 
     List<Long> diariaIds =
         criarDiarias(
             pernoiteId, catInfo, request.data_entrada(), noites, qtdPessoas, request.quarto_id());
 
+    quartoRepository.updateStatus(request.quarto_id(), Quarto.Status.OCUPADO);
+
     if (!diariaIds.isEmpty()) {
+      pernoiteRepository.addPessoasToDiaria(diariaIds.getFirst(), request.pessoas());
       for (Pagamento.Request pg : request.pagamentos()) {
         Pagamento criado = pagamentoRepository.create(pg);
         pernoiteRepository.addPagamentoToDiaria(diariaIds.getFirst(), criado.uuid());
@@ -233,11 +246,11 @@ public class PernoiteService {
     LocalDate dataEntrada =
         request.data_entrada() != null
             ? request.data_entrada()
-            : existing.check_in().toLocalDate();
+            : existing.check_in();
     LocalDate dataSaida =
         request.data_saida() != null
             ? request.data_saida()
-            : existing.check_out().toLocalDate();
+            : existing.check_out();
 
     if (!dataEntrada.isBefore(dataSaida))
       throw new BusinessException("data_saida deve ser posterior a data_entrada.");
@@ -280,8 +293,15 @@ public class PernoiteService {
       }
     }
 
-    float novoValorTotal = 0f;
     List<Pernoite.Diaria> diariasAtuais = pernoiteRepository.findDiariasByPernoite(id);
+
+    if (request.quarto_id() != null) {
+      for (Pernoite.Diaria d : diariasAtuais) {
+        pernoiteRepository.updateDiariaQuarto(d.id(), quartoId);
+      }
+    }
+
+    float novoValorTotal = 0f;
     for (int i = 0; i < diariasAtuais.size(); i++) {
       LocalDate noite = dataEntrada.plusDays(i);
       if (categoria != null) {
@@ -296,9 +316,8 @@ public class PernoiteService {
 
     pernoiteRepository.updatePernoite(
         id,
-        request.quarto_id(),
-        novaEntrada,
-        novaSaida,
+        dataEntrada,
+        dataSaida,
         request.hora_chegada(),
         request.hora_saida(),
         novoValorTotal);
@@ -312,6 +331,20 @@ public class PernoiteService {
   public Pernoite updateStatus(Long id, Pernoite.Status status) {
     pernoiteRepository.findById(id);
     pernoiteRepository.updateStatus(id, status);
+    if (status == Pernoite.Status.FINALIZADO
+        || status == Pernoite.Status.FINALIZADO_PAGAMENTO_PENDENTE) {
+      try {
+        Long quartoId = pernoiteRepository.getQuartoIdByPernoite(id);
+        quartoRepository.updateStatus(quartoId, Quarto.Status.EM_LIMPEZA);
+      } catch (Exception ignored) {
+      }
+    } else if (status == Pernoite.Status.CANCELADO) {
+      try {
+        Long quartoId = pernoiteRepository.getQuartoIdByPernoite(id);
+        quartoRepository.updateStatus(quartoId, Quarto.Status.DISPONIVEL);
+      } catch (Exception ignored) {
+      }
+    }
     return pernoiteRepository.findById(id);
   }
 

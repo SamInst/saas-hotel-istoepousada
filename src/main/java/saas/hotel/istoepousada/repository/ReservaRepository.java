@@ -563,6 +563,25 @@ public class ReservaRepository {
   // ── Insert ────────────────────────────────────────────────────────────────
 
   @Transactional
+  public Long inserirHospedado(
+      Long quartoId, LocalDateTime entrada, LocalDateTime saida, double valorTotal) {
+    return jdbcTemplate.queryForObject(
+        """
+        INSERT INTO public.reserva (fk_quarto, status,
+                                    data_hora_entrada, data_hora_saida, fk_funcionario,
+                                    valor_total)
+        VALUES (?, 'HOSPEDADO'::public.status_reserva, ?, ?, ?, ?)
+        RETURNING id
+        """,
+        Long.class,
+        quartoId,
+        entrada,
+        saida,
+        getFuncionarioId(),
+        valorTotal);
+  }
+
+  @Transactional
   public Long insertAndGetId(
       Long quartoId,
       LocalDateTime entrada,

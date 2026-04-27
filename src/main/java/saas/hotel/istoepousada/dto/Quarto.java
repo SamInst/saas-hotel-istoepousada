@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import org.springframework.jdbc.core.RowMapper;
+import saas.hotel.istoepousada.dto.Funcionario;
 
 public record Quarto(
     @NotNull Long id,
@@ -14,7 +15,11 @@ public record Quarto(
     @NotNull Integer quantidade_cama_casal,
     @NotNull Integer quantidade_cama_solteiro,
     @NotNull Integer quantidade_rede,
-    @NotNull Integer quantidade_beliche) {
+    @NotNull Integer quantidade_beliche,
+    QuartoItem quarto_item,
+    QuartoManutencao quarto_manutencao,
+    QuartoLimpeza quarto_limpeza
+    ) {
   public record Request(
       @NotNull String descricao,
       @NotNull Categoria.Id categoria,
@@ -55,14 +60,6 @@ public record Quarto(
     public record Repor(@NotNull Long id, @NotNull Integer quantidade) {}
   }
 
-  public record QuartoDetalhe(
-      @NotNull Long id, @NotNull Integer quantidade, @NotNull String descricao) {
-    public record Request(@NotNull Integer quantidade, @NotNull String descricao) {}
-
-    public record Update(
-        @NotNull Long id, @NotNull Integer quantidade, @NotNull String descricao) {}
-  }
-
   public record QuartoManutencao(
       @NotNull Long id,
       @NotNull Quarto.Id quarto,
@@ -88,6 +85,21 @@ public record Quarto(
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim,
         @NotNull Boolean ativo) {}
+
+    public static final RowMapper<QuartoManutencao> ROW_MAPPER =
+        (rs, rowNum) ->
+            new QuartoManutencao(
+                rs.getLong("manutencao_id"),
+                new Quarto.Id(rs.getLong("quarto_id")),
+                new Funcionario.Nome(
+                    rs.getLong("manutencao_funcionario_id"),
+                    rs.getString("manutencao_funcionario_nome")),
+                rs.getString("manutencao_descricao"),
+                rs.getObject("manutencao_data_hora_registro", LocalDateTime.class),
+                rs.getObject("manutencao_data_hora_inicio", LocalDateTime.class),
+                rs.getObject("manutencao_data_hora_fim", LocalDateTime.class),
+                rs.getString("manutencao_nome_responsavel"),
+                rs.getBoolean("manutencao_ativo"));
   }
 
   public record QuartoLimpeza(
@@ -110,6 +122,19 @@ public record Quarto(
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim,
         @NotNull Boolean ativo) {}
+
+    public static final RowMapper<QuartoLimpeza> ROW_MAPPER =
+        (rs, rowNum) ->
+            new QuartoLimpeza(
+                rs.getLong("limpeza_id"),
+                new Quarto.Id(rs.getLong("quarto_id")),
+                new Funcionario.Nome(
+                    rs.getLong("limpeza_funcionario_id"),
+                    rs.getString("limpeza_funcionario_nome")),
+                rs.getObject("limpeza_data_hora_registro", LocalDateTime.class),
+                rs.getObject("limpeza_data_hora_inicio", LocalDateTime.class),
+                rs.getObject("limpeza_data_hora_fim", LocalDateTime.class),
+                rs.getObject("limpeza_ativo", Boolean.class));
   }
 
   public record Id(Long id) {}
@@ -151,5 +176,8 @@ public record Quarto(
               rs.getObject("quarto_quantidade_cama_casal", Integer.class),
               rs.getObject("quarto_quantidade_cama_solteiro", Integer.class),
               rs.getObject("quarto_quantidade_rede", Integer.class),
-              rs.getObject("quarto_quantidade_beliche", Integer.class));
+              rs.getObject("quarto_quantidade_beliche", Integer.class),
+              null,
+              null,
+              null);
 }

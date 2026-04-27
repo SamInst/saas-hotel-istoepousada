@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Funcionario;
@@ -20,7 +19,6 @@ import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.dto.Pernoite;
 import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.dto.Quarto;
-import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
@@ -47,17 +45,14 @@ public class PernoiteRepository {
         p.id                    AS pernoite_id,
         p.status                AS pernoite_status,
         p.data_hora_registro    AS pernoite_data_hora_registro,
-        p.data_hora_entrada     AS pernoite_data_hora_entrada,
-        p.data_hora_saida       AS pernoite_data_hora_saida,
+        p.data_entrada          AS pernoite_data_entrada,
+        p.data_saida            AS pernoite_data_saida,
         p.hora_chegada          AS pernoite_hora_chegada,
         p.hora_saida            AS pernoite_hora_saida,
         p.valor_total           AS pernoite_valor_total,
-        q.id                    AS pernoite_quarto_id,
-        q.descricao             AS pernoite_quarto_descricao,
         f.id                    AS pernoite_funcionario_id,
         pf.nome                 AS pernoite_funcionario_nome
       FROM public.pernoite p
-      JOIN public.quarto q ON q.id = p.fk_quarto
       LEFT JOIN public.funcionario f ON f.id = p.fk_funcionario
       LEFT JOIN public.pessoa pf ON pf.id = f.fk_pessoa
       """;
@@ -207,8 +202,8 @@ public class PernoiteRepository {
                         ? null
                         : new Funcionario.Nome(funcId, rs.getString("pernoite_funcionario_nome")),
                     rs.getObject("pernoite_data_hora_registro", LocalDateTime.class),
-                    rs.getObject("pernoite_data_hora_entrada", LocalDateTime.class),
-                    rs.getObject("pernoite_data_hora_saida", LocalDateTime.class),
+                    rs.getObject("pernoite_data_entrada", LocalDate.class),
+                    rs.getObject("pernoite_data_saida", LocalDate.class),
                     rs.getObject("pernoite_hora_chegada", LocalTime.class),
                     rs.getObject("pernoite_hora_saida", LocalTime.class),
                     Pernoite.Status.valueOf(rs.getString("pernoite_status")),
@@ -248,7 +243,7 @@ public class PernoiteRepository {
     List<Long> ids = bases.stream().map(Pernoite::id).toList();
 
     Map<Long, List<Pernoite.Diaria>> diariasMap = buscarDiariasPorPernoites(ids);
-    Map<Long, List<Pernoite.PernoitePessoa>> pessoasMap = buscarPessoasPorPernoites(ids);
+    Map<Long, List<Pessoa.DadosPrincipais>> pessoasMap = buscarPessoasPorPernoites(ids);
 
     return bases.stream()
         .map(
@@ -281,7 +276,7 @@ public class PernoiteRepository {
 
   private Map<Long, List<Pernoite.Diaria>> buscarDiariasPorPernoites(List<Long> pernoiteIds) {
     String in = String.join(",", Collections.nCopies(pernoiteIds.size(), "?"));
-    String sql = SELECT_DIARIA_BASE + " WHERE d.fk_pernoite IN (" + in + ") ORDER BY d.fk_pernoite, d.numero ASC ";
+    String sql = SELECT_DIARIA_BASE + " WHERE d.fk_pernoite IN (" + in + ") ORDER BY d.fk_pernoite, d.numero";
 
     Map<Long, List<Pernoite.Diaria>> basesMap = new HashMap<>();
     jdbcTemplate.query(
@@ -365,7 +360,7 @@ public class PernoiteRepository {
     String sql =
         """
         SELECT
-          dp.fk_diaria            AS diaria_id,
+          dp.diaria_id            AS diaria_id,
           p.id                    AS pessoa_id,
           p.nome                  AS pessoa_nome,
           p.data_nascimento       AS pessoa_data_nascimento,
@@ -373,11 +368,11 @@ public class PernoiteRepository {
           p.email                 AS pessoa_email,
           p.telefone              AS pessoa_telefone,
           p.status                AS pessoa_status,
-          false                   AS pessoa_titular
+          dp.representante        AS pessoa_titular
         FROM public.diaria_pessoa dp
-        JOIN public.pessoa p ON p.id = dp.fk_pessoa
-        WHERE dp.fk_diaria IN (%s)
-        ORDER BY dp.fk_diaria, p.nome ASC
+        JOIN public.pessoa p ON p.id = dp.pessoa_id
+        WHERE dp.diaria_id IN (%s)
+        ORDER BY dp.diaria_id, p.nome
         """.formatted(in);
 
     Map<Long, List<Pessoa.DadosPrincipais>> map = new HashMap<>();
@@ -420,13 +415,12 @@ public class PernoiteRepository {
     return map;
   }
 
-  private Map<Long, List<Pernoite.PernoitePessoa>> buscarPessoasPorPernoites(List<Long> pernoiteIds) {
+  private Map<Long, List<Pessoa.DadosPrincipais>> buscarPessoasPorPernoites(List<Long> pernoiteIds) {
     String in = String.join(",", Collections.nCopies(pernoiteIds.size(), "?"));
     String sql =
         """
-        SELECT
-          pp.id                   AS pp_id,
-          pp.fk_pernoite          AS pp_fk_pernoite,
+        SELECT DISTINCT ON (d.fk_pernoite, p.id)
+          d.fk_pernoite           AS pp_fk_pernoite,
           p.id                    AS pessoa_id,
           p.nome                  AS pessoa_nome,
           p.data_nascimento       AS pessoa_data_nascimento,
@@ -434,21 +428,21 @@ public class PernoiteRepository {
           p.email                 AS pessoa_email,
           p.telefone              AS pessoa_telefone,
           p.status                AS pessoa_status,
-          pp.representante        AS pessoa_titular
-        FROM public.pernoite_pessoa pp
-        JOIN public.pessoa p ON p.id = pp.fk_pessoa
-        WHERE pp.fk_pernoite IN (%s)
-        ORDER BY pp.fk_pernoite, pp.representante DESC, p.nome ASC
+          dp.representante        AS pessoa_titular
+        FROM public.diaria_pessoa dp
+        JOIN public.diaria d ON d.id = dp.diaria_id
+        JOIN public.pessoa p ON p.id = dp.pessoa_id
+        WHERE d.fk_pernoite IN (%s)
+        ORDER BY d.fk_pernoite, p.id, p.nome
         """.formatted(in);
 
-    Map<Long, List<Pernoite.PernoitePessoa>> map = new HashMap<>();
+    Map<Long, List<Pessoa.DadosPrincipais>> map = new HashMap<>();
     jdbcTemplate.query(
         sql,
         rs -> {
           Long pernoiteId = rs.getLong("pp_fk_pernoite");
-          Pessoa.DadosPrincipais pessoa = Pessoa.DadosPrincipais.ROW_MAPPER.mapRow(rs, 0);
           map.computeIfAbsent(pernoiteId, k -> new ArrayList<>())
-              .add(new Pernoite.PernoitePessoa(rs.getLong("pp_id"), pessoa));
+              .add(Pessoa.DadosPrincipais.ROW_MAPPER.mapRow(rs, 0));
         },
         pernoiteIds.toArray());
     return map;
@@ -461,24 +455,23 @@ public class PernoiteRepository {
     String sqlPernoite =
         """
         SELECT COUNT(*) > 0
-        FROM public.pernoite
-        WHERE fk_quarto = ?
-          AND status IN ('ATIVO', 'PAGAMENTO_PENDENTE', 'FINALIZADO_PAGAMENTO_PENDENTE')
-          AND data_hora_entrada < ?
-          AND data_hora_saida > ?
+        FROM public.diaria d
+        JOIN public.pernoite p ON p.id = d.fk_pernoite
+        WHERE d.fk_quarto = ?
+          AND p.status IN ('ATIVO', 'PAGAMENTO_PENDENTE', 'FINALIZADO_PAGAMENTO_PENDENTE')
+          AND d.data_hora_inicio < ?
+          AND d.data_hora_fim > ?
         """
-            + (excludePernoiteId != null ? " AND id != ? " : "");
+            + (excludePernoiteId != null ? " AND p.id != ? " : "");
 
     boolean pernoiteConflito;
     if (excludePernoiteId != null) {
       pernoiteConflito =
-          Boolean.TRUE.equals(
               jdbcTemplate.queryForObject(
-                  sqlPernoite, Boolean.class, quartoId, saida, entrada, excludePernoiteId));
+                      sqlPernoite, Boolean.class, quartoId, saida, entrada, excludePernoiteId);
     } else {
       pernoiteConflito =
-          Boolean.TRUE.equals(
-              jdbcTemplate.queryForObject(sqlPernoite, Boolean.class, quartoId, saida, entrada));
+              jdbcTemplate.queryForObject(sqlPernoite, Boolean.class, quartoId, saida, entrada);
     }
     if (pernoiteConflito) return true;
 
@@ -491,8 +484,52 @@ public class PernoiteRepository {
           AND data_hora_entrada < ?
           AND data_hora_saida > ?
         """;
+    if (Boolean.TRUE.equals(
+        jdbcTemplate.queryForObject(sqlReserva, Boolean.class, quartoId, saida, entrada))) {
+      return true;
+    }
+
+    String sqlManutencao =
+        """
+        SELECT COUNT(*) > 0
+        FROM public.quarto_manutencao qm
+        WHERE qm.fk_quarto = ?
+          AND qm.ativo = true
+          AND (qm.data_hora_inicio IS NULL OR qm.data_hora_inicio < ?)
+          AND (qm.data_hora_fim IS NULL OR qm.data_hora_fim > ?)
+        """;
     return Boolean.TRUE.equals(
-        jdbcTemplate.queryForObject(sqlReserva, Boolean.class, quartoId, saida, entrada));
+        jdbcTemplate.queryForObject(sqlManutencao, Boolean.class, quartoId, saida, entrada));
+  }
+
+  public List<Pernoite> findByIds(List<Long> ids) {
+    if (ids.isEmpty()) return List.of();
+    String in = String.join(",", Collections.nCopies(ids.size(), "?"));
+    String sql = SELECT_PERNOITE_BASE + " WHERE p.id IN (" + in + ") ";
+    List<Pernoite> bases =
+        jdbcTemplate.query(
+            sql,
+            (rs, rowNum) -> {
+              Long funcId = rs.getObject("pernoite_funcionario_id", Long.class);
+              return new Pernoite(
+                  rs.getLong("pernoite_id"),
+                  funcId == null
+                      ? null
+                      : new Funcionario.Nome(funcId, rs.getString("pernoite_funcionario_nome")),
+                  rs.getObject("pernoite_data_hora_registro", LocalDateTime.class),
+                  rs.getObject("pernoite_data_entrada", LocalDate.class),
+                  rs.getObject("pernoite_data_saida", LocalDate.class),
+                  rs.getObject("pernoite_hora_chegada", LocalTime.class),
+                  rs.getObject("pernoite_hora_saida", LocalTime.class),
+                  Pernoite.Status.valueOf(rs.getString("pernoite_status")),
+                  rs.getObject("pernoite_valor_total", Float.class),
+                  0,
+                  0,
+                  List.of(),
+                  List.of());
+            },
+            ids.toArray());
+    return enriquecer(bases);
   }
 
   public boolean isQuartoDisponivel(Long quartoId) {
@@ -509,45 +546,18 @@ public class PernoiteRepository {
   // ── Insert pernoite ─────────────────────────────────────────────────────────
 
   @Transactional
-  public Long insertPernoite(
-      Long quartoId,
-      LocalDateTime entrada,
-      LocalDateTime saida,
-      Float valorTotal,
-      Long reservaId,
-      String observacao) {
+  public Long insertPernoite(LocalDate dataEntrada, LocalDate dataSaida, Float valorTotal) {
     return jdbcTemplate.queryForObject(
         """
-        INSERT INTO public.pernoite
-          (fk_quarto, fk_funcionario, fk_reserva, status,
-           data_hora_entrada, data_hora_saida, valor_total, observacao)
-        VALUES (?, ?, ?, 'ATIVO'::public.status_pernoite, ?, ?, ?, ?)
+        INSERT INTO public.pernoite (fk_funcionario, status, data_entrada, data_saida, valor_total, ativo)
+        VALUES (?, 'ATIVO', ?, ?, ?, true)
         RETURNING id
         """,
         Long.class,
-        quartoId,
         getFuncionarioId(),
-        reservaId,
-        entrada,
-        saida,
-        valorTotal,
-        observacao);
-  }
-
-  @Transactional
-  public void addPessoasToPernoite(Long pernoiteId, List<Long> pessoaIds) {
-    for (Long pessoaId : pessoaIds) {
-      jdbcTemplate.update(
-          """
-          INSERT INTO public.pernoite_pessoa (fk_pernoite, fk_pessoa, fk_funcionario, representante)
-          VALUES (?, ?, ?, ?)
-          ON CONFLICT DO NOTHING
-          """,
-          pernoiteId,
-          pessoaId,
-          getFuncionarioId(),
-          false);
-    }
+        dataEntrada,
+        dataSaida,
+        valorTotal);
   }
 
   // ── Insert diária ───────────────────────────────────────────────────────────
@@ -584,19 +594,17 @@ public class PernoiteRepository {
   }
 
   public List<Pernoite.Diaria> findDiariasByPernoite(Long pernoiteId) {
-    String sql = SELECT_DIARIA_BASE + " WHERE d.fk_pernoite = ? ORDER BY d.numero ASC ";
+    String sql = SELECT_DIARIA_BASE + " WHERE d.fk_pernoite = ? ORDER BY d.numero";
     List<Pernoite.Diaria> bases =
         jdbcTemplate.query(sql, (rs, rowNum) -> mapDiariaBase(rs), pernoiteId);
     return enriquecerDiarias(bases);
   }
 
   public int getMaxNumero(Long pernoiteId) {
-    Integer max =
-        jdbcTemplate.queryForObject(
-            "SELECT COALESCE(MAX(numero), 0) FROM public.diaria WHERE fk_pernoite = ?",
-            Integer.class,
-            pernoiteId);
-    return max != null ? max : 0;
+      return jdbcTemplate.queryForObject(
+          "SELECT COALESCE(MAX(numero), 0) FROM public.diaria WHERE fk_pernoite = ?",
+          Integer.class,
+          pernoiteId);
   }
 
   @Transactional
@@ -612,9 +620,8 @@ public class PernoiteRepository {
   @Transactional
   public void updatePernoite(
       Long id,
-      Long quartoId,
-      LocalDateTime novaEntrada,
-      LocalDateTime novaSaida,
+      LocalDate novaEntrada,
+      LocalDate novaSaida,
       LocalTime horaChegada,
       LocalTime horaSaida,
       Float novoValorTotal) {
@@ -622,16 +629,14 @@ public class PernoiteRepository {
         jdbcTemplate.update(
             """
             UPDATE public.pernoite SET
-              fk_quarto          = COALESCE(?, fk_quarto),
-              data_hora_entrada  = COALESCE(?, data_hora_entrada),
-              data_hora_saida    = COALESCE(?, data_hora_saida),
-              hora_chegada       = COALESCE(?, hora_chegada),
-              hora_saida         = COALESCE(?, hora_saida),
-              valor_total        = COALESCE(?, valor_total),
-              fk_funcionario     = ?
+              data_entrada   = COALESCE(?, data_entrada),
+              data_saida     = COALESCE(?, data_saida),
+              hora_chegada   = COALESCE(?, hora_chegada),
+              hora_saida     = COALESCE(?, hora_saida),
+              valor_total    = COALESCE(?, valor_total),
+              fk_funcionario = ?
             WHERE id = ?
             """,
-            quartoId,
             novaEntrada,
             novaSaida,
             horaChegada,
@@ -646,7 +651,7 @@ public class PernoiteRepository {
   public void updateStatus(Long id, Pernoite.Status status) {
     int rows =
         jdbcTemplate.update(
-            "UPDATE public.pernoite SET status = ?::public.status_pernoite WHERE id = ?",
+            "UPDATE public.pernoite SET status = ? WHERE id = ?",
             status.name(),
             id);
     if (rows == 0) throw new NotFoundException("Pernoite não encontrado: " + id);
@@ -682,21 +687,16 @@ public class PernoiteRepository {
   public void addPessoasToDiaria(Long diariaId, List<Long> pessoaIds) {
     for (Long pessoaId : pessoaIds) {
       jdbcTemplate.update(
-          """
-          INSERT INTO public.diaria_pessoa (fk_diaria, fk_pessoa, fk_funcionario)
-          VALUES (?, ?, ?)
-          ON CONFLICT DO NOTHING
-          """,
+          "INSERT INTO public.diaria_pessoa (diaria_id, pessoa_id) VALUES (?, ?)",
           diariaId,
-          pessoaId,
-          getFuncionarioId());
+          pessoaId);
     }
   }
 
   @Transactional
   public void removePessoaFromDiaria(Long diariaId, Long pessoaId) {
     jdbcTemplate.update(
-        "DELETE FROM public.diaria_pessoa WHERE fk_diaria = ? AND fk_pessoa = ?",
+        "DELETE FROM public.diaria_pessoa WHERE diaria_id = ? AND pessoa_id = ?",
         diariaId,
         pessoaId);
   }
@@ -704,13 +704,9 @@ public class PernoiteRepository {
   @Transactional
   public void addPagamentoToDiaria(Long diariaId, UUID pagamentoId) {
     jdbcTemplate.update(
-        """
-        INSERT INTO public.diaria_pagamento (fk_diaria, fk_pagamento, fk_funcionario)
-        VALUES (?, ?, ?)
-        """,
+        "INSERT INTO public.diaria_pagamento (fk_diaria, fk_pagamento) VALUES (?, ?)",
         diariaId,
-        pagamentoId,
-        getFuncionarioId());
+        pagamentoId);
   }
 
   public UUID findPagamentoUuidByDiariaPagamentoId(Long diariaPagamentoId) {
@@ -779,12 +775,7 @@ public class PernoiteRepository {
   public Long getQuartoIdByDiaria(Long diariaId) {
     try {
       return jdbcTemplate.queryForObject(
-          """
-          SELECT COALESCE(d.fk_quarto, p.fk_quarto)
-          FROM public.diaria d
-          JOIN public.pernoite p ON p.id = d.fk_pernoite
-          WHERE d.id = ?
-          """,
+          "SELECT fk_quarto FROM public.diaria WHERE id = ?",
           Long.class,
           diariaId);
     } catch (EmptyResultDataAccessException e) {
@@ -800,9 +791,15 @@ public class PernoiteRepository {
   public Long getQuartoIdByPernoite(Long pernoiteId) {
     try {
       return jdbcTemplate.queryForObject(
-          "SELECT fk_quarto FROM public.pernoite WHERE id = ?", Long.class, pernoiteId);
+          """
+          SELECT fk_quarto FROM public.diaria
+          WHERE fk_pernoite = ?
+          ORDER BY numero DESC LIMIT 1
+          """,
+          Long.class,
+          pernoiteId);
     } catch (EmptyResultDataAccessException e) {
-      throw new NotFoundException("Pernoite não encontrado: " + pernoiteId);
+      throw new NotFoundException("Nenhuma diária encontrada para o pernoite: " + pernoiteId);
     }
   }
 
