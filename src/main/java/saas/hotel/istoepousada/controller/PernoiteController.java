@@ -34,14 +34,12 @@ public class PernoiteController {
   }
 
   @PutMapping("/pernoites/{id}")
-  public Pernoite editar(
-      @PathVariable Long id, @RequestBody @Valid Pernoite.EditRequest request) {
+  public Pernoite editar(@PathVariable Long id, @RequestBody @Valid Pernoite.EditRequest request) {
     return service.edit(id, request);
   }
 
   @PutMapping("/pernoites/{id}/status")
-  public Pernoite alterarStatus(
-      @PathVariable Long id, @RequestParam Pernoite.Status status) {
+  public Pernoite alterarStatus(@PathVariable Long id, @RequestParam Pernoite.Status status) {
     return service.updateStatus(id, status);
   }
 
@@ -63,26 +61,25 @@ public class PernoiteController {
   }
 
   @DeleteMapping("/diarias/{id}/pessoas/{pessoaId}")
-  public Pernoite.Diaria removerPessoaDiaria(
-      @PathVariable Long id, @PathVariable Long pessoaId) {
+  public Pernoite.Diaria removerPessoaDiaria(@PathVariable Long id, @PathVariable Long pessoaId) {
     return service.removePessoaFromDiaria(id, pessoaId);
   }
 
-  // ── Diária – pagamentos ─────────────────────────────────────────────────────
+  // ── Pernoite – pagamentos ───────────────────────────────────────────────────
 
-  @PostMapping("/diarias/{id}/pagamentos")
+  @PostMapping("/pernoites/{id}/pagamentos")
   @ResponseStatus(HttpStatus.CREATED)
-  public Pernoite.Diaria adicionarPagamentosDiaria(
+  public Pernoite adicionarPagamentosPernoite(
       @PathVariable Long id, @RequestBody List<Pagamento.Request> pagamentos) {
-    return service.addPagamentosToDiaria(id, pagamentos);
+    return service.addPagamentosToPernoite(id, pagamentos);
   }
 
-  @DeleteMapping("/diarias/{id}/pagamentos/{pagamentoId}")
-  public Pernoite.Diaria cancelarPagamentoDiaria(
+  @DeleteMapping("/pernoites/{id}/pagamentos/{pagamentoId}")
+  public Pernoite cancelarPagamentoPernoite(
       @PathVariable Long id,
       @PathVariable Long pagamentoId,
       @RequestBody @Valid Pernoite.CancelamentoPagamentoRequest request) {
-    return service.cancelDiariaPagamento(id, pagamentoId, request.motivo_cancelamento());
+    return service.cancelPernoitePagamento(id, pagamentoId, request.motivo_cancelamento());
   }
 
   // ── Diária – consumos ───────────────────────────────────────────────────────
@@ -95,8 +92,7 @@ public class PernoiteController {
   }
 
   @DeleteMapping("/diarias/{id}/consumos/{consumoId}")
-  public Pernoite.Diaria removerConsumoDiaria(
-      @PathVariable Long id, @PathVariable Long consumoId) {
+  public Pernoite.Diaria removerConsumoDiaria(@PathVariable Long id, @PathVariable Long consumoId) {
     return service.removeConsumoFromDiaria(id, consumoId);
   }
 

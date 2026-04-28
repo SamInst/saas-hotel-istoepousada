@@ -90,7 +90,6 @@ public class PagamentoRepository {
             pagamento.nome_pagador(),
             pagamento.descricao(),
             pagamento.valor() == null ? 0f : pagamento.valor());
-    System.out.println(uuid);
 
     if (pagamento.desconto() != null) {
       var desconto = findDescontoByPagamentoUuid(uuid);

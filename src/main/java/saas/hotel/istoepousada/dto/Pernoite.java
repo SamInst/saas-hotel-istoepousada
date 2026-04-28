@@ -20,7 +20,8 @@ public record Pernoite(
     @NotNull Integer quantidade_diarias,
     @NotNull Integer numero_diaria_atual,
     @NotNull List<Diaria> diarias,
-    @NotNull List<Pessoa.DadosPrincipais> pessoas) {
+    @NotNull List<Pessoa.DadosPrincipais> pessoas,
+    @NotNull List<Pagamento> pagamentos) {
 
   public record Id(Long id) {}
 
@@ -86,8 +87,7 @@ public record Pernoite(
       @NotNull Status status,
       String observacao,
       List<Pessoa.DadosPrincipais> pessoas,
-      List<Item.Consumo> consumos,
-      List<Pagamento> pagamentos) {
+      List<Item.Consumo> consumos) {
 
     public record Request(
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,

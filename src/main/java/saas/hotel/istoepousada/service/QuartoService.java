@@ -24,7 +24,8 @@ public class QuartoService {
 
   public Page<Quarto> buscar(Long id, String termo, Quarto.Status status, Pageable pageable) {
     if (pageable == null) throw new IllegalArgumentException("pageable é obrigatório.");
-    return quartoRepository.buscar(id, StringUtils.hasText(termo) ? termo.trim() : null, status, pageable);
+    return quartoRepository.buscar(
+        id, StringUtils.hasText(termo) ? termo.trim() : null, status, pageable);
   }
 
   @Transactional
@@ -50,12 +51,9 @@ public class QuartoService {
 
   // ── Recepção ─────────────────────────────────────────────────────────────────
 
-  public Recepcao buscarRecepcao(LocalDate dataInicio, LocalDate dataFim) {
-    if (dataInicio == null) dataInicio = LocalDate.now();
-    if (dataFim == null) dataFim = dataInicio;
-    if (dataFim.isBefore(dataInicio))
-      throw new IllegalArgumentException("data_fim deve ser igual ou posterior a data_inicio.");
-    return quartoRepository.buscarRecepcao(dataInicio, dataFim);
+  public Recepcao.QuartoData buscarRecepcao(LocalDate data) {
+    if (data == null) data = LocalDate.now();
+    return quartoRepository.buscarRecepcao(data);
   }
 
   // ── Itens ─────────────────────────────────────────────────────────────────────
@@ -125,9 +123,9 @@ public class QuartoService {
   // ── Limpeza ───────────────────────────────────────────────────────────────────
 
   @Transactional
-  public Quarto.QuartoLimpeza acionarLimpeza(Long quartoId) {
+  public Quarto.QuartoLimpeza acionarLimpeza(Long quartoId, Quarto.QuartoLimpeza.Request req) {
     if (quartoId == null) throw new IllegalArgumentException("ID do quarto é obrigatório.");
-    return quartoRepository.acionarLimpeza(quartoId);
+    return quartoRepository.acionarLimpeza(quartoId, req);
   }
 
   @Transactional
@@ -146,8 +144,11 @@ public class QuartoService {
       throw new IllegalArgumentException("Categoria é obrigatória.");
     if (q.quantidade_pessoas() != null && q.quantidade_pessoas() <= 0)
       throw new IllegalArgumentException("quantidade_pessoas deve ser maior que 0.");
-    validarCamas(q.quantidade_cama_casal(), q.quantidade_cama_solteiro(),
-        q.quantidade_rede(), q.quantidade_beliche());
+    validarCamas(
+        q.quantidade_cama_casal(),
+        q.quantidade_cama_solteiro(),
+        q.quantidade_rede(),
+        q.quantidade_beliche());
   }
 
   private void validarUpdate(Quarto.Update q) {
@@ -160,8 +161,11 @@ public class QuartoService {
     if (q.status() == null) throw new IllegalArgumentException("Status é obrigatório.");
     if (q.quantidade_pessoas() != null && q.quantidade_pessoas() <= 0)
       throw new IllegalArgumentException("quantidade_pessoas deve ser maior que 0.");
-    validarCamas(q.quantidade_cama_casal(), q.quantidade_cama_solteiro(),
-        q.quantidade_rede(), q.quantidade_beliche());
+    validarCamas(
+        q.quantidade_cama_casal(),
+        q.quantidade_cama_solteiro(),
+        q.quantidade_rede(),
+        q.quantidade_beliche());
   }
 
   private void validarCamas(Integer casal, Integer solteiro, Integer rede, Integer beliche) {

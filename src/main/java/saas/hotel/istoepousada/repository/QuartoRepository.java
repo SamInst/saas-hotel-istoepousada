@@ -1,8 +1,5 @@
 package saas.hotel.istoepousada.repository;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Types;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -115,10 +112,7 @@ public class QuartoRepository {
     }
 
     String idsSql =
-        "SELECT quarto.id AS id"
-            + baseFrom
-            + where
-            + " ORDER BY quarto.id ASC LIMIT ? OFFSET ? ";
+        "SELECT quarto.id AS id" + baseFrom + where + " ORDER BY quarto.id ASC LIMIT ? OFFSET ? ";
 
     List<Object> idsParams = new ArrayList<>(params);
     idsParams.add(pageable.getPageSize());
@@ -157,13 +151,15 @@ public class QuartoRepository {
         jdbcTemplate.queryForObject(
             """
             INSERT INTO public.quarto (
+              id,
               descricao, quantidade_pessoa, status,
               quantidade_cama_casal, quantidade_cama_solteiro,
               quantidade_rede, quantidade_beliche
-            ) VALUES (?, ?, 'DISPONIVEL'::status_quarto_enum, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, 'DISPONIVEL'::status_quarto_enum, ?, ?, ?, ?)
             RETURNING id
             """,
             Long.class,
+            quarto.numero(),
             quarto.descricao(),
             quarto.quantidade_pessoas(),
             quarto.quantidade_cama_casal(),
@@ -388,19 +384,21 @@ public class QuartoRepository {
   // ── Limpeza ──────────────────────────────────────────────────────────────────
 
   @Transactional
-  public Quarto.QuartoLimpeza acionarLimpeza(Long quartoId) {
+  public Quarto.QuartoLimpeza acionarLimpeza(Long quartoId, Quarto.QuartoLimpeza.Request req) {
     findByIdOrThrow(quartoId);
+    Long funcionarioId = req.funcionario() != null ? req.funcionario().id() : getFuncionarioId();
     Long id =
         jdbcTemplate.queryForObject(
             """
-            INSERT INTO public.quarto_limpeza (fk_quarto, fk_funcionario, data_hora_registro, ativo)
-            VALUES (?, ?, NOW(), true)
+            INSERT INTO public.quarto_limpeza
+              (fk_quarto, fk_funcionario, data_hora_registro, data_hora_inicio, ativo)
+            VALUES (?, ?, NOW(), NOW(), true)
             RETURNING id
             """,
             Long.class,
             quartoId,
-            getFuncionarioId());
-    updateStatus(quartoId, Quarto.Status.EM_LIMPEZA);
+            funcionarioId);
+    updateStatus(quartoId, Quarto.Status.LIMPEZA);
     return findLimpezaById(id);
   }
 
@@ -408,10 +406,15 @@ public class QuartoRepository {
   public void finalizarLimpeza(Long id) {
     Long quartoId =
         jdbcTemplate.queryForObject(
-            "UPDATE public.quarto_limpeza SET ativo = false WHERE id = ? RETURNING fk_quarto",
+            """
+            UPDATE public.quarto_limpeza
+            SET ativo = false, data_hora_fim = NOW()
+            WHERE id = ?
+            RETURNING fk_quarto
+            """,
             Long.class,
             id);
-    if (quartoId != null) updateStatus(quartoId, Quarto.Status.DISPONIVEL);
+    updateStatus(quartoId, Quarto.Status.DISPONIVEL);
   }
 
   public Quarto.QuartoLimpeza findLimpezaById(Long id) {
@@ -441,7 +444,7 @@ public class QuartoRepository {
 
   // ── Recepção ─────────────────────────────────────────────────────────────────
 
-  public Recepcao buscarRecepcao(LocalDate dataInicio, LocalDate dataFim) {
+  public Recepcao.QuartoData buscarRecepcao(LocalDate data) {
     record QuartoRow(
         long quartoId,
         String descricao,
@@ -454,8 +457,6 @@ public class QuartoRepository {
         long categoriaId,
         String categoriaNome,
         String categoriaDescricao) {}
-
-    record PernoiteRangeInfo(long quartoId, long pernoiteId, LocalDate entrada, LocalDate saida) {}
 
     List<QuartoRow> quartoRows =
         jdbcTemplate.query(
@@ -475,7 +476,7 @@ public class QuartoRepository {
             FROM public.quarto q
             JOIN public.quarto_categoria qc ON qc.fk_quarto = q.id AND qc.ativo = true
             JOIN public.categoria c ON c.id = qc.fk_categoria
-            ORDER BY c.nome, q.descricao
+            ORDER BY c.nome ASC, q.id ASC
             """,
             (rs, rowNum) ->
                 new QuartoRow(
@@ -512,8 +513,8 @@ public class QuartoRepository {
         ORDER BY qm.fk_quarto, qm.data_hora_registro DESC
         """,
         rs -> {
-          long qid = rs.getLong("quarto_id");
-          manutencaoPorQuarto.put(qid, Quarto.QuartoManutencao.ROW_MAPPER.mapRow(rs, 0));
+          manutencaoPorQuarto.put(
+              rs.getLong("quarto_id"), Quarto.QuartoManutencao.ROW_MAPPER.mapRow(rs, 0));
         });
 
     Map<Long, Quarto.QuartoLimpeza> limpezaPorQuarto = new HashMap<>();
@@ -535,18 +536,17 @@ public class QuartoRepository {
         ORDER BY ql.fk_quarto, ql.data_hora_registro DESC
         """,
         rs -> {
-          long qid = rs.getLong("quarto_id");
-          limpezaPorQuarto.put(qid, Quarto.QuartoLimpeza.ROW_MAPPER.mapRow(rs, 0));
+          limpezaPorQuarto.put(
+              rs.getLong("quarto_id"), Quarto.QuartoLimpeza.ROW_MAPPER.mapRow(rs, 0));
         });
 
-    List<PernoiteRangeInfo> pernoiteRows =
+    // pernoites ativos na data: data_entrada <= data < data_saida
+    List<Long[]> pernoiteQuartoRows =
         jdbcTemplate.query(
             """
             SELECT
-              last_d.fk_quarto   AS quarto_id,
-              p.id               AS pernoite_id,
-              p.data_entrada,
-              p.data_saida
+              last_d.fk_quarto AS quarto_id,
+              p.id             AS pernoite_id
             FROM public.pernoite p
             JOIN (
               SELECT DISTINCT ON (d.fk_pernoite) d.fk_pernoite, d.fk_quarto
@@ -557,88 +557,102 @@ public class QuartoRepository {
               AND p.data_entrada <= ?
               AND p.data_saida > ?
             """,
-            (rs, rowNum) ->
-                new PernoiteRangeInfo(
-                    rs.getLong("quarto_id"),
-                    rs.getLong("pernoite_id"),
-                    rs.getObject("data_entrada", LocalDate.class),
-                    rs.getObject("data_saida", LocalDate.class)),
-            dataFim,
-            dataInicio);
+            (rs, rowNum) -> new Long[] {rs.getLong("quarto_id"), rs.getLong("pernoite_id")},
+            data,
+            data);
 
-    List<Long> pernoiteIds =
-        pernoiteRows.stream().map(PernoiteRangeInfo::pernoiteId).distinct().toList();
+    List<Long> pernoiteIds = pernoiteQuartoRows.stream().map(r -> r[1]).distinct().toList();
     Map<Long, Pernoite> pernoiteById =
         pernoiteRepository.findByIds(pernoiteIds).stream()
             .collect(Collectors.toMap(Pernoite::id, p -> p));
 
-    List<Recepcao.QuartoData> datas = new ArrayList<>();
-    LocalDate current = dataInicio;
-    while (!current.isAfter(dataFim)) {
-      final LocalDate data = current;
-
-      Map<Long, Pernoite> pernoitePorQuarto = new HashMap<>();
-      for (PernoiteRangeInfo row : pernoiteRows) {
-        if (!data.isBefore(row.entrada()) && data.isBefore(row.saida())) {
-          Pernoite p = pernoiteById.get(row.pernoiteId());
-          if (p != null) pernoitePorQuarto.put(row.quartoId(), p);
-        }
-      }
-
-      int totalPessoas =
-          pernoitePorQuarto.values().stream().mapToInt(p -> p.pessoas().size()).sum();
-
-      Map<Long, List<Recepcao.QuartoData.Categoria.Hospedagem>> hospedagensPorCat =
-          new LinkedHashMap<>();
-      Map<Long, String[]> catNames = new LinkedHashMap<>();
-
-      for (QuartoRow qr : quartoRows) {
-        Quarto quarto =
-            new Quarto(
-                qr.quartoId(),
-                qr.descricao(),
-                qr.qtdPessoas(),
-                qr.status(),
-                qr.camaCasal(),
-                qr.camaSolteiro(),
-                qr.rede(),
-                qr.beliche(),
-                null,
-                manutencaoPorQuarto.get(qr.quartoId()),
-                limpezaPorQuarto.get(qr.quartoId()));
-
-        Recepcao.QuartoData.Categoria.Hospedagem hospedagem =
-            new Recepcao.QuartoData.Categoria.Hospedagem(
-                quarto, pernoitePorQuarto.get(qr.quartoId()), null);
-
-        hospedagensPorCat.computeIfAbsent(qr.categoriaId(), k -> new ArrayList<>()).add(hospedagem);
-        catNames.putIfAbsent(
-            qr.categoriaId(), new String[] {qr.categoriaNome(), qr.categoriaDescricao()});
-      }
-
-      List<Recepcao.QuartoData.Categoria> categorias = new ArrayList<>();
-      for (Map.Entry<Long, List<Recepcao.QuartoData.Categoria.Hospedagem>> entry :
-          hospedagensPorCat.entrySet()) {
-        String[] names = catNames.get(entry.getKey());
-        categorias.add(
-            new Recepcao.QuartoData.Categoria(
-                entry.getKey(), names[0], names[1], entry.getValue()));
-      }
-
-      datas.add(new Recepcao.QuartoData(data, totalPessoas, categorias));
-      current = current.plusDays(1);
+    Map<Long, Pernoite> pernoitePorQuarto = new HashMap<>();
+    for (Long[] row : pernoiteQuartoRows) {
+      Pernoite p = pernoiteById.get(row[1]);
+      if (p != null) pernoitePorQuarto.put(row[0], p);
     }
 
-    return new Recepcao(datas);
+    // itens de todos os quartos em batch
+    List<Long> quartoIds = quartoRows.stream().map(QuartoRow::quartoId).toList();
+    Map<Long, List<Quarto.ItemQuarto>> itensPorQuarto = new HashMap<>();
+    if (!quartoIds.isEmpty()) {
+      String inQ = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
+      jdbcTemplate.query(
+          """
+          SELECT
+            qi.fk_quarto          AS quarto_id,
+            qi.id                 AS quarto_item_id,
+            i.id                  AS item_id,
+            i.descricao           AS item_descricao,
+            qi.quantidade_atual   AS quarto_item_quantidade_atual,
+            qi.quantidade_padrao  AS quarto_item_quantidade_padrao
+          FROM public.quarto_item qi
+          JOIN public.item i ON i.id = qi.fk_item
+          WHERE qi.fk_quarto IN (%s)
+          ORDER BY qi.fk_quarto, i.descricao
+          """
+              .formatted(inQ),
+          rs -> {
+            long qid = rs.getLong("quarto_id");
+            itensPorQuarto
+                .computeIfAbsent(qid, k -> new ArrayList<>())
+                .add(Quarto.ItemQuarto.ROW_MAPPER.mapRow(rs, 0));
+          },
+          quartoIds.toArray());
+    }
+
+    int totalPessoas = pernoitePorQuarto.values().stream().mapToInt(p -> p.pessoas().size()).sum();
+
+    Map<Long, List<Recepcao.QuartoData.Categoria.Hospedagem>> hospedagensPorCat =
+        new LinkedHashMap<>();
+    Map<Long, String[]> catNames = new LinkedHashMap<>();
+
+    for (QuartoRow qr : quartoRows) {
+      Quarto quarto =
+          new Quarto(
+              qr.quartoId(),
+              qr.descricao(),
+              qr.qtdPessoas(),
+              qr.status(),
+              qr.camaCasal(),
+              qr.camaSolteiro(),
+              qr.rede(),
+              qr.beliche(),
+              itensPorQuarto.getOrDefault(qr.quartoId(), List.of()),
+              manutencaoPorQuarto.get(qr.quartoId()),
+              limpezaPorQuarto.get(qr.quartoId()));
+
+      hospedagensPorCat
+          .computeIfAbsent(qr.categoriaId(), k -> new ArrayList<>())
+          .add(
+              new Recepcao.QuartoData.Categoria.Hospedagem(
+                  quarto, pernoitePorQuarto.get(qr.quartoId()), null));
+
+      catNames.putIfAbsent(
+          qr.categoriaId(), new String[] {qr.categoriaNome(), qr.categoriaDescricao()});
+    }
+
+    List<Recepcao.QuartoData.Categoria> categorias = new ArrayList<>();
+    for (Map.Entry<Long, List<Recepcao.QuartoData.Categoria.Hospedagem>> entry :
+        hospedagensPorCat.entrySet()) {
+      String[] names = catNames.get(entry.getKey());
+      categorias.add(
+          new Recepcao.QuartoData.Categoria(entry.getKey(), names[0], names[1], entry.getValue()));
+    }
+
+    return new Recepcao.QuartoData(data, totalPessoas, categorias);
   }
 
   // ── Categoria helpers ────────────────────────────────────────────────────────
 
   private void vincularCategoriaAtiva(Long quartoId, Long categoriaId) {
     jdbcTemplate.update(
-        "INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, ativo) VALUES (?, ?, true)",
+        """
+        INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, fk_funcionario, data_hora_cadastro, ativo) VALUES (?, ?, ?, now(), true)
+        """,
         quartoId,
-        categoriaId);
+        categoriaId,
+        getFuncionarioId());
   }
 
   private void atualizarCategoriaAtiva(Long quartoId, Long categoriaId) {
@@ -652,21 +666,20 @@ public class QuartoRepository {
             quartoId,
             categoriaId);
 
-    if (count != null && count > 0) {
+    if (count > 0) {
       jdbcTemplate.update(
           "UPDATE public.quarto_categoria SET ativo = true WHERE fk_quarto = ? AND fk_categoria = ?",
           quartoId,
           categoriaId);
     } else {
       jdbcTemplate.update(
-          "INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, ativo) VALUES (?, ?, true)",
+          """
+          INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, fk_funcionario, data_hora_cadastro, ativo)
+          VALUES (?, ?, ?, NOW(), true)
+          """,
           quartoId,
-          categoriaId);
+          categoriaId,
+          getFuncionarioId());
     }
-  }
-
-  private void setIntOrNull(PreparedStatement ps, int idx, Integer value) throws SQLException {
-    if (value == null) ps.setNull(idx, Types.INTEGER);
-    else ps.setInt(idx, value);
   }
 }

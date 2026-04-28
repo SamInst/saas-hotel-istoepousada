@@ -3,9 +3,9 @@ package saas.hotel.istoepousada.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Getter;
 import org.springframework.jdbc.core.RowMapper;
-import saas.hotel.istoepousada.dto.Funcionario;
 
 public record Quarto(
     @NotNull Long id,
@@ -16,11 +16,11 @@ public record Quarto(
     @NotNull Integer quantidade_cama_solteiro,
     @NotNull Integer quantidade_rede,
     @NotNull Integer quantidade_beliche,
-    QuartoItem quarto_item,
+    List<ItemQuarto> quarto_itens,
     QuartoManutencao quarto_manutencao,
-    QuartoLimpeza quarto_limpeza
-    ) {
+    QuartoLimpeza quarto_limpeza) {
   public record Request(
+      @NotNull Long numero,
       @NotNull String descricao,
       @NotNull Categoria.Id categoria,
       @NotNull Integer quantidade_pessoas,
@@ -110,10 +110,7 @@ public record Quarto(
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim,
       Boolean ativo) {
-    public record Request(
-        @NotNull Quarto.Id quarto,
-        @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
-        @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_fim) {}
+    public record Request(Funcionario.Id funcionario) {}
 
     public record Update(
         @NotNull Long id,
@@ -129,8 +126,7 @@ public record Quarto(
                 rs.getLong("limpeza_id"),
                 new Quarto.Id(rs.getLong("quarto_id")),
                 new Funcionario.Nome(
-                    rs.getLong("limpeza_funcionario_id"),
-                    rs.getString("limpeza_funcionario_nome")),
+                    rs.getLong("limpeza_funcionario_id"), rs.getString("limpeza_funcionario_nome")),
                 rs.getObject("limpeza_data_hora_registro", LocalDateTime.class),
                 rs.getObject("limpeza_data_hora_inicio", LocalDateTime.class),
                 rs.getObject("limpeza_data_hora_fim", LocalDateTime.class),
@@ -161,7 +157,7 @@ public record Quarto(
     DISPONIVEL,
     OCUPADO,
     RESERVADO,
-    EM_LIMPEZA,
+    LIMPEZA,
     MANUTENCAO,
     FORA_DE_SERVICO
   }
@@ -177,7 +173,7 @@ public record Quarto(
               rs.getObject("quarto_quantidade_cama_solteiro", Integer.class),
               rs.getObject("quarto_quantidade_rede", Integer.class),
               rs.getObject("quarto_quantidade_beliche", Integer.class),
-              null,
+              List.of(),
               null,
               null);
 }

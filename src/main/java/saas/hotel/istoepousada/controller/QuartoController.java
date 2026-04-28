@@ -59,10 +59,9 @@ public class QuartoController {
 
   @GetMapping("/recepcao")
   @AcessoLiberado({"FINANCEIRO", "ITENS"})
-  public Recepcao recepcao(
-      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate data_inicio,
-      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate data_fim) {
-    return quartoService.buscarRecepcao(data_inicio, data_fim);
+  public Recepcao.QuartoData recepcao(
+      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate data) {
+    return quartoService.buscarRecepcao(data);
   }
 
   // ── Itens ─────────────────────────────────────────────────────────────────────
@@ -118,8 +117,9 @@ public class QuartoController {
 
   @PostMapping("/{quartoId}/limpeza")
   @ResponseStatus(HttpStatus.CREATED)
-  public Quarto.QuartoLimpeza acionarLimpeza(@PathVariable Long quartoId) {
-    return quartoService.acionarLimpeza(quartoId);
+  public Quarto.QuartoLimpeza acionarLimpeza(
+      @PathVariable Long quartoId, @RequestBody Quarto.QuartoLimpeza.Request req) {
+    return quartoService.acionarLimpeza(quartoId, req);
   }
 
   @PatchMapping("/limpeza/{id}/finalizar")

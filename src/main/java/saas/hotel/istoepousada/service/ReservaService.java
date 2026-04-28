@@ -335,17 +335,21 @@ public class ReservaService {
     Map<Long, LocalDateTime[]> quartoEntradaSaida = new LinkedHashMap<>();
     for (Long quartoId : quartoIds) {
       ReservaRepository.CategoriaCheckin catInfo = catInfoMap.get(quartoId);
-      quartoEntradaSaida.put(quartoId, new LocalDateTime[]{
-          buildDateTime(dataEntrada, catInfo != null ? catInfo.hora_checkin() : null),
-          buildDateTime(dataSaida, catInfo != null ? catInfo.hora_checkout() : null)
-      });
+      quartoEntradaSaida.put(
+          quartoId,
+          new LocalDateTime[] {
+            buildDateTime(dataEntrada, catInfo != null ? catInfo.hora_checkin() : null),
+            buildDateTime(dataSaida, catInfo != null ? catInfo.hora_checkout() : null)
+          });
     }
 
     Set<Long> comConflito = reservaRepository.findQuartosComConflito(quartoEntradaSaida);
 
     return quartoIds.stream()
-        .map(quartoId -> new Reserva.Disponibilidade(
-            quartoId, dataEntrada, dataSaida, !comConflito.contains(quartoId)))
+        .map(
+            quartoId ->
+                new Reserva.Disponibilidade(
+                    quartoId, dataEntrada, dataSaida, !comConflito.contains(quartoId)))
         .toList();
   }
 

@@ -501,7 +501,8 @@ public class ReservaRepository {
       params.add(entry.getValue()[1]);
     }
 
-    String sql = ("""
+    String sql =
+        ("""
         SELECT DISTINCT r.fk_quarto
         FROM public.reserva r
         JOIN (VALUES %s) AS v(quarto_id, entrada, saida)
@@ -509,11 +510,12 @@ public class ReservaRepository {
         WHERE r.status != 'CANCELADO'
           AND r.data_hora_entrada < v.saida
           AND r.data_hora_saida > v.entrada
-        """).formatted(String.join(", ", valueParts));
+        """)
+            .formatted(String.join(", ", valueParts));
 
     Set<Long> result = new HashSet<>();
-    jdbcTemplate.query(sql, (RowCallbackHandler) rs -> result.add(rs.getLong("fk_quarto")),
-        params.toArray());
+    jdbcTemplate.query(
+        sql, (RowCallbackHandler) rs -> result.add(rs.getLong("fk_quarto")), params.toArray());
     return result;
   }
 
@@ -660,8 +662,9 @@ public class ReservaRepository {
   }
 
   public List<Reserva> findByOrcamentoId(Long orcamentoId) {
-    String sql = SELECT_RESERVA_BASE
-        + " WHERE orv.fk_orcamento = ? AND r.status = 'ORCAMENTO'::public.status_reserva ORDER BY r.data_hora_entrada ASC ";
+    String sql =
+        SELECT_RESERVA_BASE
+            + " WHERE orv.fk_orcamento = ? AND r.status = 'ORCAMENTO'::public.status_reserva ORDER BY r.data_hora_entrada ASC ";
     List<Reserva> bases = jdbcTemplate.query(sql, Reserva.ROW_MAPPER, orcamentoId);
     return enriquecer(bases);
   }
@@ -669,8 +672,9 @@ public class ReservaRepository {
   public Reserva.OrcamentoDetalhe findOrcamentoDetalhe(Long orcamentoId) {
     Reserva.OrcamentoDetalhe info;
     try {
-      info = jdbcTemplate.queryForObject(
-          """
+      info =
+          jdbcTemplate.queryForObject(
+              """
           SELECT o.id, o.nome_solicitante, o.data_hora_registro,
                  f.id AS funcionario_id, p.nome AS funcionario_nome
           FROM public.orcamento o
@@ -678,22 +682,29 @@ public class ReservaRepository {
           LEFT JOIN public.pessoa p ON p.id = f.fk_pessoa
           WHERE o.id = ?
           """,
-          (rs, rowNum) -> {
-            Long funcId = rs.getObject("funcionario_id", Long.class);
-            return new Reserva.OrcamentoDetalhe(
-                rs.getLong("id"),
-                rs.getString("nome_solicitante"),
-                funcId == null ? null : new saas.hotel.istoepousada.dto.Funcionario.Nome(funcId, rs.getString("funcionario_nome")),
-                rs.getObject("data_hora_registro", java.time.LocalDateTime.class),
-                null);
-          },
-          orcamentoId);
+              (rs, rowNum) -> {
+                Long funcId = rs.getObject("funcionario_id", Long.class);
+                return new Reserva.OrcamentoDetalhe(
+                    rs.getLong("id"),
+                    rs.getString("nome_solicitante"),
+                    funcId == null
+                        ? null
+                        : new saas.hotel.istoepousada.dto.Funcionario.Nome(
+                            funcId, rs.getString("funcionario_nome")),
+                    rs.getObject("data_hora_registro", java.time.LocalDateTime.class),
+                    null);
+              },
+              orcamentoId);
     } catch (EmptyResultDataAccessException e) {
       throw new NotFoundException("Orçamento não encontrado: " + orcamentoId);
     }
     List<Reserva> reservas = findByOrcamentoId(orcamentoId);
     return new Reserva.OrcamentoDetalhe(
-        info.id(), info.nome_solicitante(), info.funcionario(), info.data_hora_registro(), reservas);
+        info.id(),
+        info.nome_solicitante(),
+        info.funcionario(),
+        info.data_hora_registro(),
+        reservas);
   }
 
   @Transactional

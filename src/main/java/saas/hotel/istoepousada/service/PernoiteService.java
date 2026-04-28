@@ -110,13 +110,15 @@ public class PernoiteService {
     LocalDateTime entrada = buildDateTime(dataEntrada, catInfo.hora_checkin());
     LocalDateTime saida = buildDateTime(dataSaida, catInfo.hora_checkout());
 
-    validarDisponibilidade(quartoId, entrada, saida, null);
+    validarDisponibilidade(quartoId, entrada, saida, null, reservaId);
 
     int noites = (int) ChronoUnit.DAYS.between(dataEntrada, dataSaida);
     if (noites <= 0) noites = 1;
 
     Float valorTotal =
-        reserva.valor_total() != null ? reserva.valor_total() : calcularValorTotal(catInfo, dataEntrada, noites, pessoaIds.size());
+        reserva.valor_total() != null
+            ? reserva.valor_total()
+            : calcularValorTotal(catInfo, dataEntrada, noites, pessoaIds.size());
 
     reservaRepository.atualizarStatus(List.of(reservaId), Reserva.Status.HOSPEDADO);
 
@@ -134,7 +136,7 @@ public class PernoiteService {
     if (reserva.pagamentos() != null && !reserva.pagamentos().isEmpty() && !diariaIds.isEmpty()) {
       for (Reserva.ReservaPagamento rp : reserva.pagamentos()) {
         if (rp.pagamento() != null && rp.pagamento().uuid() != null) {
-          pernoiteRepository.addPagamentoToDiaria(diariaIds.getFirst(), rp.pagamento().uuid());
+          pernoiteRepository.addPagamentoToPernoite(pernoiteId, rp.pagamento().uuid());
         }
       }
     }
@@ -152,7 +154,7 @@ public class PernoiteService {
     LocalDateTime entrada = buildDateTime(request.data_entrada(), catInfo.hora_checkin());
     LocalDateTime saida = buildDateTime(request.data_saida(), catInfo.hora_checkout());
 
-    validarDisponibilidade(request.quarto_id(), entrada, saida, null);
+    validarDisponibilidade(request.quarto_id(), entrada, saida, null, null);
 
     int noites = (int) ChronoUnit.DAYS.between(request.data_entrada(), request.data_saida());
     if (noites <= 0) noites = 1;
@@ -160,7 +162,8 @@ public class PernoiteService {
     int qtdPessoas = request.pessoas().size();
     float valorTotal = calcularValorTotal(catInfo, request.data_entrada(), noites, qtdPessoas);
 
-    Long reservaId = reservaRepository.inserirHospedado(request.quarto_id(), entrada, saida, valorTotal);
+    Long reservaId =
+        reservaRepository.inserirHospedado(request.quarto_id(), entrada, saida, valorTotal);
     for (Long pessoaId : request.pessoas()) {
       reservaRepository.vincularPessoa(reservaId, pessoaId, false);
     }
@@ -178,7 +181,7 @@ public class PernoiteService {
       pernoiteRepository.addPessoasToDiaria(diariaIds.getFirst(), request.pessoas());
       for (Pagamento.Request pg : request.pagamentos()) {
         Pagamento criado = pagamentoRepository.create(pg);
-        pernoiteRepository.addPagamentoToDiaria(diariaIds.getFirst(), criado.uuid());
+        pernoiteRepository.addPagamentoToPernoite(pernoiteId, criado.uuid());
         relatorioRepository.registrarRelatorioDeConsumo(
             criado,
             relatorioRepository.getFuncionarioId(),
@@ -206,7 +209,8 @@ public class PernoiteService {
         sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosFixo(sazonIds);
 
     Categoria categoria =
-        categoriaRepository.findCategoriasParaCalculo(List.of(catInfo.id()))
+        categoriaRepository
+            .findCategoriasParaCalculo(List.of(catInfo.id()))
             .getOrDefault(catInfo.id(), null);
 
     List<Long> diariaIds = new ArrayList<>();
@@ -217,7 +221,9 @@ public class PernoiteService {
 
       float valor =
           categoria != null
-              ? (float) calcularPrecoNoite(noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas)
+              ? (float)
+                  calcularPrecoNoite(
+                      noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas)
               : 0f;
 
       Long diariaId =
@@ -244,13 +250,9 @@ public class PernoiteService {
       throw new BusinessException("Quarto " + quartoId + " não possui categoria configurada.");
 
     LocalDate dataEntrada =
-        request.data_entrada() != null
-            ? request.data_entrada()
-            : existing.check_in();
+        request.data_entrada() != null ? request.data_entrada() : existing.check_in();
     LocalDate dataSaida =
-        request.data_saida() != null
-            ? request.data_saida()
-            : existing.check_out();
+        request.data_saida() != null ? request.data_saida() : existing.check_out();
 
     if (!dataEntrada.isBefore(dataSaida))
       throw new BusinessException("data_saida deve ser posterior a data_entrada.");
@@ -258,7 +260,7 @@ public class PernoiteService {
     LocalDateTime novaEntrada = buildDateTime(dataEntrada, catInfo.hora_checkin());
     LocalDateTime novaSaida = buildDateTime(dataSaida, catInfo.hora_checkout());
 
-    validarDisponibilidade(quartoId, novaEntrada, novaSaida, id);
+    validarDisponibilidade(quartoId, novaEntrada, novaSaida, id, null);
 
     int novosNoites = (int) ChronoUnit.DAYS.between(dataEntrada, dataSaida);
     if (novosNoites <= 0) novosNoites = 1;
@@ -272,7 +274,8 @@ public class PernoiteService {
     Map<Long, List<Categoria.ModeloFixo>> modelosFixo =
         sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosFixo(sazonIds);
     Categoria categoria =
-        categoriaRepository.findCategoriasParaCalculo(List.of(catInfo.id()))
+        categoriaRepository
+            .findCategoriasParaCalculo(List.of(catInfo.id()))
             .getOrDefault(catInfo.id(), null);
 
     int qtdPessoas = existing.pessoas().size();
@@ -287,7 +290,9 @@ public class PernoiteService {
         LocalDateTime fim = buildDateTime(noite.plusDays(1), catInfo.hora_checkout());
         float valor =
             categoria != null
-                ? (float) calcularPrecoNoite(noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas)
+                ? (float)
+                    calcularPrecoNoite(
+                        noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas)
                 : 0f;
         pernoiteRepository.insertDiaria(id, i + 1, inicio, fim, valor, quartoId);
       }
@@ -306,7 +311,9 @@ public class PernoiteService {
       LocalDate noite = dataEntrada.plusDays(i);
       if (categoria != null) {
         float novoValor =
-            (float) calcularPrecoNoite(noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas);
+            (float)
+                calcularPrecoNoite(
+                    noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas);
         pernoiteRepository.updateDiariaValor(diariasAtuais.get(i).id(), novoValor);
         novoValorTotal += novoValor;
       } else {
@@ -315,12 +322,7 @@ public class PernoiteService {
     }
 
     pernoiteRepository.updatePernoite(
-        id,
-        dataEntrada,
-        dataSaida,
-        request.hora_chegada(),
-        request.hora_saida(),
-        novoValorTotal);
+        id, dataEntrada, dataSaida, request.hora_chegada(), request.hora_saida(), novoValorTotal);
 
     return pernoiteRepository.findById(id);
   }
@@ -335,7 +337,7 @@ public class PernoiteService {
         || status == Pernoite.Status.FINALIZADO_PAGAMENTO_PENDENTE) {
       try {
         Long quartoId = pernoiteRepository.getQuartoIdByPernoite(id);
-        quartoRepository.updateStatus(quartoId, Quarto.Status.EM_LIMPEZA);
+        quartoRepository.updateStatus(quartoId, Quarto.Status.LIMPEZA);
       } catch (Exception ignored) {
       }
     } else if (status == Pernoite.Status.CANCELADO) {
@@ -385,30 +387,29 @@ public class PernoiteService {
   // ── Diária – pagamentos ─────────────────────────────────────────────────────
 
   @Transactional
-  public Pernoite.Diaria addPagamentosToDiaria(Long diariaId, List<Pagamento.Request> pagamentos) {
+  public Pernoite addPagamentosToPernoite(Long pernoiteId, List<Pagamento.Request> pagamentos) {
     if (pagamentos == null || pagamentos.isEmpty())
       throw new IllegalArgumentException("Lista de pagamentos não pode ser vazia.");
-    Long pernoiteId = pernoiteRepository.getPernoiteIdByDiaria(diariaId);
-    Long quartoId = pernoiteRepository.getQuartoIdByDiaria(diariaId);
+    Long quartoId = pernoiteRepository.getQuartoIdByPernoite(pernoiteId);
     for (Pagamento.Request pg : pagamentos) {
       Pagamento criado = pagamentoRepository.create(pg);
-      pernoiteRepository.addPagamentoToDiaria(diariaId, criado.uuid());
+      pernoiteRepository.addPagamentoToPernoite(pernoiteId, criado.uuid());
       relatorioRepository.registrarRelatorioDeConsumo(
           criado,
           relatorioRepository.getFuncionarioId(),
           "Pernoite " + pernoiteId + " - Quarto " + quartoId);
     }
-    return pernoiteRepository.findDiariaById(diariaId);
+    return pernoiteRepository.findById(pernoiteId);
   }
 
   @Transactional
-  public Pernoite.Diaria cancelDiariaPagamento(
-      Long diariaId, Long diariaPagamentoId, String motivo) {
+  public Pernoite cancelPernoitePagamento(
+      Long pernoiteId, Long pernoitePagamentoId, String motivo) {
     if (motivo == null || motivo.isBlank())
       throw new IllegalArgumentException("Motivo de cancelamento é obrigatório.");
-    pernoiteRepository.getPernoiteIdByDiaria(diariaId);
-    pernoiteRepository.cancelDiariaPagamento(diariaPagamentoId, motivo);
-    return pernoiteRepository.findDiariaById(diariaId);
+    pernoiteRepository.findById(pernoiteId);
+    pernoiteRepository.cancelPernoitePagamento(pernoitePagamentoId, motivo);
+    return pernoiteRepository.findById(pernoiteId);
   }
 
   // ── Diária – consumos ───────────────────────────────────────────────────────
@@ -424,9 +425,7 @@ public class PernoiteService {
         Pagamento criado = pagamentoRepository.create(req.pagamento());
         pagamentoId = criado.uuid();
         relatorioRepository.registrarRelatorioDeConsumo(
-            criado,
-            relatorioRepository.getFuncionarioId(),
-            "Consumo diária " + diariaId);
+            criado, relatorioRepository.getFuncionarioId(), "Consumo diária " + diariaId);
       }
       Long consumoQuartoId = req.quarto() != null ? req.quarto().id() : quartoId;
       Long consumoId =
@@ -451,11 +450,16 @@ public class PernoiteService {
   // ── Helpers de disponibilidade ──────────────────────────────────────────────
 
   private void validarDisponibilidade(
-      Long quartoId, LocalDateTime entrada, LocalDateTime saida, Long excludePernoiteId) {
+      Long quartoId,
+      LocalDateTime entrada,
+      LocalDateTime saida,
+      Long excludePernoiteId,
+      Long excludeReservaId) {
     if (!pernoiteRepository.isQuartoDisponivel(quartoId)) {
       throw new BusinessException("Quarto " + quartoId + " não está disponível.");
     }
-    if (pernoiteRepository.hasConflito(quartoId, entrada, saida, excludePernoiteId)) {
+    if (pernoiteRepository.hasConflito(
+        quartoId, entrada, saida, excludePernoiteId, excludeReservaId)) {
       throw new ConflictException(
           "Quarto " + quartoId + " possui ocupação conflitante no período informado.");
     }
@@ -476,15 +480,22 @@ public class PernoiteService {
     Map<Long, List<Categoria.ModeloFixo>> modelosFixo =
         sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosFixo(sazonIds);
     Categoria categoria =
-        categoriaRepository.findCategoriasParaCalculo(List.of(catInfo.id()))
+        categoriaRepository
+            .findCategoriasParaCalculo(List.of(catInfo.id()))
             .getOrDefault(catInfo.id(), null);
     if (categoria == null) return 0f;
 
     float total = 0f;
     for (int i = 0; i < noites; i++) {
       total +=
-          (float) calcularPrecoNoite(
-              dataEntrada.plusDays(i), categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas);
+          (float)
+              calcularPrecoNoite(
+                  dataEntrada.plusDays(i),
+                  categoria,
+                  sazonalidades,
+                  modelosOcupacao,
+                  modelosFixo,
+                  qtdPessoas);
     }
     return total;
   }
@@ -503,9 +514,7 @@ public class PernoiteService {
             ? sazonModelosOcupacao.getOrDefault(activeSazonId, List.of())
             : List.of();
     List<Categoria.ModeloFixo> modelosFixo =
-        activeSazonId != null
-            ? sazonModelosFixo.getOrDefault(activeSazonId, List.of())
-            : List.of();
+        activeSazonId != null ? sazonModelosFixo.getOrDefault(activeSazonId, List.of()) : List.of();
 
     if (modelosOcupacao.isEmpty() && modelosFixo.isEmpty() && activeSazonId != null) {
       modelosOcupacao = filtrarOcupacaoPorSazon(categoria.modelos_ocupacao(), activeSazonId);
@@ -536,13 +545,9 @@ public class PernoiteService {
               && !s.semanal().isEmpty()
               && s.semanal().contains(date.getDayOfWeek().getValue());
       boolean mensal =
-          s.mensal() != null
-              && !s.mensal().isEmpty()
-              && s.mensal().contains(date.getDayOfMonth());
+          s.mensal() != null && !s.mensal().isEmpty() && s.mensal().contains(date.getDayOfMonth());
       boolean anual =
-          s.anual() != null
-              && !s.anual().isEmpty()
-              && s.anual().contains(date.getMonthValue());
+          s.anual() != null && !s.anual().isEmpty() && s.anual().contains(date.getMonthValue());
       if (semanal || mensal || anual) return s.id();
     }
     return null;
@@ -551,17 +556,13 @@ public class PernoiteService {
   private List<Categoria.ModeloOcupacao> filtrarOcupacaoPorSazon(
       List<Categoria.ModeloOcupacao> modelos, Long sazonId) {
     if (modelos == null) return List.of();
-    return modelos.stream()
-        .filter(m -> sazonIdMatch(m.sazonalidade(), sazonId))
-        .toList();
+    return modelos.stream().filter(m -> sazonIdMatch(m.sazonalidade(), sazonId)).toList();
   }
 
   private List<Categoria.ModeloFixo> filtrarFixoPorSazon(
       List<Categoria.ModeloFixo> modelos, Long sazonId) {
     if (modelos == null) return List.of();
-    return modelos.stream()
-        .filter(m -> sazonIdMatch(m.sazonalidade(), sazonId))
-        .toList();
+    return modelos.stream().filter(m -> sazonIdMatch(m.sazonalidade(), sazonId)).toList();
   }
 
   private boolean sazonIdMatch(Sazonalidade.Nome sazon, Long activeSazonId) {
