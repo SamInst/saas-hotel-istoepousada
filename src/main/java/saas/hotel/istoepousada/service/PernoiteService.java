@@ -403,12 +403,11 @@ public class PernoiteService {
   }
 
   @Transactional
-  public Pernoite cancelPernoitePagamento(
-      Long pernoiteId, Long pernoitePagamentoId, String motivo) {
+  public Pernoite cancelPernoitePagamento(UUID pagamentoUuid, String motivo) {
     if (motivo == null || motivo.isBlank())
       throw new IllegalArgumentException("Motivo de cancelamento é obrigatório.");
-    pernoiteRepository.findById(pernoiteId);
-    pernoiteRepository.cancelPernoitePagamento(pernoitePagamentoId, motivo);
+    Long pernoiteId = pernoiteRepository.findPernoiteIdByPagamentoUuid(pagamentoUuid);
+    pernoiteRepository.cancelPernoitePagamento(pagamentoUuid, motivo);
     return pernoiteRepository.findById(pernoiteId);
   }
 

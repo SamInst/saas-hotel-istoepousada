@@ -2,6 +2,7 @@ package saas.hotel.istoepousada.controller;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -74,12 +75,11 @@ public class PernoiteController {
     return service.addPagamentosToPernoite(id, pagamentos);
   }
 
-  @DeleteMapping("/pernoites/{id}/pagamentos/{pagamentoId}")
+  @DeleteMapping("/pernoites/pagamentos/{uuid}")
   public Pernoite cancelarPagamentoPernoite(
-      @PathVariable Long id,
-      @PathVariable Long pagamentoId,
+      @PathVariable UUID uuid,
       @RequestBody @Valid Pernoite.CancelamentoPagamentoRequest request) {
-    return service.cancelPernoitePagamento(id, pagamentoId, request.motivo_cancelamento());
+    return service.cancelPernoitePagamento(uuid, request.motivo_cancelamento());
   }
 
   // ── Diária – consumos ───────────────────────────────────────────────────────

@@ -737,21 +737,20 @@ public class PernoiteRepository {
         pagamentoId);
   }
 
-  public UUID findPagamentoUuidByPernoitePagamentoId(Long pernoitePagamentoId) {
+  public Long findPernoiteIdByPagamentoUuid(UUID pagamentoUuid) {
     try {
       return jdbcTemplate.queryForObject(
-          "SELECT fk_pagamento FROM public.pernoite_pagamento WHERE id = ?",
-          (rs, rowNum) -> rs.getObject("fk_pagamento", UUID.class),
-          pernoitePagamentoId);
+          "SELECT fk_pernoite FROM public.pernoite_pagamento WHERE fk_pagamento = ?",
+          Long.class,
+          pagamentoUuid);
     } catch (EmptyResultDataAccessException e) {
-      throw new NotFoundException("Pagamento do pernoite não encontrado: " + pernoitePagamentoId);
+      throw new NotFoundException("Pagamento não vinculado a nenhum pernoite: " + pagamentoUuid);
     }
   }
 
   @Transactional
-  public void cancelPernoitePagamento(Long pernoitePagamentoId, String motivo) {
-    UUID pagamentoId = findPagamentoUuidByPernoitePagamentoId(pernoitePagamentoId);
-    pagamentoRepository.cancelarPagamento(pagamentoId, motivo);
+  public void cancelPernoitePagamento(UUID pagamentoUuid, String motivo) {
+    pagamentoRepository.cancelarPagamento(pagamentoUuid, motivo);
   }
 
   @Transactional
