@@ -141,15 +141,23 @@ public record Quarto(
       @NotNull Long id,
       @NotNull Item item,
       @NotNull Integer quantidade_atual,
-      @NotNull Integer quantidade_padrao) {
+      @NotNull Integer quantidade_padrao,
+      Double preco,
+      Integer qtd_total_unidades) {
 
     public static final RowMapper<ItemQuarto> ROW_MAPPER =
-        (rs, rowNum) ->
-            new ItemQuarto(
-                rs.getLong("quarto_item_id"),
-                new Item(rs.getLong("item_id"), rs.getString("item_descricao")),
-                rs.getInt("quarto_item_quantidade_atual"),
-                rs.getInt("quarto_item_quantidade_padrao"));
+        (rs, rowNum) -> {
+          double precoRaw = rs.getDouble("preco");
+          Double preco = rs.wasNull() ? null : precoRaw;
+          return new ItemQuarto(
+              rs.getLong("quarto_item_id"),
+              new Item(rs.getLong("item_id"), rs.getString("item_descricao")),
+              rs.getInt("quarto_item_quantidade_atual"),
+              rs.getInt("quarto_item_quantidade_padrao"),
+              preco,
+              rs.getInt("qtd_total_unidades")
+          );
+        };
   }
 
   @Getter

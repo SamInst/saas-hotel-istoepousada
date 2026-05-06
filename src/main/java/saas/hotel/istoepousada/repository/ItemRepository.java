@@ -402,6 +402,11 @@ public class ItemRepository {
     return new Item.HistoricoEstoque.Estoque(categorias);
   }
 
+  public Boolean estoqueExisteParaItem(Long itemId) {
+    return jdbcTemplate.queryForObject(
+        "SELECT EXISTS(SELECT 1 FROM estoque WHERE fk_item = ?)", Boolean.class, itemId);
+  }
+
   @Transactional
   public Item insert(Item.Request request) {
     var id =

@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -23,6 +25,7 @@ import saas.hotel.istoepousada.dto.Recepcao;
 import saas.hotel.istoepousada.dto.Reserva;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
+@Slf4j
 @Repository
 public class QuartoRepository {
 
@@ -30,16 +33,18 @@ public class QuartoRepository {
   private final PessoaRepository pessoaRepository;
   private final PernoiteRepository pernoiteRepository;
   private final ReservaRepository reservaRepository;
+  private final ItemRepository itemRepository;
 
   public QuartoRepository(
-      JdbcTemplate jdbcTemplate,
-      PessoaRepository pessoaRepository,
-      PernoiteRepository pernoiteRepository,
-      ReservaRepository reservaRepository) {
+          JdbcTemplate jdbcTemplate,
+          PessoaRepository pessoaRepository,
+          PernoiteRepository pernoiteRepository,
+          ReservaRepository reservaRepository, ItemRepository itemRepository) {
     this.jdbcTemplate = jdbcTemplate;
     this.pessoaRepository = pessoaRepository;
     this.pernoiteRepository = pernoiteRepository;
     this.reservaRepository = reservaRepository;
+    this.itemRepository = itemRepository;
   }
 
   private Long getFuncionarioId() {
@@ -221,9 +226,12 @@ public class QuartoRepository {
           i.id                  AS item_id,
           i.descricao           AS item_descricao,
           qi.quantidade_atual   AS quarto_item_quantidade_atual,
-          qi.quantidade_padrao  AS quarto_item_quantidade_padrao
+          qi.quantidade_padrao  AS quarto_item_quantidade_padrao,
+          e.valor_venda_unidade AS preco,
+          e.qtd_total_unidades AS qtd_total_unidades
         FROM quarto_item qi
         JOIN item i ON i.id = qi.fk_item
+        LEFT JOIN public.estoque e ON e.fk_item = i.id
         WHERE qi.fk_quarto = ?
         ORDER BY i.descricao
         """;
@@ -282,6 +290,21 @@ public class QuartoRepository {
         req.quantidade(),
         getFuncionarioId(),
         req.id());
+
+    Boolean estoqueExiste = itemRepository.estoqueExisteParaItem(req.id());
+    if (estoqueExiste) {
+      jdbcTemplate.update(
+              """
+                      UPDATE estoque
+                      SET qtd_total_unidades = qtd_total_unidades - ?
+                      WHERE fk_item = ?
+                      """,
+              req.quantidade(),
+              req.id());
+        log.info("Estoque atualizado com sucesso para o item: {}", req.id());
+    } else {
+      throw new NotFoundException("Estoque nao encontrado para o item: " + req.id());
+    }
     return findItemById(req.id());
   }
 
@@ -293,9 +316,12 @@ public class QuartoRepository {
           i.id                  AS item_id,
           i.descricao           AS item_descricao,
           qi.quantidade_atual   AS quarto_item_quantidade_atual,
-          qi.quantidade_padrao  AS quarto_item_quantidade_padrao
+          qi.quantidade_padrao  AS quarto_item_quantidade_padrao,
+          e.valor_venda_unidade AS preco,
+          e.qtd_total_unidades  AS qtd_total_unidades
         FROM public.quarto_item qi
         JOIN public.item i ON i.id = qi.fk_item
+        LEFT JOIN public.estoque e ON e.fk_item = i.id
         WHERE qi.id = ?
         """,
         Quarto.ItemQuarto.ROW_MAPPER,
@@ -600,9 +626,12 @@ public class QuartoRepository {
             i.id                  AS item_id,
             i.descricao           AS item_descricao,
             qi.quantidade_atual   AS quarto_item_quantidade_atual,
-            qi.quantidade_padrao  AS quarto_item_quantidade_padrao
+            qi.quantidade_padrao  AS quarto_item_quantidade_padrao,
+            e.valor_venda_unidade AS preco,
+            e.qtd_total_unidades AS qtd_total_unidades
           FROM public.quarto_item qi
           JOIN public.item i ON i.id = qi.fk_item
+          LEFT JOIN public.estoque e ON e.fk_item = i.id
           WHERE qi.fk_quarto IN (%s)
           ORDER BY qi.fk_quarto, i.descricao
           """
