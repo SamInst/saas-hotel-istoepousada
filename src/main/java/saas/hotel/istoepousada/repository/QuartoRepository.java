@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Pernoite;
 import saas.hotel.istoepousada.dto.Quarto;
 import saas.hotel.istoepousada.dto.Recepcao;
+import saas.hotel.istoepousada.dto.Reserva;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
@@ -28,14 +29,17 @@ public class QuartoRepository {
   private final JdbcTemplate jdbcTemplate;
   private final PessoaRepository pessoaRepository;
   private final PernoiteRepository pernoiteRepository;
+  private final ReservaRepository reservaRepository;
 
   public QuartoRepository(
       JdbcTemplate jdbcTemplate,
       PessoaRepository pessoaRepository,
-      PernoiteRepository pernoiteRepository) {
+      PernoiteRepository pernoiteRepository,
+      ReservaRepository reservaRepository) {
     this.jdbcTemplate = jdbcTemplate;
     this.pessoaRepository = pessoaRepository;
     this.pernoiteRepository = pernoiteRepository;
+    this.reservaRepository = reservaRepository;
   }
 
   private Long getFuncionarioId() {
@@ -414,7 +418,19 @@ public class QuartoRepository {
             """,
             Long.class,
             id);
-    updateStatus(quartoId, Quarto.Status.DISPONIVEL);
+    Integer reservaCount =
+        jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*) FROM public.reserva
+            WHERE fk_quarto = ?
+              AND status IN ('ATIVO', 'SOLICITADA')
+              AND data_hora_entrada::date = CURRENT_DATE
+            """,
+            Integer.class,
+            quartoId);
+    Quarto.Status novoStatus =
+        (reservaCount != null && reservaCount > 0) ? Quarto.Status.RESERVADO : Quarto.Status.DISPONIVEL;
+    updateStatus(quartoId, novoStatus);
   }
 
   public Quarto.QuartoLimpeza findLimpezaById(Long id) {
@@ -540,11 +556,11 @@ public class QuartoRepository {
               rs.getLong("quarto_id"), Quarto.QuartoLimpeza.ROW_MAPPER.mapRow(rs, 0));
         });
 
-    // pernoites ativos na data: data_entrada <= data < data_saida
+    // último pernoite não-finalizado por quarto iniciado até a data consultada
     List<Long[]> pernoiteQuartoRows =
         jdbcTemplate.query(
             """
-            SELECT
+            SELECT DISTINCT ON (last_d.fk_quarto)
               last_d.fk_quarto AS quarto_id,
               p.id             AS pernoite_id
             FROM public.pernoite p
@@ -555,10 +571,9 @@ public class QuartoRepository {
             ) last_d ON last_d.fk_pernoite = p.id
             WHERE p.status IN ('ATIVO','PAGAMENTO_PENDENTE','FINALIZADO_PAGAMENTO_PENDENTE')
               AND p.data_entrada <= ?
-              AND p.data_saida > ?
+            ORDER BY last_d.fk_quarto, p.data_entrada DESC
             """,
             (rs, rowNum) -> new Long[] {rs.getLong("quarto_id"), rs.getLong("pernoite_id")},
-            data,
             data);
 
     List<Long> pernoiteIds = pernoiteQuartoRows.stream().map(r -> r[1]).distinct().toList();
@@ -601,6 +616,12 @@ public class QuartoRepository {
           quartoIds.toArray());
     }
 
+    // reservas ativas no range da data (ATIVO ou SOLICITADA, data dentro do período)
+    Map<Long, Reserva> reservaPorQuarto =
+        reservaRepository.buscarAtivasNaData(data).stream()
+            .filter(r -> r.quarto() != null)
+            .collect(Collectors.toMap(r -> r.quarto().id(), r -> r, (a, b) -> a));
+
     int totalPessoas = pernoitePorQuarto.values().stream().mapToInt(p -> p.pessoas().size()).sum();
 
     Map<Long, List<Recepcao.QuartoData.Categoria.Hospedagem>> hospedagensPorCat =
@@ -608,6 +629,8 @@ public class QuartoRepository {
     Map<Long, String[]> catNames = new LinkedHashMap<>();
 
     for (QuartoRow qr : quartoRows) {
+      Reserva reserva = reservaPorQuarto.get(qr.quartoId());
+
       Quarto quarto =
           new Quarto(
               qr.quartoId(),
@@ -626,7 +649,7 @@ public class QuartoRepository {
           .computeIfAbsent(qr.categoriaId(), k -> new ArrayList<>())
           .add(
               new Recepcao.QuartoData.Categoria.Hospedagem(
-                  quarto, pernoitePorQuarto.get(qr.quartoId()), null));
+                  quarto, pernoitePorQuarto.get(qr.quartoId()), null, reserva));
 
       catNames.putIfAbsent(
           qr.categoriaId(), new String[] {qr.categoriaNome(), qr.categoriaDescricao()});

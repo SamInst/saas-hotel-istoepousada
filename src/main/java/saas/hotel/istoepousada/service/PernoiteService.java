@@ -85,8 +85,6 @@ public class PernoiteService {
       throw new IllegalArgumentException("data_saida deve ser posterior a data_entrada.");
     if (request.pessoas() == null || request.pessoas().isEmpty())
       throw new IllegalArgumentException("pessoas é obrigatório.");
-    if (request.pagamentos() == null || request.pagamentos().isEmpty())
-      throw new IllegalArgumentException("pagamentos é obrigatório.");
   }
 
   private Pernoite criarDeReserva(Long reservaId) {
@@ -179,13 +177,15 @@ public class PernoiteService {
 
     if (!diariaIds.isEmpty()) {
       pernoiteRepository.addPessoasToDiaria(diariaIds.getFirst(), request.pessoas());
-      for (Pagamento.Request pg : request.pagamentos()) {
-        Pagamento criado = pagamentoRepository.create(pg);
-        pernoiteRepository.addPagamentoToPernoite(pernoiteId, criado.uuid());
-        relatorioRepository.registrarRelatorioDeConsumo(
-            criado,
-            relatorioRepository.getFuncionarioId(),
-            "Pernoite - Quarto " + request.quarto_id());
+      if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
+        for (Pagamento.Request pg : request.pagamentos()) {
+          Pagamento criado = pagamentoRepository.create(pg);
+          pernoiteRepository.addPagamentoToPernoite(pernoiteId, criado.uuid());
+          relatorioRepository.registrarRelatorioDeConsumo(
+                  criado,
+                  relatorioRepository.getFuncionarioId(),
+                  "Pernoite - Quarto " + request.quarto_id());
+        }
       }
     }
 

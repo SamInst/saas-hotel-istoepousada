@@ -30,18 +30,20 @@ public class ReservaService {
   private final PagamentoRepository pagamentoRepository;
   private final RelatorioRepository relatorioRepository;
   private final PessoaRepository pessoaRepository;
+  private final QuartoService quartoService;
 
   public ReservaService(
-      ReservaRepository reservaRepository,
-      CategoriaRepository categoriaRepository,
-      PagamentoRepository pagamentoRepository,
-      RelatorioRepository relatorioRepository,
-      PessoaRepository pessoaRepository) {
+          ReservaRepository reservaRepository,
+          CategoriaRepository categoriaRepository,
+          PagamentoRepository pagamentoRepository,
+          RelatorioRepository relatorioRepository,
+          PessoaRepository pessoaRepository, QuartoService quartoService) {
     this.reservaRepository = reservaRepository;
     this.categoriaRepository = categoriaRepository;
     this.pagamentoRepository = pagamentoRepository;
     this.relatorioRepository = relatorioRepository;
     this.pessoaRepository = pessoaRepository;
+    this.quartoService = quartoService;
   }
 
   // ── Consultas ──────────────────────────────────────────────────────────────
@@ -163,6 +165,10 @@ public class ReservaService {
         relatorioRepository.registrarRelatorioDeConsumo(
             criado, relatorioRepository.getFuncionarioId(), "Reserva - Quarto " + req.fk_quarto());
       }
+    }
+
+    if (req.data_entrada().equals(LocalDate.now())) {
+      quartoService.alterarStatus(req.fk_quarto(), Quarto.Status.RESERVADO);
     }
 
     return reservaRepository.findById(reservaId);

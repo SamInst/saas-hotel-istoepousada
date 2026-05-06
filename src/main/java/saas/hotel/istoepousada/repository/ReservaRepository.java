@@ -250,6 +250,19 @@ public class ReservaRepository {
     return enriquecer(bases);
   }
 
+  public List<Reserva> buscarAtivasNaData(LocalDate data) {
+    String sql =
+        SELECT_RESERVA_BASE
+            + """
+            WHERE r.status IN ('ATIVO'::public.status_reserva, 'SOLICITADA'::public.status_reserva)
+              AND r.data_hora_entrada::date <= ?
+              AND r.data_hora_saida::date >= ?
+            ORDER BY r.data_hora_entrada ASC
+            """;
+    List<Reserva> bases = jdbcTemplate.query(sql, Reserva.ROW_MAPPER, data, data);
+    return enriquecer(bases);
+  }
+
   public List<Reserva> buscarPorFiltro(String nome, List<Reserva.Status> status) {
     StringBuilder where = new StringBuilder("WHERE 1=1\n");
     List<Object> params = new ArrayList<>();

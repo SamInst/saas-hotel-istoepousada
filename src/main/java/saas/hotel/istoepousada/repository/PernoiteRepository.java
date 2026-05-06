@@ -568,6 +568,7 @@ public class PernoiteRepository {
       String status =
           jdbcTemplate.queryForObject(
               "SELECT status FROM public.quarto WHERE id = ?", String.class, quartoId);
+      System.out.println(status);
       return "DISPONIVEL".equals(status);
     } catch (EmptyResultDataAccessException e) {
       throw new NotFoundException("Quarto não encontrado: " + quartoId);
