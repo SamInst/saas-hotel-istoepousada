@@ -814,6 +814,21 @@ public class PernoiteRepository {
     jdbcTemplate.update("UPDATE public.diaria SET valor = ? WHERE id = ?", valor, diariaId);
   }
 
+  public boolean hasActiveDiariaForQuarto(Long quartoId) {
+    return Boolean.TRUE.equals(
+        jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*) > 0
+            FROM public.diaria d
+            JOIN public.pernoite p ON p.id = d.fk_pernoite
+            WHERE d.fk_quarto = ?
+              AND p.status IN ('ATIVO', 'PAGAMENTO_PENDENTE', 'FINALIZADO_PAGAMENTO_PENDENTE')
+              AND d.status = 'ATIVO'::public.status_diaria
+            """,
+            Boolean.class,
+            quartoId));
+  }
+
   public Long getQuartoIdByPernoite(Long pernoiteId) {
     try {
       return jdbcTemplate.queryForObject(

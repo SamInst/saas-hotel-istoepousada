@@ -360,9 +360,36 @@ public class PernoiteService {
   // ── Diária – quarto ─────────────────────────────────────────────────────────
 
   @Transactional
-  public Pernoite.Diaria updateDiariaQuarto(Long diariaId, Long quartoId) {
-    pernoiteRepository.findDiariaById(diariaId);
-    pernoiteRepository.updateDiariaQuarto(diariaId, quartoId);
+  public Pernoite.Diaria updateDiariaQuarto(Long diariaId, Long novoQuartoId) {
+    Pernoite.Diaria diaria = pernoiteRepository.findDiariaById(diariaId);
+
+    Long quartoAnteriorId = diaria.quarto() != null ? diaria.quarto().id() : null;
+
+    if (novoQuartoId.equals(quartoAnteriorId)) {
+      return diaria;
+    }
+
+    Long pernoiteId = pernoiteRepository.getPernoiteIdByDiaria(diariaId);
+
+    if (pernoiteRepository.hasConflito(
+        novoQuartoId,
+        diaria.data_hora_inicio(),
+        diaria.data_hora_fim(),
+        pernoiteId,
+        null)) {
+      throw new ConflictException(
+          "Quarto " + novoQuartoId + " possui ocupação conflitante no período informado.");
+    }
+
+    pernoiteRepository.updateDiariaQuarto(diariaId, novoQuartoId);
+
+    if (quartoAnteriorId != null
+        && !pernoiteRepository.hasActiveDiariaForQuarto(quartoAnteriorId)) {
+      quartoRepository.updateStatus(quartoAnteriorId, Quarto.Status.LIMPEZA);
+    }
+
+    quartoRepository.updateStatus(novoQuartoId, Quarto.Status.OCUPADO);
+
     return pernoiteRepository.findDiariaById(diariaId);
   }
 

@@ -39,7 +39,9 @@ public class QuartoRepository {
           JdbcTemplate jdbcTemplate,
           PessoaRepository pessoaRepository,
           PernoiteRepository pernoiteRepository,
-          ReservaRepository reservaRepository, ItemRepository itemRepository) {
+          ReservaRepository reservaRepository,
+          ItemRepository itemRepository
+  ) {
     this.jdbcTemplate = jdbcTemplate;
     this.pessoaRepository = pessoaRepository;
     this.pernoiteRepository = pernoiteRepository;
@@ -116,7 +118,7 @@ public class QuartoRepository {
       total = 0L;
     }
 
-    if (total == null || total == 0) {
+    if (total == 0) {
       return new PageImpl<>(List.of(), pageable, 0);
     }
 
@@ -279,19 +281,20 @@ public class QuartoRepository {
 
   @Transactional
   public Quarto.ItemQuarto reporItem(Quarto.QuartoItem.Repor req) {
-    jdbcTemplate.update(
+    var itemId = jdbcTemplate.queryForObject(
         """
         UPDATE public.quarto_item
         SET quantidade_atual = LEAST(quantidade_atual + ?, quantidade_padrao),
             data_hora_reposicao = NOW(),
             fk_funcionario = ?
-        WHERE id = ?
+        WHERE id = ? returning fk_item
         """,
+        Long.class,
         req.quantidade(),
         getFuncionarioId(),
         req.id());
 
-    Boolean estoqueExiste = itemRepository.estoqueExisteParaItem(req.id());
+    Boolean estoqueExiste = itemRepository.estoqueExisteParaItem(itemId);
     if (estoqueExiste) {
       jdbcTemplate.update(
               """
@@ -300,10 +303,10 @@ public class QuartoRepository {
                       WHERE fk_item = ?
                       """,
               req.quantidade(),
-              req.id());
-        log.info("Estoque atualizado com sucesso para o item: {}", req.id());
+              itemId);
+        log.info("Estoque atualizado com sucesso para o item: {}", itemId);
     } else {
-      throw new NotFoundException("Estoque nao encontrado para o item: " + req.id());
+      throw new NotFoundException("Estoque nao encontrado para o item: " + itemId);
     }
     return findItemById(req.id());
   }
