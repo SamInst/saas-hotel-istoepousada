@@ -257,6 +257,7 @@ public class QuartoRepository {
             req.quantidade_padrao(),
             req.quantidade_atual(),
             getFuncionarioId());
+    itemRepository.retirarDoEstoque(req.item().id(), req.quantidade_atual());
     return findItemById(id);
   }
 
@@ -507,21 +508,21 @@ public class QuartoRepository {
         jdbcTemplate.query(
             """
             SELECT
-              q.id AS quarto_id,
-              q.descricao AS quarto_descricao,
-              q.quantidade_pessoa AS quarto_quantidade_pessoas,
-              q.status AS quarto_status,
-              q.quantidade_cama_casal AS quarto_quantidade_cama_casal,
+              q.id                       AS quarto_id,
+              q.descricao                AS quarto_descricao,
+              q.quantidade_pessoa        AS quarto_quantidade_pessoas,
+              q.status                   AS quarto_status,
+              q.quantidade_cama_casal    AS quarto_quantidade_cama_casal,
               q.quantidade_cama_solteiro AS quarto_quantidade_cama_solteiro,
-              q.quantidade_rede AS quarto_quantidade_rede,
-              q.quantidade_beliche AS quarto_quantidade_beliche,
-              c.id AS categoria_id,
-              c.nome AS categoria_nome,
-              c.descricao AS categoria_descricao
+              q.quantidade_rede          AS quarto_quantidade_rede,
+              q.quantidade_beliche       AS quarto_quantidade_beliche,
+              c.id                       AS categoria_id,
+              c.nome                     AS categoria_nome,
+              c.descricao                AS categoria_descricao
             FROM public.quarto q
             JOIN public.quarto_categoria qc ON qc.fk_quarto = q.id AND qc.ativo = true
             JOIN public.categoria c ON c.id = qc.fk_categoria
-            ORDER BY c.nome ASC, q.id ASC
+            ORDER BY c.nome, q.id
             """,
             (rs, rowNum) ->
                 new QuartoRow(

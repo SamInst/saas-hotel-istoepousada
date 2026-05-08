@@ -85,6 +85,7 @@ public class PernoiteRepository {
         c.cancelado             AS consumo_cancelado,
         i.id                    AS consumo_item_id,
         i.descricao             AS consumo_item_descricao,
+        e.valor_venda_unidade   AS consumo_item_valor_venda_unidade,
         cf.id                   AS consumo_funcionario_id,
         cpf.nome                AS consumo_funcionario_nome,
         cq.id                   AS consumo_quarto_id,
@@ -135,6 +136,7 @@ public class PernoiteRepository {
       ) mc ON true
       LEFT JOIN public.funcionario mcf ON mcf.id = mc.fk_funcionario
       LEFT JOIN public.pessoa mcp ON mcp.id = mcf.fk_pessoa
+      LEFT JOIN estoque e ON e.fk_item = i.id
       """;
 
   private static final String SELECT_PAGAMENTO_POR_PERNOITE =
@@ -398,7 +400,7 @@ public class PernoiteRepository {
         SELECT_CONSUMO_POR_DIARIA
             + " WHERE dc.fk_diaria IN ("
             + in
-            + ") ORDER BY dc.fk_diaria, c.data_hora_registro ASC ",
+            + ") ORDER BY dc.fk_diaria, c.data_hora_registro",
         rs -> {
           Long diariaId = rs.getLong("consumo_fk_diaria");
           map.computeIfAbsent(diariaId, k -> new ArrayList<>())

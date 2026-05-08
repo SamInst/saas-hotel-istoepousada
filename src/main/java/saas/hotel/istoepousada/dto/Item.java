@@ -70,6 +70,7 @@ public record Item(@NotNull Long id, String descricao) {
       @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
       Pagamento pagamento,
       @NotNull Item item,
+      Float valor,
       @NotNull Funcionario.Nome funcionario,
       @NotNull Float quantidade,
       Quarto.Descricao quarto,
@@ -97,6 +98,7 @@ public record Item(@NotNull Long id, String descricao) {
               rs.getObject("consumo_data_hora_registro", LocalDateTime.class),
               Pagamento.ROW_MAPPER.mapRow(rs, rowNum),
               new Item(rs.getLong("consumo_item_id"), rs.getString("consumo_item_descricao")),
+              rs.getFloat("consumo_item_valor_venda_unidade"),
               new Funcionario.Nome(
                   rs.getLong("consumo_funcionario_id"), rs.getString("consumo_funcionario_nome")),
               rs.getFloat("consumo_quantidade"),

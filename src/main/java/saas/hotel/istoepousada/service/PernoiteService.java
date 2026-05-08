@@ -442,6 +442,7 @@ public class PernoiteService {
 
   @Transactional
   public Pernoite.Diaria addConsumosToDiaria(Long diariaId, List<Item.Consumo.Request> consumos) {
+    System.out.println(consumos);
     if (consumos == null || consumos.isEmpty())
       throw new IllegalArgumentException("Lista de consumos não pode ser vazia.");
     Long quartoId = pernoiteRepository.getQuartoIdByDiaria(diariaId);

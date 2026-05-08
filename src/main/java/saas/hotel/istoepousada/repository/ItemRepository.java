@@ -487,6 +487,22 @@ public class ItemRepository {
         estoque.fornecedor());
   }
 
+  public void retirarDoEstoque(Long item_id, Integer quantidade) {
+    Long estoque_id = jdbcTemplate.queryForObject("""
+            select id from estoque where fk_item = ?;
+            """, Long.class, item_id);
+    if (estoque_id == null) {
+      throw new NotFoundException("Estoque nao encontrado para o item: " + item_id);
+    }
+     jdbcTemplate.update(
+            """
+            update estoque
+            set qtd_total_unidades = qtd_total_unidades - ?
+            where id = ?
+            """, quantidade, estoque_id
+            );
+  }
+
   @Transactional
   public void registrarHistoricoReposicao(Item.HistoricoEstoque.Request request) {
     Long estoqueId;
