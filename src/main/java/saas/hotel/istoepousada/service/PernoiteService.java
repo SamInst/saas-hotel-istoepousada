@@ -324,6 +324,8 @@ public class PernoiteService {
     pernoiteRepository.updatePernoite(
         id, dataEntrada, dataSaida, request.hora_chegada(), request.hora_saida(), novoValorTotal);
 
+
+
     return pernoiteRepository.findById(id);
   }
 
@@ -331,13 +333,22 @@ public class PernoiteService {
 
   @Transactional
   public Pernoite updateStatus(Long id, Pernoite.Status status) {
-    pernoiteRepository.findById(id);
+    Pernoite pernoite = pernoiteRepository.findById(id);
     pernoiteRepository.updateStatus(id, status);
     if (status == Pernoite.Status.FINALIZADO
         || status == Pernoite.Status.FINALIZADO_PAGAMENTO_PENDENTE) {
       try {
         Long quartoId = pernoiteRepository.getQuartoIdByPernoite(id);
         quartoRepository.updateStatus(quartoId, Quarto.Status.LIMPEZA);
+
+        var reserva_id = reservaRepository.findByDatasEQuarto(
+                pernoite.diarias().getLast().quarto().id(),
+                pernoite.check_in(),
+                pernoite.check_out()
+        );
+          System.out.println(reserva_id);
+        reservaRepository.atualizarStatus(List.of(reserva_id), Reserva.Status.FINALIZADO);
+
       } catch (Exception ignored) {
       }
     } else if (status == Pernoite.Status.CANCELADO) {
@@ -482,7 +493,7 @@ public class PernoiteService {
       LocalDateTime saida,
       Long excludePernoiteId,
       Long excludeReservaId) {
-    if (!pernoiteRepository.isQuartoDisponivel(quartoId)) {
+    if (pernoiteRepository.isQuartoOcupado(quartoId)) {
       throw new BusinessException("Quarto " + quartoId + " não está disponível.");
     }
     if (pernoiteRepository.hasConflito(

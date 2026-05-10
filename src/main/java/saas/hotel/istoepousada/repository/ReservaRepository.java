@@ -304,6 +304,18 @@ public class ReservaRepository {
     return enriquecer(bases);
   }
 
+  public Long findByDatasEQuarto(Long fkQuarto, LocalDate entrada, LocalDate saida) {
+    String sql = SELECT_RESERVA_BASE + """
+        WHERE r.fk_quarto = ?
+        AND CAST(r.data_hora_entrada AS DATE) = ?
+        AND CAST(r.data_hora_saida AS DATE) = ?
+        AND r.status NOT IN ('CANCELADO')
+        AND r.status = 'HOSPEDADO'::status_reserva
+        LIMIT 1
+        """;
+    return jdbcTemplate.queryForObject(sql, Long.class, fkQuarto, entrada, saida);
+  }
+
   public Reserva findById(Long id) {
     String sql = SELECT_RESERVA_BASE + " WHERE r.id = ? ";
     Reserva base;
@@ -312,7 +324,7 @@ public class ReservaRepository {
     } catch (EmptyResultDataAccessException e) {
       throw new NotFoundException("Reserva não encontrada: " + id);
     }
-    return enriquecer(List.of(base)).get(0);
+    return enriquecer(List.of(base)).getFirst();
   }
 
   // ── Enriquecimento ─────────────────────────────────────────────────────────

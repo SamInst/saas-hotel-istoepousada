@@ -565,13 +565,12 @@ public class PernoiteRepository {
     return enriquecer(bases);
   }
 
-  public boolean isQuartoDisponivel(Long quartoId) {
+  public boolean isQuartoOcupado(Long quartoId) {
     try {
       String status =
           jdbcTemplate.queryForObject(
               "SELECT status FROM public.quarto WHERE id = ?", String.class, quartoId);
-      System.out.println(status);
-      return "DISPONIVEL".equals(status);
+      return "OCUPADO".equals(status);
     } catch (EmptyResultDataAccessException e) {
       throw new NotFoundException("Quarto não encontrado: " + quartoId);
     }
