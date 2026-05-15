@@ -189,15 +189,21 @@ public record Reserva(
   // ── Cálculo de preços ─────────────────────────────────────────────────────
 
   public record CalcularPrecoRequest(
+          /* O cálculo e feito com vários quartos, então não pode ser categoria */
       @NotNull Long fk_quarto,
+
+      /* Calcular por datas */
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
+
       @NotNull @JsonDeserialize(contentUsing = BrLocalDateDeserializer.class)
           List<LocalDate> datas_nascimento,
+
+      //Calcular para dayUse
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_inicio,
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime hora_fim) {}
 
-  public record CalculoPrecosRequest(
+  public record CalculoPrecosResponse(
       @NotNull Long fk_quarto,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,

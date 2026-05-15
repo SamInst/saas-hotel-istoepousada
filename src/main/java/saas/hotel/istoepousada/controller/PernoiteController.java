@@ -28,21 +28,21 @@ public class PernoiteController {
 
   // ── Pernoite ────────────────────────────────────────────────────────────────
 
-  @PostMapping("/pernoites")
-  @ResponseStatus(HttpStatus.CREATED)
-  public Pernoite criar(@RequestBody @Valid Pernoite.CreateRequest request) {
-    return service.create(request);
-  }
-
-  @PutMapping("/pernoites/{id}")
-  public Pernoite editar(@PathVariable Long id, @RequestBody @Valid Pernoite.EditRequest request) {
-    return service.edit(id, request);
-  }
-
-  @PutMapping("/pernoites/{id}/status")
-  public Pernoite alterarStatus(@PathVariable Long id, @RequestParam Pernoite.Status status) {
-    return service.updateStatus(id, status);
-  }
+//  @PostMapping("/pernoites")
+//  @ResponseStatus(HttpStatus.CREATED)
+//  public Pernoite criar(@RequestBody @Valid Pernoite.CreateRequest request) {
+//    return service.create(request);
+//  }
+//
+//  @PutMapping("/pernoites/{id}")
+//  public Pernoite editar(@PathVariable Long id, @RequestBody @Valid Pernoite.EditRequest request) {
+//    return service.edit(id, request);
+//  }
+//
+//  @PutMapping("/pernoites/{id}/status")
+//  public Pernoite alterarStatus(@PathVariable Long id, @RequestParam Pernoite.Status status) {
+//    return service.updateStatus(id, status);
+//  }
 
   // ── Diária – quarto ─────────────────────────────────────────────────────────
 

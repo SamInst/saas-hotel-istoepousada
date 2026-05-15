@@ -6,7 +6,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Categoria;
+import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.repository.CategoriaRepository;
+
+import java.time.LocalDate;
 
 @Service
 public class CategoriaService {
@@ -123,5 +126,20 @@ public class CategoriaService {
             request.fk_quartos(),
             request.fk_sazonalidades(),
             request.menores_idade()));
+  }
+
+  public float calcularValorTotal(
+          Long categoriaId,
+          LocalDate dataEntrada,
+          int diarias,
+          int quantidadePessoas) {
+    if (categoriaId == null){
+      throw new NotFoundException("Categoria nao encontrada para o id: " + categoriaId);
+    }
+    if (dataEntrada == null){}
+    if (diarias <= 0){
+      throw new IllegalArgumentException("Diarias deve ser maior que 0.");
+    }
+    return categoriaRepository.calcularValorTotal(categoriaId, dataEntrada, diarias, quantidadePessoas);
   }
 }

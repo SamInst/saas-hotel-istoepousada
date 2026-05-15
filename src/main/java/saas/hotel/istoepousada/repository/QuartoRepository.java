@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Pernoite;
@@ -737,5 +738,15 @@ public class QuartoRepository {
           categoriaId,
           getFuncionarioId());
     }
+  }
+
+  public Map<Long, String> findQuartosDescricao(List<Long> quartoIds) {
+    String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
+    Map<Long, String> map = new HashMap<>();
+    jdbcTemplate.query(
+            "SELECT id, descricao FROM public.quarto WHERE id IN (%s)".formatted(in),
+            (RowCallbackHandler) rs -> map.put(rs.getLong("id"), rs.getString("descricao")),
+            quartoIds.toArray());
+    return map;
   }
 }

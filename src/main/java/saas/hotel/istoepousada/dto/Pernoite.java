@@ -37,7 +37,6 @@ public record Pernoite(
     public record Request(Long id, Consumo.Request consumo) {}
   }
 
-  // ── Criação de pernoite ─────────────────────────────────────────────────────
   public record CreateRequest(
       Long quarto_id,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
@@ -46,7 +45,6 @@ public record Pernoite(
       List<Pagamento.Request> pagamentos,
       Long reserva_id) {}
 
-  // ── Edição de pernoite ──────────────────────────────────────────────────────
   public record EditRequest(
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_entrada,
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_saida,
@@ -54,7 +52,6 @@ public record Pernoite(
       @JsonFormat(pattern = "HH:mm") LocalTime hora_saida,
       Long quarto_id) {}
 
-  // ── Requests legados mantidos ──────────────────────────────────────────────
   public record Request(
       Quarto.Id quarto,
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_inicio,
@@ -104,11 +101,14 @@ public record Pernoite(
   }
 
   public enum Status {
-    ATIVO,
-    CANCELADO,
-    PAGAMENTO_PENDENTE,
-    FINALIZADO,
-    FINALIZADO_PAGAMENTO_PENDENTE,
-    AUSENTE
+    HOSPEDAGEM_ORCAMENTO,
+    HOSPEDAGEM_RESERVA_CANCELADA,
+    HOSPEDAGEM_RESERVA_SOLICITADA,
+    HOSPEDAGEM_RESERVA_ATIVA,
+    HOSPEDAGEM_ATIVA,
+    HOSPEDAGEM_CANCELADA,
+    HOSPEDAGEM_FINALIZADA,
+    HOSPEDAGEM_FINALIZADA_PAGAMENTO_PENDENTE,
+    HOSPEDAGEM_AUSENTE
   }
 }

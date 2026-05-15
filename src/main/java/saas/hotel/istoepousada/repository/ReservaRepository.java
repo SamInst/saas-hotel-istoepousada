@@ -60,33 +60,11 @@ public class ReservaRepository {
     }
   }
 
-  public Map<Long, CategoriaCheckin> findCategoriasCheckinByQuartoIds(List<Long> quartoIds) {
-    String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
-    Map<Long, CategoriaCheckin> map = new HashMap<>();
-    jdbcTemplate.query(
-        ("""
-        SELECT qc.fk_quarto, c.id, c.nome, c.hora_checkin, c.hora_checkout
-        FROM public.quarto_categoria qc
-        JOIN public.categoria c ON c.id = qc.fk_categoria
-        WHERE qc.fk_quarto IN (%s)
-        """)
-            .formatted(in),
-        (RowCallbackHandler)
-            rs ->
-                map.put(
-                    rs.getLong("fk_quarto"),
-                    new CategoriaCheckin(
-                        rs.getLong("id"),
-                        rs.getString("nome"),
-                        rs.getObject("hora_checkin", LocalTime.class),
-                        rs.getObject("hora_checkout", LocalTime.class))),
-        quartoIds.toArray());
-    return map;
-  }
+
 
   // ── Sazonalidades ativas para uma categoria ────────────────────────────────
 
-  public record SazonInfo(
+  public record Sazonalidade(
       Long id,
       String descricao,
       LocalDate dataInicio,
@@ -97,41 +75,11 @@ public class ReservaRepository {
       List<Integer> mensal,
       List<Integer> anual) {}
 
-  public List<SazonInfo> findSazonalidades(Long categoriaId) {
-    return findSazonalidades(List.of(categoriaId)).getOrDefault(categoriaId, List.of());
-  }
+//  public List<Sazonalidade> findSazonalidades(Long categoriaId) {
+//    return findSazonalidades(List.of(categoriaId)).getOrDefault(categoriaId, List.of());
+//  }
 
-  public Map<Long, List<SazonInfo>> findSazonalidades(List<Long> categoriaIds) {
-    if (categoriaIds == null || categoriaIds.isEmpty()) return Map.of();
-    String in = String.join(",", Collections.nCopies(categoriaIds.size(), "?"));
-    Map<Long, List<SazonInfo>> map = new LinkedHashMap<>();
-    jdbcTemplate.query(
-        ("""
-        SELECT cs.fk_categoria, s.id, s.descricao, s.data_inicio, s.data_fim,
-               s.hora_checkin, s.hora_checkout, s.semanal, s.mensal, s.anual
-        FROM public.categoria_sazonalidade cs
-        JOIN public.sazonalidade s ON s.id = cs.fk_sazonalidade
-        WHERE cs.fk_categoria IN (%s) AND cs.ativo = true
-        ORDER BY cs.fk_categoria, s.id
-        """)
-            .formatted(in),
-        (RowCallbackHandler)
-            rs ->
-                map.computeIfAbsent(rs.getLong("fk_categoria"), k -> new ArrayList<>())
-                    .add(
-                        new SazonInfo(
-                            rs.getLong("id"),
-                            rs.getString("descricao"),
-                            rs.getObject("data_inicio", LocalDate.class),
-                            rs.getObject("data_fim", LocalDate.class),
-                            rs.getObject("hora_checkin", LocalTime.class),
-                            rs.getObject("hora_checkout", LocalTime.class),
-                            parseIntArray(rs.getArray("semanal")),
-                            parseIntArray(rs.getArray("mensal")),
-                            parseIntArray(rs.getArray("anual")))),
-        categoriaIds.toArray());
-    return map;
-  }
+
 
   private static List<Integer> parseIntArray(java.sql.Array arr) {
     if (arr == null) return null;
@@ -577,15 +525,7 @@ public class ReservaRepository {
     }
   }
 
-  public Map<Long, String> findQuartosDescricao(List<Long> quartoIds) {
-    String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
-    Map<Long, String> map = new HashMap<>();
-    jdbcTemplate.query(
-        "SELECT id, descricao FROM public.quarto WHERE id IN (%s)".formatted(in),
-        (RowCallbackHandler) rs -> map.put(rs.getLong("id"), rs.getString("descricao")),
-        quartoIds.toArray());
-    return map;
-  }
+
 
   // ── Insert ────────────────────────────────────────────────────────────────
 
@@ -678,13 +618,13 @@ public class ReservaRepository {
     return map;
   }
 
-  @Transactional
-  public void vincularOrcamentoReserva(Long orcamentoId, Long reservaId) {
-    jdbcTemplate.update(
-        "INSERT INTO public.orcamento_reserva (fk_orcamento, fk_reserva) VALUES (?, ?)",
-        orcamentoId,
-        reservaId);
-  }
+//  @Transactional
+//  public void vincularOrcamentoReserva(Long orcamentoId, Long reservaId) {
+//    jdbcTemplate.update(
+//        "INSERT INTO public.orcamento_reserva (fk_orcamento, fk_reserva) VALUES (?, ?)",
+//        orcamentoId,
+//        reservaId);
+//  }
 
   public List<Reserva> findByOrcamentoId(Long orcamentoId) {
     String sql =
@@ -883,166 +823,8 @@ public class ReservaRepository {
 
   // ── Day Use próprio da sazonalidade (fk_categoria IS NULL) ───────────────
 
-  public Map<Long, Categoria.DayUseOperacao> findSazonDayUse(List<Long> sazonIds) {
-    if (sazonIds == null || sazonIds.isEmpty()) return Map.of();
-    String in = String.join(",", Collections.nCopies(sazonIds.size(), "?"));
 
-    // Step 1: operacoes
-    Map<Long, Long> operacaoSazonMap = new LinkedHashMap<>();
-    Map<Long, Boolean> operacaoAtivoMap = new LinkedHashMap<>();
-    jdbcTemplate.query(
-        ("""
-        SELECT duo.id AS duo_id, duo.fk_sazonalidade AS duo_fk_sazonalidade, duo.ativo AS duo_ativo
-        FROM public.day_use_modelo_operacao duo
-        WHERE duo.fk_sazonalidade IN (%s) AND duo.fk_categoria IS NULL
-        ORDER BY duo.fk_sazonalidade, duo.id
-        """)
-            .formatted(in),
-        rs -> {
-          operacaoSazonMap.put(rs.getLong("duo_id"), rs.getLong("duo_fk_sazonalidade"));
-          operacaoAtivoMap.put(rs.getLong("duo_id"), rs.getBoolean("duo_ativo"));
-        },
-        sazonIds.toArray());
 
-    if (operacaoSazonMap.isEmpty()) return Map.of();
-
-    Object[] opIds = operacaoSazonMap.keySet().toArray();
-    String inOp = String.join(",", Collections.nCopies(opIds.length, "?"));
-
-    // Step 2: padrao
-    Map<Long, Categoria.DayUsePadrao> padraoMap = new LinkedHashMap<>();
-    jdbcTemplate.query(
-        ("""
-        SELECT dup.fk_day_use_modelo_operacao AS dup_fk_operacao,
-               dup.id AS dup_id, dup.preco_base AS dup_preco_base,
-               dup.hora_preco_base AS dup_hora_preco_base,
-               dup.valor_hora_adicional AS dup_valor_hora_adicional
-        FROM public.day_use_modelo_padrao dup
-        WHERE dup.fk_day_use_modelo_operacao IN (%s)
-        """)
-            .formatted(inOp),
-        rs -> {
-          padraoMap.put(
-              rs.getLong("dup_fk_operacao"), Categoria.DayUsePadrao.ROW_MAPPER.mapRow(rs, 0));
-        },
-        opIds);
-
-    // Step 3: ocupacoes + pessoas (single query with LEFT JOIN)
-    Map<Long, Categoria.DayUseOcupacao> ocupacaoById = new LinkedHashMap<>();
-    Map<Long, Long> ocupacaoOperacaoMap = new LinkedHashMap<>();
-    jdbcTemplate.query(
-        ("""
-        SELECT duo.id AS duo_id, duo.fk_day_use_modelo_operacao AS duo_fk_operacao,
-               duo.quantidade_pessoa AS duo_quantidade_pessoa,
-               duop.id AS duop_id, duop.quantidade AS duop_quantidade,
-               duop.valor AS duop_valor,
-               duop.valor_hora_adicional_por_pessoa AS duop_valor_hora_adicional_por_pessoa
-        FROM public.day_use_modelo_ocupacao duo
-        LEFT JOIN public.day_use_modelo_ocupacao_quantidade_pessoa duop
-               ON duop.fk_day_use_modelo_ocupacao = duo.id
-        WHERE duo.fk_day_use_modelo_operacao IN (%s)
-        ORDER BY duo.id, duop.quantidade ASC
-        """)
-            .formatted(inOp),
-        rs -> {
-          Long ocId = rs.getLong("duo_id");
-          if (!ocupacaoById.containsKey(ocId)) {
-            ocupacaoById.put(
-                ocId,
-                new Categoria.DayUseOcupacao(
-                    ocId, rs.getInt("duo_quantidade_pessoa"), new ArrayList<>()));
-            ocupacaoOperacaoMap.put(ocId, rs.getLong("duo_fk_operacao"));
-          }
-          Long pessoaId = rs.getObject("duop_id", Long.class);
-          if (pessoaId != null) {
-            ocupacaoById
-                .get(ocId)
-                .quantidades()
-                .add(
-                    new Categoria.DayUseOcupacaoPessoa(
-                        pessoaId,
-                        rs.getInt("duop_quantidade"),
-                        rs.getInt("duop_valor"),
-                        rs.getObject("duop_valor_hora_adicional_por_pessoa", Integer.class)));
-          }
-        },
-        opIds);
-
-    // Grupo de ocupacoes por operacao
-    Map<Long, List<Categoria.DayUseOcupacao>> ocupacoesPorOperacao = new LinkedHashMap<>();
-    ocupacaoOperacaoMap.forEach(
-        (ocId, opId) ->
-            ocupacoesPorOperacao
-                .computeIfAbsent(opId, k -> new ArrayList<>())
-                .add(ocupacaoById.get(ocId)));
-
-    // Monta resultado: sazonId -> DayUseOperacao
-    Map<Long, Categoria.DayUseOperacao> result = new LinkedHashMap<>();
-    operacaoSazonMap.forEach(
-        (opId, sazonId) ->
-            result.putIfAbsent(
-                sazonId,
-                new Categoria.DayUseOperacao(
-                    opId,
-                    null,
-                    operacaoAtivoMap.get(opId),
-                    padraoMap.get(opId),
-                    ocupacoesPorOperacao.getOrDefault(opId, List.of()))));
-
-    return result;
-  }
-
-  // ── Modelos de preço próprios da sazonalidade (fk_categoria IS NULL) ──────
-
-  public Map<Long, List<Categoria.ModeloOcupacao>> findSazonModelosOcupacao(List<Long> sazonIds) {
-    if (sazonIds == null || sazonIds.isEmpty()) return Map.of();
-    String in = String.join(",", Collections.nCopies(sazonIds.size(), "?"));
-    Map<Long, List<Categoria.ModeloOcupacao>> map = new HashMap<>();
-    jdbcTemplate.query(
-        ("""
-        SELECT mo.id AS mo_id, mo.fk_sazonalidade AS mo_fk_sazonalidade,
-               mo.quantidade AS mo_quantidade, mo.valor AS mo_valor
-        FROM public.modelo_ocupacao mo
-        WHERE mo.fk_sazonalidade IN (%s) AND mo.fk_categoria IS NULL
-        ORDER BY mo.fk_sazonalidade, mo.id
-        """)
-            .formatted(in),
-        rs -> {
-          Long sid = rs.getLong("mo_fk_sazonalidade");
-          map.computeIfAbsent(sid, k -> new ArrayList<>())
-              .add(
-                  new Categoria.ModeloOcupacao(
-                      rs.getLong("mo_id"),
-                      null,
-                      rs.getInt("mo_quantidade"),
-                      rs.getDouble("mo_valor")));
-        },
-        sazonIds.toArray());
-    return map;
-  }
-
-  public Map<Long, List<Categoria.ModeloFixo>> findSazonModelosFixo(List<Long> sazonIds) {
-    if (sazonIds == null || sazonIds.isEmpty()) return Map.of();
-    String in = String.join(",", Collections.nCopies(sazonIds.size(), "?"));
-    Map<Long, List<Categoria.ModeloFixo>> map = new HashMap<>();
-    jdbcTemplate.query(
-        ("""
-        SELECT mf.id AS mf_id, mf.fk_sazonalidade AS mf_fk_sazonalidade, mf.valor AS mf_valor
-        FROM public.modelo_fixo mf
-        WHERE mf.fk_sazonalidade IN (%s) AND mf.fk_categoria IS NULL
-        ORDER BY mf.fk_sazonalidade, mf.id
-        """)
-            .formatted(in),
-        rs -> {
-          Long sid = rs.getLong("mf_fk_sazonalidade");
-          map.computeIfAbsent(sid, k -> new ArrayList<>())
-              .add(new Categoria.ModeloFixo(rs.getLong("mf_id"), null, rs.getDouble("mf_valor")));
-        },
-        sazonIds.toArray());
-    return map;
-  }
-
-  // ── Helper ────────────────────────────────────────────────────────────────
 
   private Long getFuncionarioId() {
     return pessoaRepository.getFuncionarioIdFromRequest();

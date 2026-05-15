@@ -21,7 +21,9 @@
       "Bash(cmd.exe:*)",
       "Bash(cmd *)",
       "Bash(./gradlew compileJava --offline)",
-      "Bash(grep -E \"\\\\.java$\")"
+      "Bash(grep -E \"\\\\.java$\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sanhe\\\\Downloads\\\\istoepousada\\\\istoepousada\" -Recurse -Directory -Depth 2)",
+      "Bash(Select-Object FullName)"
     ]
   }
 }
