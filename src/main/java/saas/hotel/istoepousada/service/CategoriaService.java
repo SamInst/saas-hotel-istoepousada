@@ -136,7 +136,12 @@ public class CategoriaService {
     if (categoriaId == null){
       throw new NotFoundException("Categoria nao encontrada para o id: " + categoriaId);
     }
-    if (dataEntrada == null){}
+    if (dataEntrada == null){
+      throw new IllegalArgumentException("Data de checkin nao informada");
+    }
+    if (quantidadePessoas <= 0){
+      throw new IllegalArgumentException("Quantidade de pessoas deve ser maior que 0.");
+    }
     if (diarias <= 0){
       throw new IllegalArgumentException("Diarias deve ser maior que 0.");
     }

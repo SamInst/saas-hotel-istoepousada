@@ -26,6 +26,11 @@ public class PagamentoService {
   }
 
   @Transactional(readOnly = true)
+  public List<Pagamento> buscarPorHospedagemId(Long id) {
+    return pagamentoRepository.findByHospedagemId(id);
+  }
+
+  @Transactional(readOnly = true)
   public List<Pagamento> listar() {
     return pagamentoRepository.findAll();
   }

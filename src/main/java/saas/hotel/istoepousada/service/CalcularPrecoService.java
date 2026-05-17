@@ -2,10 +2,7 @@ package saas.hotel.istoepousada.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import saas.hotel.istoepousada.dto.Categoria;
-import saas.hotel.istoepousada.dto.Quarto;
-import saas.hotel.istoepousada.dto.Reserva;
-import saas.hotel.istoepousada.dto.Sazonalidade;
+import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.repository.CategoriaRepository;
 import saas.hotel.istoepousada.repository.QuartoRepository;
@@ -29,19 +26,19 @@ public class CalcularPrecoService {
     }
 
     @Transactional(readOnly = true)
-    public List<Reserva.ResultadoPreco> calcularPreco(List<Reserva.CalcularPrecoRequest> requests) {
+    public List<CalcularPreco.Resultado> calcularPreco(List<CalcularPreco.Request> requests) {
         if (requests == null || requests.isEmpty()) throw new IllegalArgumentException("Lista vazia.");
 
-        List<Reserva.CalculoPrecosResponse> resolved =
+        List<CalcularPreco> resolved =
                 requests.stream()
                         .map(this::calcularPorDataNascimento)
                         .toList();
 
-        List<Long> quartoIds = resolved.stream().map(Reserva.CalculoPrecosResponse::fk_quarto).toList();
+        List<Long> quartoIds = resolved.stream().map(CalcularPreco::fk_quarto).toList();
         Map<Long, ReservaRepository.CategoriaCheckin> catInfoMap =
                 categoriaRepository.findCategoriasCheckinByQuartoIds(quartoIds);
 
-        for (Reserva.CalculoPrecosResponse req : resolved) {
+        for (CalcularPreco req : resolved) {
             if (catInfoMap.get(req.fk_quarto()) == null)
                 throw new BusinessException(
                         "O quarto " + req.fk_quarto() + " não possui categoria configurada.");
@@ -109,7 +106,7 @@ public class CalcularPrecoService {
                 .toList();
     }
 
-    private Reserva.CalculoPrecosResponse calcularPorDataNascimento(Reserva.CalcularPrecoRequest request) {
+    private CalcularPreco calcularPorDataNascimento(CalcularPreco.Request request) {
         if (request.datas_nascimento() == null || request.datas_nascimento().isEmpty())
             throw new IllegalArgumentException("Informe ao menos uma data de nascimento.");
 
@@ -125,9 +122,9 @@ public class CalcularPrecoService {
             else criancas.add(idade);
         }
         if (adultos == 0)
-            throw new BusinessException("É necessário ao menos um adulto (18 anos ou mais) na reserva.");
+            throw new BusinessException("É necessário ao menos um adulto (18 anos ou mais) na ");
 
-        return new Reserva.CalculoPrecosResponse(
+        return new CalcularPreco(
                 request.fk_quarto(),
                 request.data_entrada(),
                 request.data_saida(),
@@ -137,8 +134,8 @@ public class CalcularPrecoService {
                 request.hora_fim());
     }
 
-    private Reserva.ResultadoPreco calcularPrecoUnico(
-            Reserva.CalculoPrecosResponse request,
+    private CalcularPreco.Resultado calcularPrecoUnico(
+            CalcularPreco request,
             ReservaRepository.CategoriaCheckin categoriaCheckin,
             Categoria categoria,
             List<ReservaRepository.Sazonalidade> sazonalidades,
@@ -175,7 +172,7 @@ public class CalcularPrecoService {
         Categoria.Nome categoriaObj = new Categoria.Nome(categoriaCheckin.id(), categoriaCheckin.nome());
 
         double valorTotal = 0.0;
-        List<Reserva.ItemPreco> detalhes = new ArrayList<>();
+        List<CalcularPreco.ItemPreco> detalhes = new ArrayList<>();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         // Rastreia sazonalidades efetivamente aplicadas
@@ -306,7 +303,7 @@ public class CalcularPrecoService {
                     activeSazonId != null ? sazonAplicadasMap.get(activeSazonId) : null;
 
             detalhes.add(
-                    new Reserva.ItemPreco(
+                    new CalcularPreco.ItemPreco(
                             desc.toString(),
                             sazonNomeItem,
                             precoBase,
@@ -319,7 +316,7 @@ public class CalcularPrecoService {
         List<Sazonalidade.Nome> sazonAplicadas =
                 sazonAplicadasMap.values().stream().filter(Objects::nonNull).toList();
 
-        return new Reserva.ResultadoPreco(
+        return new CalcularPreco.Resultado(
                 quartoObj,
                 categoriaObj,
                 request.data_entrada(),
@@ -332,8 +329,8 @@ public class CalcularPrecoService {
 
     // ── Cálculo Day Use ───────────────────────────────────────────────────────
 
-    private Reserva.ResultadoPreco calcularDayUseUnico(
-            Reserva.CalculoPrecosResponse req,
+    private CalcularPreco.Resultado calcularDayUseUnico(
+            CalcularPreco req,
             ReservaRepository.CategoriaCheckin catInfo,
             Categoria categoria,
             List<ReservaRepository.Sazonalidade> sazonalidades,
@@ -433,7 +430,7 @@ public class CalcularPrecoService {
                         .orElse(null)
                         : null;
 
-        return new Reserva.ResultadoPreco(
+        return new CalcularPreco.Resultado(
                 quartoObj,
                 categoriaObj,
                 horaInicio.toLocalDate(),
@@ -442,7 +439,7 @@ public class CalcularPrecoService {
                 valorTotal,
                 sazonNome != null ? List.of(sazonNome) : null,
                 List.of(
-                        new Reserva.ItemPreco(descricao, sazonNome, valorBase, acrescimo, null, valorTotal)));
+                        new CalcularPreco.ItemPreco(descricao, sazonNome, valorBase, acrescimo, null, valorTotal)));
     }
 
     // ── Helpers de preço ──────────────────────────────────────────────────────

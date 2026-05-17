@@ -3,14 +3,14 @@ package saas.hotel.istoepousada.repository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import saas.hotel.istoepousada.dto.Hospedagem;
-import saas.hotel.istoepousada.dto.Pessoa;
-import saas.hotel.istoepousada.dto.Quarto;
-import saas.hotel.istoepousada.dto.Reserva;
+import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
-import saas.hotel.istoepousada.service.CalcularPrecoService;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -21,12 +21,12 @@ import java.util.stream.Collectors;
 @Repository
 public class HospedagemRepository {
     private final JdbcTemplate jdbcTemplate;
-    private final CalcularPrecoService calcularPrecoService;
     private final PessoaRepository pessoaRepository;
 
-    public HospedagemRepository(JdbcTemplate jdbcTemplate, CalcularPrecoService calcularPrecoService, PessoaRepository pessoaRepository) {
+    public HospedagemRepository(
+            JdbcTemplate jdbcTemplate,
+            PessoaRepository pessoaRepository) {
         this.jdbcTemplate = jdbcTemplate;
-        this.calcularPrecoService = calcularPrecoService;
         this.pessoaRepository = pessoaRepository;
     }
 
@@ -60,135 +60,185 @@ public class HospedagemRepository {
         }
     }
 
-    public void salvar(Hospedagem.HospedagemRequest request) {
-        isQuartoDisponivel(
-                request.quarto_id(),
-                request.data_hora_checkin(),
-                request.data_hora_checkout(),
-                null
-        );
+    public List<Long> adicionarOrcamentos(Long hospedagemId, List<Orcamento.Request> requests) {
+        List<Long> orcamentosIds = new ArrayList<>();
+
+        requests.forEach(request -> {
+            KeyHolder keyHolder = new GeneratedKeyHolder();
+
+            jdbcTemplate.update(con -> {
+                PreparedStatement ps = con.prepareStatement("""
+                INSERT INTO orcamento (nome_solicitante, fk_funcionario, fk_categoria, observacao, data_checkin, data_checkout)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, Statement.RETURN_GENERATED_KEYS);
+                ps.setString(1, request.nome_solicitante());
+                ps.setLong(2, getFuncionarioId());
+                ps.setLong(3, request.categoria().id());
+                ps.setString(4, request.observacao());
+                ps.setObject(5, request.checkin());
+                ps.setObject(6, request.checkout());
+                return ps;
+            }, keyHolder);
+
+            orcamentosIds.add(Objects.requireNonNull(keyHolder.getKey()).longValue());
+        });
+
+        jdbcTemplate.batchUpdate("""
+        INSERT INTO hospedagem_orcamento (fk_hospedagem, fk_orcamento)
+        VALUES (?, ?)
+        """,
+                orcamentosIds,
+                orcamentosIds.size(),
+                (ps, orcamentoId) -> {
+                    ps.setLong(1, hospedagemId);
+                    ps.setLong(2, orcamentoId);
+                });
+        return orcamentosIds;
+    }
+
+    public void editarOrcamento(Orcamento.Request request) {
+        jdbcTemplate.update("""
+            UPDATE orcamento
+            SET nome_solicitante = ?,
+                fk_categoria     = ?,
+                observacao       = ?,
+                data_checkin     = ?,
+                data_checkout    = ?
+            WHERE id = ?
+            """,
+                request.nome_solicitante(),
+                request.categoria().id(),
+                request.observacao(),
+                request.checkin().toLocalDate(),
+                request.checkout().toLocalDate(),
+                request.id());
+    }
+
+    public void adicionarPessoasOrcamento(Long orcamentoId, List<Orcamento.Pessoa.Request> pessoas) {
+        jdbcTemplate.batchUpdate("""
+            INSERT INTO orcamento_pessoa (fk_orcamento, nome_pessoa, data_nascimento)
+            VALUES (?, ?, ?)
+            """,
+                pessoas,
+                pessoas.size(),
+                (ps, pessoa) -> {
+                    ps.setLong(1, orcamentoId);
+                    ps.setString(2, pessoa.nome());
+                    ps.setObject(3, pessoa.data_nascimento());
+                });
+    }
+
+    public void removerPessoasOrcamento(Long orcamentoId, List<Long> pessoasIds) {
+        jdbcTemplate.batchUpdate("""
+            DELETE FROM orcamento_pessoa
+            WHERE id = ? AND fk_orcamento = ?
+            """,
+                pessoasIds,
+                pessoasIds.size(),
+                (ps, pessoaId) -> {
+                    ps.setLong(1, pessoaId);
+                    ps.setLong(2, orcamentoId);
+                });
+    }
+
+    public Orcamento buscarOrcamento(Long hospedagemId) {
+        Orcamento orcamento = jdbcTemplate.queryForObject("""
+            SELECT orcamento.id,
+                   orcamento.nome_solicitante,
+                   funcionario.id    AS funcionario_id,
+                   pessoa.nome       AS funcionario_nome,
+                   categoria.id      AS categoria_id,
+                   categoria.nome    AS categoria_nome,
+                   orcamento.observacao,
+                   orcamento.data_checkin,
+                   orcamento.data_checkout,
+                   orcamento.data_hora_registro
+            FROM orcamento
+            JOIN hospedagem_orcamento ON hospedagem_orcamento.fk_orcamento = orcamento.id
+            JOIN funcionario          ON funcionario.id = orcamento.fk_funcionario
+            JOIN pessoa               ON pessoa.id = funcionario.fk_pessoa
+            JOIN categoria            ON categoria.id = orcamento.fk_categoria
+            WHERE hospedagem_orcamento.fk_hospedagem = ?
+            """,
+                (rs, x) -> new Orcamento(
+                        rs.getLong("id"),
+                        rs.getString("nome_solicitante"),
+                        new Funcionario.Nome(rs.getLong("funcionario_id"), rs.getString("funcionario_nome")),
+                        new Categoria.Nome(rs.getLong("categoria_id"), rs.getString("categoria_nome")),
+                        rs.getString("observacao"),
+                        rs.getTimestamp("data_checkin").toLocalDateTime(),
+                        rs.getTimestamp("data_checkout").toLocalDateTime(),
+                        rs.getTimestamp("data_hora_registro").toLocalDateTime(),
+                        List.of()
+                ),
+                hospedagemId);
+
+        List<Orcamento.Pessoa> pessoas = jdbcTemplate.query("""
+            SELECT id, nome_pessoa, data_nascimento
+            FROM orcamento_pessoa
+            WHERE fk_orcamento = ?
+            """,
+                (rs, x) -> new Orcamento.Pessoa(
+                        rs.getLong("id"),
+                        rs.getString("nome_pessoa"),
+                        rs.getDate("data_nascimento").toLocalDate().atStartOfDay()
+                ),
+                orcamento.id());
+
+        return new Orcamento(
+                orcamento.id(),
+                orcamento.nome_solicitante(),
+                orcamento.funcionario(),
+                orcamento.categoria(),
+                orcamento.observacao(),
+                orcamento.checkin(),
+                orcamento.checkout(),
+                orcamento.data_hora_registro(),
+                pessoas);
+    }
+
+    public Hospedagem insertHospedagem(Hospedagem.Request request){
         var hospedagem_id = jdbcTemplate.queryForObject("""
             insert into hospedagem (
-                                    fk_funcionario,
-                                    data_hora_registro,
-                                    data_hora_checkin,
-                                    data_hora_checkout,
-                                    valor_total,
-                                    status,
-                                    observacao)
+                fk_funcionario,
+                data_hora_registro,
+                data_hora_checkin,
+                data_hora_checkout,
+                valor_total,
+                status,
+                observacao)
             values (?, now(), ?, ?, ?, ?, ?)
             returning id;
         """,
                 Long.class,
                 getFuncionarioId(),
                 request.data_hora_checkin(),
-                request.data_hora_checkout());
-        switch (request.status()) {
-            case ORCAMENTO: {
-            }
-            case RESERVA_SOLICITADA: {
-
-            }
-            case RESERVA_ATIVA: {
-            }
-            case PERNOITE_ATIVA: {
-                List<Hospedagem.Diaria.Request> diarias = new ArrayList<>(
-                        List.of(new Hospedagem.Diaria.Request(
-                                request.quarto_id(),
-                                request.data_hora_checkin(),
-                                request.data_hora_checkout(),
-                                request.pessoas(),
-                                null)));
-
-                adicionarDiarias(hospedagem_id, diarias);
-                adicionarPessoas(hospedagem_id, request.pessoas());
-                alterarStatus(hospedagem_id, Hospedagem.Status.PERNOITE_ATIVA);
-            }
-            case DAY_USE_ATIVA: {
-            }
-        }
-    }
-
-    public void alterar(Hospedagem.HospedagemUpdate request) {
-        Hospedagem hospedagem = buscarPorId(request.id());
-
-        validarTransicaoDeStatus(hospedagem.status(), request.status());
-        switch (request.status()) {
-            case ORCAMENTO_CANCELADO: {
-                alterarStatus(request.id(), Hospedagem.Status.ORCAMENTO_CANCELADO);
-            }
-            case RESERVA_ATIVA: {
-                alterarStatus(request.id(), Hospedagem.Status.RESERVA_ATIVA);
-            }
-            case RESERVA_CANCELADA: {
-                alterarStatus(request.id(), Hospedagem.Status.RESERVA_CANCELADA);
-            }
-            case RESERVA_AUSENTE: {
-                alterarStatus(request.id(), Hospedagem.Status.RESERVA_AUSENTE);
-            }
-            case PERNOITE_ATIVA: {
-                List<Hospedagem.Diaria.Request> diarias = new ArrayList<>(
-                        List.of(new Hospedagem.Diaria.Request(
-                                request.quarto_id(),
-                                request.data_hora_checkin(),
-                                request.data_hora_checkout(),
-                                request.pessoas(),
-                                null)));
-                adicionarDiarias(request.id(), diarias);
-                adicionarPessoas(request.id(), request.pessoas());
-                alterarStatus(request.id(), Hospedagem.Status.PERNOITE_ATIVA);
-            }
-            case PERNOITE_CANCELADA: {
-                removerDiarias(request.id());
-                alterarStatus(request.id(), Hospedagem.Status.PERNOITE_CANCELADA);
-            }
-            case PERNOITE_FINALIZADA: {
-                alterarStatus(request.id(), Hospedagem.Status.PERNOITE_FINALIZADA);
-            }
-            case PERNOITE_FINALIZADA_PAGAMENTO_PENDENTE: {
-                alterarStatus(request.id(), Hospedagem.Status.PERNOITE_FINALIZADA_PAGAMENTO_PENDENTE);
-            }
-//            case DAY_USE_SOLICITADA: {
-//            }
-//            case DAY_USE_ATIVA: {
-//            }
-//            case DAY_USE_CANCELADA: {
-//            }
-//            case DAY_USE_FINALIZADA: {
-//            }
-//            case DAY_USE_FINALIZADA_PAGAMENTO_PENDENTE: {
-//            }
-//            case DAY_USE_AUSENTE: {
-//                alterarStatus(request.id(), Hospedagem.Status.DAY_USE_AUSENTE);
-//            }
-        }
+                request.data_hora_checkout(),
+                request.valor_total(),
+                request.status(),
+                request.observacao()
+                );
+        return buscarPorId(hospedagem_id);
     }
 
     public void alterarStatus(Long hospedagemId, Hospedagem.Status status) {
         jdbcTemplate.update("""
                 update hospedagem set status = ?::hospedagem_status where id = ?
-                """);
+                """, status, hospedagemId);
     }
 
-    public void excluir(Long id) {
+    public void adicionarHospedagemPagamento(Long hospedagemId, List<UUID> pagamentosUUID) {
+        jdbcTemplate.batchUpdate("""
+        INSERT INTO hospedagem_pagamento (fk_hospedagem, fk_pagamento)
+        VALUES (?, ?)
+        """,
+                pagamentosUUID.stream()
+                        .map(pagamentoUUID -> new Object[]{hospedagemId, pagamentoUUID})
+                        .toList()
+        );
     }
 
-    public void adicionarOrcamento() {
-    }
-
-    public void cancelarOrcamento() {
-    }
-
-    public void adicionarPagamentos() {
-    }
-
-    public void editarPagamentos() {
-    }
-
-    public void excluirPagamentos() {
-    }
-
-    private List<Long> filtrarPessoasDuplicadas(Long hospedagemId, List<Long> pessoasIds) {
+    public List<Long> filtrarPessoasDuplicadas(Long hospedagemId, List<Long> pessoasIds) {
         List<Long> existentes = jdbcTemplate.queryForList("""
             SELECT pessoa_id FROM hospedagem_pessoa
             WHERE hospedagem_id = ?
@@ -205,18 +255,13 @@ public class HospedagemRepository {
     }
 
     public void adicionarPessoas(Long hospedagemId, List<Long> pessoasIds) {
-        List<Long> pessoasPendentes = filtrarPessoasDuplicadas(hospedagemId, pessoasIds);
-
-        if (pessoasPendentes.isEmpty()) return;
-
         AtomicInteger index = new AtomicInteger(0);
-
         jdbcTemplate.batchUpdate("""
             INSERT INTO hospedagem_pessoa(hospedagem_id, pessoa_id, representante)
             VALUES (?, ?, ?)
             """,
-                pessoasPendentes,
-                pessoasPendentes.size(),
+                pessoasIds,
+                pessoasIds.size(),
                 (ps, pessoaId) -> {
                     ps.setLong(1, hospedagemId);
                     ps.setLong(2, pessoaId);
@@ -225,24 +270,20 @@ public class HospedagemRepository {
     }
 
     public void removerPessoas(Long hospedagemId, List<Long> pessoasIds) {
-        List<Long> pessoasExistentes = filtrarPessoasExistentes(hospedagemId, pessoasIds);
-
-        if (pessoasExistentes.isEmpty()) return;
-
         jdbcTemplate.batchUpdate("""
             DELETE FROM hospedagem_pessoa
             WHERE hospedagem_id = ?
               AND pessoa_id = ?
             """,
-                pessoasExistentes,
-                pessoasExistentes.size(),
+                pessoasIds,
+                pessoasIds.size(),
                 (ps, pessoaId) -> {
                     ps.setLong(1, hospedagemId);
                     ps.setLong(2, pessoaId);
                 });
     }
 
-    private List<Long> filtrarPessoasExistentes(Long hospedagemId, List<Long> pessoasIds) {
+    public List<Long> filtrarPessoasExistentes(Long hospedagemId, List<Long> pessoasIds) {
         return jdbcTemplate.queryForList("""
             SELECT pessoa_id FROM hospedagem_pessoa
             WHERE hospedagem_id = ?
@@ -264,74 +305,24 @@ public class HospedagemRepository {
     public void removerConsumos() {
     }
 
-    public void adicionarDiarias(Long hospedagemId, List<Hospedagem.Diaria.Request> diarias) {
-        buscarPorId(hospedagemId);
-
-        List<Reserva.CalcularPrecoRequest> calcularPrecoRequests = new ArrayList<>();
-
-        List<Hospedagem.Diaria.Request> diariasNaoCadastradas = new ArrayList<>();
-
-        diarias.forEach(diaria -> {
-            log.info("Adicionando diarias para a hospedagem {} e quarto {}", hospedagemId, diaria.quarto_id());
-            if (isDiariaJaExiste(hospedagemId, diaria)) {
-                log.info("Diária [{}>{}] já existe para a hospedagem {} e quarto {}",
-                        diaria.checkin(),
-                        diaria.checkout(),
-                        hospedagemId,
-                        diaria.quarto_id()
-                );
-                return;
-            }
-            if (!isQuartoDisponivel(diaria.quarto_id(), diaria.checkin(), diaria.checkout(), hospedagemId)) {
-                log.info("Diaria: [{}>{}] nao disponivel para o quarto: {}. O apartamento se encontra indisponível ou ocupado por outra hospedagem.",
-                        diaria.checkin(),
-                        diaria.checkout(),
-                        diaria.quarto_id()
-                );
-                throw new IllegalStateException("Diaria: [" + diaria.checkin() + ">"
-                        + diaria.checkout() + "] nao disponivel para o quarto: "
-                        + diaria.quarto_id()
-                        + ". O apartamento se encontra indisponivel ou ocupado por outra hospedagem.");
-            }
-
-            List<LocalDate> datasNascimento = new ArrayList<>();
-
-            diaria.pessoas().forEach(pessoaId -> {
-                Pessoa pessoa = pessoaRepository.findById(pessoaId);
-                datasNascimento.add(pessoa.data_nascimento());
-                log.info("Adicionando pessoa {} para a hospedagem {} e quarto {}", pessoaId, hospedagemId, diaria.quarto_id());
-            });
-
-            calcularPrecoRequests.add(new Reserva.CalcularPrecoRequest(
-                    diaria.quarto_id(),
-                    diaria.checkin().toLocalDate(),
-                    diaria.checkout().toLocalDate(),
-                    datasNascimento,
-                    null,
-                    null
-            ));
-            diariasNaoCadastradas.add(diaria);
-        });
-
-        var resultadoCalculo = calcularPrecoService.calcularPreco(calcularPrecoRequests);
-
+    public void adicionarDiarias(Long hospedagemId, List<Hospedagem.Diaria.Request> diarias, Double valorTotal) {
         jdbcTemplate.batchUpdate("""
                         INSERT INTO diaria (fk_hospedagem, fk_quarto, numero, checkin, checkout, valor)
                         VALUES (?, ?, ?, ?, ?, ?)
                         """,
-                diariasNaoCadastradas,
-                diariasNaoCadastradas.size(),
-                (ps, d) -> {
+                diarias,
+                diarias.size(),
+                (ps, diaria) -> {
                     ps.setLong(1, hospedagemId);
-                    ps.setLong(2, d.quarto_id());
-                    ps.setInt(3, diariasNaoCadastradas.indexOf(d) + 1);
-                    ps.setObject(4, d.checkin());
-                    ps.setObject(5, d.checkout());
-                    ps.setDouble(6, resultadoCalculo.getFirst().valor_total());
+                    ps.setLong(2, diaria.quarto_id());
+                    ps.setInt(3, diarias.indexOf(diaria) + 1);
+                    ps.setObject(4, diaria.checkin());
+                    ps.setObject(5, diaria.checkout());
+                    ps.setDouble(6, valorTotal);
                 });
     }
 
-    private Boolean isDiariaJaExiste(Long hospedagemId, Hospedagem.Diaria.Request diaria) {
+    public Boolean isDiariaJaExiste(Long hospedagemId, Hospedagem.Diaria.Request diaria) {
         return jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
                                        SELECT 1
@@ -374,9 +365,13 @@ public class HospedagemRepository {
         );
     }
 
-    public void removerDiarias(Long id) {
-        jdbcTemplate.update("DELETE FROM diaria WHERE id = ?", id);
-        log.info("Removendo diárias para a hospedagem {}", id);
+
+    public Quarto.Status statusQuarto(Long quartoId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT status FROM public.quarto WHERE id = ?",
+                Quarto.Status.class,
+                quartoId
+        );
     }
 
     public Boolean isQuartoDisponivel(
@@ -384,15 +379,6 @@ public class HospedagemRepository {
             LocalDateTime checkin,
             LocalDateTime checkout,
             Long hospedagemIdExcluido) {
-        log.info("Validando disponibilidade do quarto {} para checkin {} e checkout {}", quartoId, checkin, checkout);
-
-        Quarto.Status status = jdbcTemplate.queryForObject(
-                "SELECT status FROM public.quarto WHERE id = ?",
-                Quarto.Status.class,
-                quartoId
-        );
-        if (status != Quarto.Status.OCUPADO) return false;
-
         String sqlHospedagem =
                 """
                         SELECT COUNT(*) > 0
@@ -433,59 +419,7 @@ public class HospedagemRepository {
         return hospedagemConflito;
     }
 
-    public void validarTransicaoDeStatus(Hospedagem.Status anterior, Hospedagem.Status novo) {
-        Map<Hospedagem.Status, Set<Hospedagem.Status>> transicoesPermitidas = Map.ofEntries(
-                Map.entry(Hospedagem.Status.ORCAMENTO, EnumSet.of(
-                        Hospedagem.Status.ORCAMENTO_CANCELADO,
-                        Hospedagem.Status.RESERVA_SOLICITADA)),
-                Map.entry(Hospedagem.Status.ORCAMENTO_CANCELADO, EnumSet.of(
-                        Hospedagem.Status.ORCAMENTO)),
 
-                Map.entry(Hospedagem.Status.RESERVA_SOLICITADA, EnumSet.of(
-                        Hospedagem.Status.RESERVA_ATIVA,
-                        Hospedagem.Status.RESERVA_CANCELADA)),
-                Map.entry(Hospedagem.Status.RESERVA_ATIVA, EnumSet.of(
-                        Hospedagem.Status.RESERVA_CANCELADA,
-                        Hospedagem.Status.RESERVA_AUSENTE,
-                        Hospedagem.Status.PERNOITE_ATIVA)),
-                Map.entry(Hospedagem.Status.RESERVA_AUSENTE, EnumSet.of(
-                        Hospedagem.Status.RESERVA_ATIVA)),
-
-                Map.entry(Hospedagem.Status.PERNOITE_ATIVA, EnumSet.of(
-                        Hospedagem.Status.PERNOITE_CANCELADA,
-                        Hospedagem.Status.PERNOITE_FINALIZADA,
-                        Hospedagem.Status.PERNOITE_FINALIZADA_PAGAMENTO_PENDENTE)),
-                Map.entry(Hospedagem.Status.PERNOITE_FINALIZADA_PAGAMENTO_PENDENTE, EnumSet.of(
-                        Hospedagem.Status.PERNOITE_FINALIZADA)),
-
-                Map.entry(Hospedagem.Status.DAY_USE_SOLICITADA, EnumSet.of(
-                        Hospedagem.Status.DAY_USE_AUSENTE,
-                        Hospedagem.Status.DAY_USE_ATIVA,
-                        Hospedagem.Status.DAY_USE_CANCELADA)),
-                Map.entry(Hospedagem.Status.DAY_USE_ATIVA, EnumSet.of(
-                        Hospedagem.Status.DAY_USE_FINALIZADA,
-                        Hospedagem.Status.DAY_USE_FINALIZADA_PAGAMENTO_PENDENTE)),
-                Map.entry(Hospedagem.Status.DAY_USE_FINALIZADA_PAGAMENTO_PENDENTE, EnumSet.of(
-                        Hospedagem.Status.DAY_USE_FINALIZADA))
-        );
-
-        Set<Hospedagem.Status> estadosFinais = EnumSet.of(
-                Hospedagem.Status.RESERVA_CANCELADA,
-                Hospedagem.Status.PERNOITE_CANCELADA,
-                Hospedagem.Status.PERNOITE_FINALIZADA,
-                Hospedagem.Status.DAY_USE_CANCELADA,
-                Hospedagem.Status.DAY_USE_FINALIZADA
-        );
-
-        if (estadosFinais.contains(anterior)) {
-            throw new IllegalStateException("Status " + anterior + " é um estado final e não pode ser alterado.");
-        }
-
-        Set<Hospedagem.Status> permitidos = transicoesPermitidas.get(anterior);
-        if (permitidos == null || !permitidos.contains(novo)) {
-            throw new IllegalStateException("Transição de status inválida: " + anterior + " -> " + novo);
-        }
-    }
 
     public Long getFuncionarioId(){
        return pessoaRepository.getFuncionarioIdFromRequest();

@@ -4,7 +4,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import saas.hotel.istoepousada.dto.Reserva;
+
+import saas.hotel.istoepousada.dto.CalcularPreco;
 import saas.hotel.istoepousada.service.CalcularPrecoService;
 
 import java.util.List;
@@ -19,8 +20,8 @@ public class CalcularPrecoController {
     }
 
     @PostMapping
-    public List<Reserva.ResultadoPreco> calcularPreco(
-            @RequestBody List<Reserva.CalcularPrecoRequest> requests) {
+    public List<CalcularPreco.Resultado> calcularPreco(
+            @RequestBody List<CalcularPreco.Request> requests) {
         return calcularPrecoService.calcularPreco(requests);
     }
 }

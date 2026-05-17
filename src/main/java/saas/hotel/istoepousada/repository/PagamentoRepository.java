@@ -91,27 +91,17 @@ public class PagamentoRepository {
             pagamento.descricao(),
             pagamento.valor() == null ? 0f : pagamento.valor());
 
-    if (pagamento.desconto() != null) {
-      var desconto = findDescontoByPagamentoUuid(uuid);
-      if (desconto != null) {
-        updateDesconto(
-            new Pagamento.Desconto.Update(
-                desconto.uuid(), pagamento.desconto().porcentagem(), pagamento.desconto().valor()));
-      } else {
-        registrarDesconto(
-            new Pagamento.Desconto.Request(
-                new Pagamento.Uuid(uuid),
-                pagamento.desconto().porcentagem(),
-                pagamento.desconto().valor()));
-      }
-    }
-
     return findById(uuid);
   }
 
   public Pagamento findById(UUID uuid) {
     var sql = SELECT_PAGAMENTO_BASE + " WHERE p.id = ? ";
     return jdbcTemplate.queryForObject(sql, Pagamento.ROW_MAPPER, uuid);
+  }
+
+  public List<Pagamento> findByHospedagemId(Long id) {
+    var sql = SELECT_PAGAMENTO_BASE + " JOIN hospedagem_pagamento ON hospedagem_pagamento.fk_pagamento = p.id WHERE hospedagem_pagamento.fk_hospedagem = ? ORDER BY p.data_hora_registro DESC";
+    return jdbcTemplate.query(sql, Pagamento.ROW_MAPPER, id);
   }
 
   public List<Pagamento> findAll() {

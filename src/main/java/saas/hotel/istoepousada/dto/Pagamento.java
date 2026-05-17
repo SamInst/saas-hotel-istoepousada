@@ -16,7 +16,6 @@ public record Pagamento(
     String descricao,
     @NotNull Float valor,
     Boolean cancelado,
-    Desconto desconto,
     String path_arquivo,
     MotivoCancelamento motivo_cancelamento) {
   public record Uuid(@NotNull UUID uuid) {}
@@ -49,7 +48,6 @@ public record Pagamento(
       @NotNull String nome_pagador,
       String descricao,
       @NotNull Float valor,
-      Desconto.Request desconto,
       MultipartFile arquivo) {}
 
   public record Update(
@@ -58,7 +56,6 @@ public record Pagamento(
       @NotNull String nome_pagador,
       String descricao,
       @NotNull Float valor,
-      Desconto.Update desconto,
       MultipartFile arquivo) {}
 
   public record Desconto(
@@ -70,19 +67,6 @@ public record Pagamento(
     public record Request(@NotNull Pagamento.Uuid pagamento, Float porcentagem, Float valor) {}
 
     public record Update(@NotNull UUID uuid, Float porcentagem, Float valor) {}
-
-    public static final RowMapper<Desconto> ROW_MAPPER =
-        (rs, row_num) -> {
-          UUID desconto_id = rs.getObject("pagamento_desconto_id", UUID.class);
-          return desconto_id == null
-              ? null
-              : new Desconto(
-                  rs.getObject("pagamento_desconto_id", UUID.class),
-                  Funcionario.Nome.ROW_MAPPER_PAGAMENTO_DESCONTO.mapRow(rs, row_num),
-                  rs.getFloat("pagamento_desconto_porcentagem"),
-                  rs.getFloat("pagamento_desconto_valor"),
-                  rs.getObject("pagamento_desconto_data_hora_registro", LocalDateTime.class));
-        };
   }
 
   public record TipoPagamento(Long id, String descricao) {
@@ -104,9 +88,7 @@ public record Pagamento(
   public static final RowMapper<Pagamento> ROW_MAPPER =
       (rs, row_num) -> {
         UUID pagamentoId = rs.getObject("pagamento_id", UUID.class);
-        if (pagamentoId == null) {
-          return null;
-        }
+        if (pagamentoId == null) return null;
 
         return new Pagamento(
             pagamentoId,
@@ -119,7 +101,6 @@ public record Pagamento(
                 ? 0F
                 : rs.getObject("pagamento_valor", Float.class),
             rs.getBoolean("pagamento_cancelado"),
-            Pagamento.Desconto.ROW_MAPPER.mapRow(rs, row_num),
             rs.getString("pagamento_path_arquivo"),
             Pagamento.MotivoCancelamento.ROW_MAPPER.mapRow(rs, row_num));
       };

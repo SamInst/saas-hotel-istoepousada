@@ -534,9 +534,13 @@ public class ReservaRepository {
       Long quartoId, LocalDateTime entrada, LocalDateTime saida, double valorTotal) {
     return jdbcTemplate.queryForObject(
         """
-        INSERT INTO public.reserva (fk_quarto, status,
-                                    data_hora_entrada, data_hora_saida, fk_funcionario,
-                                    valor_total)
+        INSERT INTO public.reserva (
+            fk_quarto,
+            status,
+            data_hora_entrada,
+            data_hora_saida,
+            fk_funcionario,
+            valor_total)
         VALUES (?, 'HOSPEDADO'::public.status_reserva, ?, ?, ?, ?)
         RETURNING id
         """,
