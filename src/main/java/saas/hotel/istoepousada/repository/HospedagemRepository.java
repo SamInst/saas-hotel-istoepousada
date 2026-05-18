@@ -39,6 +39,7 @@ public class HospedagemRepository {
                         hospedagem.data_hora_checkin       AS hospedagem_data_hora_checkin,
                         hospedagem.data_hora_checkout      AS hospedagem_data_hora_checout,
                         hospedagem.valor_total             AS hospedagem_valor_total,
+                        hospedagem.observacao              AS hospedagem_observacao,
                         pessoa_funcionario.id              AS hospedagem_funcionario_id,
                         pessoa_funcionario_hospedagem.nome AS hospedagem_funcionario_nome
                     FROM public.hospedagem
@@ -46,8 +47,47 @@ public class HospedagemRepository {
                     LEFT JOIN public.pessoa pessoa_funcionario_hospedagem ON pessoa_funcionario_hospedagem.id = pessoa_funcionario.fk_pessoa
                     """;
 
-    public Hospedagem buscar(Hospedagem.Status status, LocalDate data, Integer mes, Integer ano, String nomeTitular) {
-        return null;
+    public List<Hospedagem> buscar(List<Hospedagem.Status> statuses, LocalDate data, Integer mes, Integer ano, String nomeTitular) {
+        StringBuilder sql = new StringBuilder(SELECT_HOSPEDAGEM);
+        List<Object> params = new ArrayList<>();
+        List<String> conditions = new ArrayList<>();
+
+        if (nomeTitular != null && !nomeTitular.isBlank()) {
+            sql.append("""
+                    LEFT JOIN public.hospedagem_pessoa hp_titular ON hp_titular.hospedagem_id = hospedagem.id AND hp_titular.representante = true
+                    LEFT JOIN public.pessoa pessoa_titular ON pessoa_titular.id = hp_titular.pessoa_id
+                    """);
+            conditions.add("LOWER(pessoa_titular.nome) LIKE LOWER(?)");
+            params.add("%" + nomeTitular + "%");
+        }
+
+        if (statuses != null && !statuses.isEmpty()) {
+            String placeholders = statuses.stream().map(s -> "?").collect(Collectors.joining(", "));
+            conditions.add("hospedagem.status::text IN (" + placeholders + ")");
+            statuses.forEach(s -> params.add(s.name()));
+        }
+
+        if (data != null) {
+            conditions.add("hospedagem.data_hora_checkin::date <= ? AND hospedagem.data_hora_checkout::date >= ?");
+            params.add(data);
+            params.add(data);
+        }
+
+        if (mes != null) {
+            conditions.add("EXTRACT(MONTH FROM hospedagem.data_hora_checkin) = ?");
+            params.add(mes);
+        }
+
+        if (ano != null) {
+            conditions.add("EXTRACT(YEAR FROM hospedagem.data_hora_checkin) = ?");
+            params.add(ano);
+        }
+
+        if (!conditions.isEmpty()) {
+            sql.append(" WHERE ").append(String.join(" AND ", conditions));
+        }
+
+        return jdbcTemplate.query(sql.toString(), Hospedagem.MAPPER, params.toArray());
     }
 
     public Hospedagem buscarPorId(Long id) {
@@ -296,13 +336,96 @@ public class HospedagemRepository {
     }
 
 
-//    public void adicionarConsumos(Long hospedagemId, Hospedagem.) {
-//    }
+    public void adicionarConsumo(Long hospedagemId, Item.Consumo.Request request, UUID finalPagamentoId) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
 
-    public void editarConsumos() {
+        jdbcTemplate.update(con -> {
+            PreparedStatement ps = con.prepareStatement("""
+                INSERT INTO consumo (fk_funcionario, fk_pagamento, fk_item, quantidade, despesa_pessoal, fk_quarto)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, Statement.RETURN_GENERATED_KEYS);
+            ps.setLong(1, getFuncionarioId());
+            ps.setObject(2, finalPagamentoId);
+            ps.setLong(3, request.item().id());
+            ps.setFloat(4, request.quantidade());
+            ps.setBoolean(5, Boolean.TRUE.equals(request.despesa_pessoal()));
+            ps.setObject(6, request.quarto() != null ? request.quarto().id() : null);
+            return ps;
+        }, keyHolder);
+
+        Long consumoId = Objects.requireNonNull(keyHolder.getKey()).longValue();
+
+        jdbcTemplate.update("""
+            INSERT INTO hospedagem_consumo (fk_hospedagem, fk_consumo)
+            VALUES (?, ?)
+            """, hospedagemId, consumoId);
     }
 
-    public void removerConsumos() {
+    public void editarConsumo(Item.Consumo.Request request) {
+        jdbcTemplate.update("""
+            UPDATE consumo
+            SET quantidade = ?
+            WHERE id = ?
+            """,
+                request.quantidade(),
+                request.id());
+    }
+
+    public List<Item.Consumo> buscarConsumosPorHospedagem(Long hospedagemId) {
+        return jdbcTemplate.query("""
+            
+                        SELECT
+                hospedagem_consumo.fk_hospedagem                              AS consumo_fk_hospedagem,
+                consumo.id                                                    AS consumo_id,
+                consumo.data_hora_registro                                    AS consumo_data_hora_registro,
+                consumo.quantidade                                            AS consumo_quantidade,
+                consumo.despesa_pessoal                                       AS consumo_despesa_pessoal,
+                consumo.cancelado                                             AS consumo_cancelado,
+                item.id                                                       AS consumo_item_id,
+                item.descricao                                                AS consumo_item_descricao,
+                estoque.valor_venda_unidade                                         AS consumo_item_valor_venda_unidade,
+                consumo_funcionario.id                                        AS consumo_funcionario_id,
+                consumo_pessoa_funcionario.nome                               AS consumo_funcionario_nome,
+                consumo_quarto.id                                             AS consumo_quarto_id,
+                consumo_quarto.descricao                                      AS consumo_quarto_descricao,
+                consumo_pagamento.id                                          AS consumo_pagamento_id,
+                consumo_pagamento.data_hora_registro                          AS consumo_pagamento_data_hora_registro,
+                consumo_pagamento.nome_pagador                                AS consumo_pagamento_nome_pagador,
+                consumo_pagamento.descricao                                   AS consumo_pagamento_descricao,
+                consumo_pagamento.valor                                       AS consumo_pagamento_valor,
+                consumo_pagamento.cancelado                                   AS consumo_pagamento_cancelado,
+                consumo_pagamento.path_arquivo                                AS consumo_pagamento_path_arquivo,
+                consumo_pagamento_tipo_pagamento.id                           AS consumo_tipo_pagamento_id,
+                consumo_pagamento_tipo_pagamento.descricao                    AS consumo_tipo_pagamento_descricao,
+            
+                consumo_funcionario_consumo_pagamento.id                      AS consumo_pagamento_funcionario_id,
+                consumo_pessoa_funcionario_consumo_pagamento.nome             AS consumo_pagamento_funcionario_nome,
+                consumo_pagamento_motivo_cancelamento.id                      AS consumo_pagamento_motivo_id,
+                consumo_pagamento_motivo_cancelamento.motivo_cancelamento     AS consumo_pagamento_motivo_cancelamento,
+                consumo_pagamento_motivo_cancelamento_funcionario.id          AS consumo_pagamento_motivo_funcionario_id,
+                consumo_pagamento_motivo_cancelamento_pessoa_funcionario.nome AS consumo_pagamento_motivo_funcionario_nome,
+                consumo_pagamento_motivo_cancelamento.data_hora_registro      AS consumo_pagamento_motivo_data_hora_registro
+            FROM public.hospedagem_consumo
+                     JOIN public.consumo                                                  ON consumo.id = hospedagem_consumo.fk_consumo
+                     JOIN public.item                                                     ON item.id = consumo.fk_item
+                     LEFT JOIN public.funcionario consumo_funcionario                     ON consumo_funcionario.id = consumo.fk_funcionario
+                     LEFT JOIN public.pessoa consumo_pessoa_funcionario                   ON consumo_pessoa_funcionario.id = consumo_funcionario.fk_pessoa
+                     LEFT JOIN public.quarto consumo_quarto                                        ON consumo_quarto.id = consumo.fk_quarto
+                     LEFT JOIN public.pagamento consumo_pagamento                       ON consumo_pagamento.id = consumo.fk_pagamento
+                     LEFT JOIN public.tipo_pagamento consumo_pagamento_tipo_pagamento     ON consumo_pagamento_tipo_pagamento.id = consumo_pagamento.fk_tipo_pagamento
+                     LEFT JOIN public.funcionario consumo_funcionario_consumo_pagamento            ON consumo_funcionario_consumo_pagamento.id = consumo_pagamento.fk_funcionario
+                     LEFT JOIN public.pessoa consumo_pessoa_funcionario_consumo_pagamento ON consumo_pessoa_funcionario_consumo_pagamento.id = consumo_funcionario_consumo_pagamento.fk_pessoa
+                     LEFT JOIN LATERAL (
+                        SELECT * FROM public.pagamento_motivo_cancelamento mc
+                        WHERE mc.fk_pagamento = consumo_pagamento.id
+                        ORDER BY mc.data_hora_registro DESC LIMIT 1
+                        ) consumo_pagamento_motivo_cancelamento ON true
+                     LEFT JOIN public.funcionario consumo_pagamento_motivo_cancelamento_funcionario ON consumo_pagamento_motivo_cancelamento_funcionario.id = consumo_pagamento_motivo_cancelamento.fk_funcionario
+                     LEFT JOIN public.pessoa consumo_pagamento_motivo_cancelamento_pessoa_funcionario ON consumo_pagamento_motivo_cancelamento_pessoa_funcionario.id = consumo_pagamento_motivo_cancelamento_funcionario.fk_pessoa
+                     LEFT JOIN estoque ON estoque.fk_item = item.id
+            """,
+                Item.Consumo.ROW_MAPPER,
+                hospedagemId);
     }
 
     public void adicionarDiarias(Long hospedagemId, List<Hospedagem.Diaria.Request> diarias, Double valorTotal) {
@@ -419,7 +542,101 @@ public class HospedagemRepository {
         return hospedagemConflito;
     }
 
+    public void adicionarMotivoCancelamento(MotivoCancelamentoHospedagem.Request request) {
+        jdbcTemplate.update("""
+            INSERT INTO hospedagem_motivo_cancelamento (motivo_cancelamento, fk_funcionario, data_hora_registro, fk_hospedagem)
+            VALUES (?, ?, now(), ?)
+            """,
+                request.motivo_cancelamento(),
+                getFuncionarioId(),
+                request.fk_hospedagem());
+    }
 
+    public void editarMotivoCancelamento(MotivoCancelamentoHospedagem.Request request) {
+        jdbcTemplate.update("""
+            UPDATE hospedagem_motivo_cancelamento
+            SET motivo_cancelamento = ?
+            WHERE id = ?
+            """,
+                request.motivo_cancelamento(),
+                request.id());
+    }
+
+    public MotivoCancelamentoHospedagem buscarMotivoCancelamento(Long hospedagemId) {
+        return jdbcTemplate.queryForObject("""
+            SELECT hospedagem_motivo_cancelamento.id,
+                   hospedagem_motivo_cancelamento.motivo_cancelamento,
+                   hospedagem_motivo_cancelamento.data_hora_registro,
+                   funcionario.id   AS funcionario_id,
+                   pessoa.nome      AS funcionario_nome
+            FROM hospedagem_motivo_cancelamento
+            JOIN funcionario ON funcionario.id = hospedagem_motivo_cancelamento.fk_funcionario
+            join public.pessoa on pessoa.id = funcionario.fk_pessoa
+            WHERE hospedagem_motivo_cancelamento.fk_hospedagem = ?
+            """,
+                (rs, x) -> new MotivoCancelamentoHospedagem(
+                        rs.getLong("id"),
+                        rs.getString("motivo_cancelamento"),
+                        new Funcionario.Nome(
+                                rs.getLong("funcionario_id"),
+                                rs.getString("funcionario_nome")
+                        ),
+                        rs.getTimestamp("data_hora_registro").toLocalDateTime()
+                ),
+                hospedagemId);
+    }
+
+
+    public Map<Long, Hospedagem> buscarAtivasPorQuartoNaData(LocalDate data) {
+        Map<Long, Long> quartoParaHospedagem = new LinkedHashMap<>();
+        jdbcTemplate.query("""
+                SELECT DISTINCT ON (d.fk_quarto)
+                    d.fk_quarto AS quarto_id,
+                    h.id        AS hospedagem_id
+                FROM public.diaria d
+                JOIN public.hospedagem h ON h.id = d.fk_hospedagem
+                WHERE h.status::text IN (
+                    'PERNOITE_ATIVA', 'PERNOITE_FINALIZADA_PAGAMENTO_PENDENTE',
+                    'RESERVA_ATIVA', 'RESERVA_SOLICITADA',
+                    'DAY_USE_ATIVA', 'DAY_USE_SOLICITADA'
+                )
+                  AND d.checkin::date <= ?
+                  AND d.checkout::date > ?
+                ORDER BY d.fk_quarto, h.data_hora_checkin DESC
+                """,
+                rs -> quartoParaHospedagem.put(rs.getLong("quarto_id"), rs.getLong("hospedagem_id")),
+                data, data);
+
+        if (quartoParaHospedagem.isEmpty()) return Map.of();
+
+        List<Long> hospedagemIds = new ArrayList<>(quartoParaHospedagem.values());
+        String in = hospedagemIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+
+        Map<Long, Hospedagem> hospedagemPorId = jdbcTemplate.query(
+                SELECT_HOSPEDAGEM + " WHERE hospedagem.id IN (" + in + ")",
+                Hospedagem.MAPPER,
+                hospedagemIds.toArray()
+        ).stream().collect(Collectors.toMap(Hospedagem::id, h -> h));
+
+        Map<Long, Hospedagem> result = new HashMap<>();
+        quartoParaHospedagem.forEach((quartoId, hospedagemId) -> {
+            Hospedagem h = hospedagemPorId.get(hospedagemId);
+            if (h != null) result.put(quartoId, h);
+        });
+        return result;
+    }
+
+    public boolean temReservaAtivaParaQuartoHoje(Long quartoId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(DISTINCT h.id)
+                FROM public.diaria d
+                JOIN public.hospedagem h ON h.id = d.fk_hospedagem
+                WHERE d.fk_quarto = ?
+                  AND h.status::text IN ('RESERVA_ATIVA', 'RESERVA_SOLICITADA')
+                  AND d.checkin::date = CURRENT_DATE
+                """, Integer.class, quartoId);
+        return count != null && count > 0;
+    }
 
     public Long getFuncionarioId(){
        return pessoaRepository.getFuncionarioIdFromRequest();

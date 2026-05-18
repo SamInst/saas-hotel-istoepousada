@@ -18,11 +18,13 @@ public record Hospedagem(
         @NotNull Hospedagem.Status status,
         @NotNull Float valor_total,
         @NotNull Integer quantidade_diarias,
-        @NotNull Integer numero_diaria_atual,
-        List<Diaria> diarias,
-        List<Pagamento> pagamentos,
+        Integer numero_diaria_atual,
         String observacao,
-        List<Orcamento> orcamentos
+        List<Diaria> diarias,
+        List<Consumo> consumos,
+        List<Pagamento> pagamentos,
+        List<Orcamento> orcamentos,
+        MotivoCancelamentoHospedagem motivo_cancelamento
 ) {
 
     public record Request(
@@ -35,7 +37,9 @@ public record Hospedagem(
             List<Pagamento.Request> pagamentos,
             String observacao,
             Double valor_total,
-            List<Orcamento.Request> orcamentos) {
+            List<Orcamento.Request> orcamentos,
+            List<Consumo.Request> consumos,
+            MotivoCancelamentoHospedagem.Request motivo_cancelamento) {
     }
 
     public record Diaria(
@@ -122,10 +126,12 @@ public record Hospedagem(
                 rs.getFloat("hospedagem_valor_total"),
                 quantidadeDiarias,
                 numeroDiariaAtual,
+                rs.getString("hospedagem_observacao"),
                 null, // diarias
+                null, //consumos
                 null, // pagamentos
-                null, // observacao
-                null  // orcamentos
+                null,  // orcamentos
+                null // motivo_cancelamento
         );
     };
 }

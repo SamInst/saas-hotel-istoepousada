@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Categoria;
+import saas.hotel.istoepousada.dto.CategoriaCheckin;
 import saas.hotel.istoepousada.dto.Quarto;
 import saas.hotel.istoepousada.dto.Sazonalidade;
 import saas.hotel.istoepousada.dto.enums.ModeloMenorIdade;
@@ -1328,7 +1329,7 @@ public class CategoriaRepository {
     public double calcularPrecoDiaria(
             LocalDate noite,
             Categoria categoria,
-            List<ReservaRepository.Sazonalidade> sazonalidades,
+            List<Sazonalidade> sazonalidades,
             Map<Long, List<Categoria.ModeloOcupacao>> sazonalidadeModelosPrecoPorOcupacao,
             Map<Long, List<Categoria.ModeloFixo>> sazonalidadeModelosPrecoFixo,
             int qtdPessoas) {
@@ -1354,16 +1355,16 @@ public class CategoriaRepository {
         return resolverPrecoAdultos(modelosOcupacao, modelosFixo, qtdPessoas);
     }
 
-    private Long findActiveSazonalidade(List<ReservaRepository.Sazonalidade> sazonalidades, LocalDate date) {
-        for (ReservaRepository.Sazonalidade s : sazonalidades) {
-            boolean isPeriodo = s.dataInicio() != null || s.dataFim() != null;
+    private Long findActiveSazonalidade(List<Sazonalidade> sazonalidades, LocalDate date) {
+        for (Sazonalidade s : sazonalidades) {
+            boolean isPeriodo = s.data_inicio() != null || s.data_fim() != null;
             if (!isPeriodo) continue;
             boolean inRange =
-                    (s.dataInicio() == null || !date.isBefore(s.dataInicio()))
-                            && (s.dataFim() == null || !date.isAfter(s.dataFim()));
+                    (s.data_inicio() == null || !date.isBefore(s.data_inicio()))
+                            && (s.data_fim() == null || !date.isAfter(s.data_fim()));
             if (inRange) return s.id();
         }
-        for (ReservaRepository.Sazonalidade s : sazonalidades) {
+        for (Sazonalidade s : sazonalidades) {
             boolean semanal =
                     s.semanal() != null
                             && !s.semanal().isEmpty()
@@ -1413,7 +1414,7 @@ public class CategoriaRepository {
         return 0.0;
     }
 
-    public List<ReservaRepository.Sazonalidade> buscarSazonalidadesAtivas(Long categoriaId) {
+    public List<Sazonalidade> buscarSazonalidadesAtivas(Long categoriaId) {
         var categoria = findCategoriasParaCalculo(List.of(categoriaId))
                 .getOrDefault(categoriaId, null);
         if (categoria == null) return null;
@@ -1433,17 +1434,20 @@ public class CategoriaRepository {
                     JOIN public.sazonalidade ON sazonalidade.id = categoria_sazonalidade.fk_sazonalidade
                     WHERE categoria_sazonalidade.fk_categoria = ? AND categoria_sazonalidade.ativo = true
                     ORDER BY categoria_sazonalidade.fk_categoria, sazonalidade.id
-                """, (rs, x) -> new ReservaRepository.Sazonalidade(
+                """, (rs, x) -> new Sazonalidade(
                 rs.getLong("id"),
                 rs.getString("descricao"),
                 rs.getObject("data_inicio", LocalDate.class),
                 rs.getObject("data_fim", LocalDate.class),
-                rs.getObject("hora_checkin", LocalTime.class),
-                rs.getObject("hora_checkout", LocalTime.class),
+                rs.getObject("diario_hora_inicio_ciclo", LocalTime.class),
+                        rs.getObject("diario_hora_fim_ciclo", LocalTime.class),
                 parseIntArray(rs.getArray("semanal")),
                 parseIntArray(rs.getArray("mensal")),
-                parseIntArray(rs.getArray("anual"))),
-                categoriaId
+                parseIntArray(rs.getArray("anual")),
+                rs.getObject("hora_checkin", LocalTime.class),
+                rs.getObject("hora_checkout", LocalTime.class),
+                null,
+                null, null, null, null)
         );
     }
     private static List<Integer> parseIntArray(Array arr) {
@@ -1462,8 +1466,8 @@ public class CategoriaRepository {
             int quantidadePessoas) {
         long inicio = System.currentTimeMillis();
 
-        List<ReservaRepository.Sazonalidade> sazonalidades = buscarSazonalidadesAtivas(categoriaId);
-        List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.Sazonalidade::id).toList();
+        List<Sazonalidade> sazonalidades = buscarSazonalidadesAtivas(categoriaId);
+        List<Long> sazonIds = sazonalidades.stream().map(Sazonalidade::id).toList();
         Map<Long, List<Categoria.ModeloOcupacao>> modelosOcupacao =
                 sazonIds.isEmpty() ? Map.of() : buscaModeloPrecoPorOcupacaoSazonalidade(sazonIds);
         Map<Long, List<Categoria.ModeloFixo>> modelosFixo = sazonIds.isEmpty() ? Map.of() : buscaModeloPrecoFixoSazonalidade(sazonIds);
@@ -1490,10 +1494,10 @@ public class CategoriaRepository {
         return total;
     }
 
-    public Map<Long, List<ReservaRepository.Sazonalidade>> findSazonalidades(List<Long> categoriaIds) {
+    public Map<Long, List<Sazonalidade>> findSazonalidades(List<Long> categoriaIds) {
         if (categoriaIds == null || categoriaIds.isEmpty()) return Map.of();
         String in = String.join(",", Collections.nCopies(categoriaIds.size(), "?"));
-        Map<Long, List<ReservaRepository.Sazonalidade>> map = new LinkedHashMap<>();
+        Map<Long, List<Sazonalidade>> map = new LinkedHashMap<>();
         jdbcTemplate.query(
                 ("""
         SELECT cs.fk_categoria, s.id, s.descricao, s.data_inicio, s.data_fim,
@@ -1508,7 +1512,7 @@ public class CategoriaRepository {
                         rs ->
                                 map.computeIfAbsent(rs.getLong("fk_categoria"), k -> new ArrayList<>())
                                         .add(
-                                                new ReservaRepository.Sazonalidade(
+                                                new Sazonalidade(
                                                         rs.getLong("id"),
                                                         rs.getString("descricao"),
                                                         rs.getObject("data_inicio", LocalDate.class),
@@ -1522,9 +1526,9 @@ public class CategoriaRepository {
         return map;
     }
 
-    public Map<Long, ReservaRepository.CategoriaCheckin> findCategoriasCheckinByQuartoIds(List<Long> quartoIds) {
+    public Map<Long, CategoriaCheckin> findCategoriasCheckinByQuartoIds(List<Long> quartoIds) {
         String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
-        Map<Long, ReservaRepository.CategoriaCheckin> map = new HashMap<>();
+        Map<Long, CategoriaCheckin> map = new HashMap<>();
         jdbcTemplate.query(
                 ("""
         SELECT qc.fk_quarto, c.id, c.nome, c.hora_checkin, c.hora_checkout
@@ -1537,7 +1541,7 @@ public class CategoriaRepository {
                         rs ->
                                 map.put(
                                         rs.getLong("fk_quarto"),
-                                        new ReservaRepository.CategoriaCheckin(
+                                        new CategoriaCheckin(
                                                 rs.getLong("id"),
                                                 rs.getString("nome"),
                                                 rs.getObject("hora_checkin", LocalTime.class),

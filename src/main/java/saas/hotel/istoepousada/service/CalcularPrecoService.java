@@ -6,7 +6,6 @@ import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.repository.CategoriaRepository;
 import saas.hotel.istoepousada.repository.QuartoRepository;
-import saas.hotel.istoepousada.repository.ReservaRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -35,7 +34,7 @@ public class CalcularPrecoService {
                         .toList();
 
         List<Long> quartoIds = resolved.stream().map(CalcularPreco::fk_quarto).toList();
-        Map<Long, ReservaRepository.CategoriaCheckin> catInfoMap =
+        Map<Long, CategoriaCheckin> catInfoMap =
                 categoriaRepository.findCategoriasCheckinByQuartoIds(quartoIds);
 
         for (CalcularPreco req : resolved) {
@@ -46,20 +45,20 @@ public class CalcularPrecoService {
 
         List<Long> categoriaIds =
                 catInfoMap.values().stream()
-                        .map(ReservaRepository.CategoriaCheckin::id)
+                        .map(CategoriaCheckin::id)
                         .distinct()
                         .toList();
 
         Map<Long, Categoria> categoriasMap =
                 categoriaRepository.findCategoriasParaCalculo(categoriaIds);
 
-        Map<Long, List<ReservaRepository.Sazonalidade>> sazonalidadesPorCategoriaId =
+        Map<Long, List<Sazonalidade>> sazonalidadesPorCategoriaId =
                 categoriaRepository.findSazonalidades(categoriaIds);
 
         List<Long> sazonalidadeIds =
                 sazonalidadesPorCategoriaId.values().stream()
                         .flatMap(List::stream)
-                        .map(ReservaRepository.Sazonalidade::id)
+                        .map(Sazonalidade::id)
                         .distinct()
                         .toList();
 

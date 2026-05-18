@@ -9,12 +9,10 @@ public record Recepcao(List<QuartoData> datas) {
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data,
       Integer quantidade_total_pessoas_hospedadas,
       List<Categoria> categorias) {
-    public record Categoria(Long id, String nome, String descricao, List<Hospedagem> hospedagens) {
-      public record Hospedagem(
-          Quarto quarto,
-          Pernoite quarto_pernoite,
-          DayUse quarto_dayuse,
-          Reserva quarto_reserva) {}
+    public record Categoria(Long id, String nome, String descricao, List<Quartos> quartos) {
+      public record Quartos(
+              Quarto quarto,
+              Hospedagem hospedagem) {}
     }
   }
 

@@ -315,16 +315,18 @@ public class HospedagemService {
     public void salvarHospedagem(List<Hospedagem.Request> hospedagens) {
         hospedagens.forEach(request -> {
             validarCampos(request);
-            isQuartoDisponivel(
-                    request.quarto_id(),
-                    request.data_hora_checkin(),
-                    request.data_hora_checkout(),
-                    request.hospedagem_id() == null ? null : request.hospedagem_id()
-            );
 
             Hospedagem hospedagem;
-            if (request.hospedagem_id() == null) hospedagem = hospedagemRepository.insertHospedagem(request);
-            else {
+            if (request.hospedagem_id() == null) {
+                isQuartoDisponivel(
+                        request.quarto_id(),
+                        request.data_hora_checkin(),
+                        request.data_hora_checkout(),
+                        null
+                );
+                hospedagem = hospedagemRepository.insertHospedagem(request);
+            } else {
+
                 hospedagem = hospedagemRepository.buscarPorId(request.hospedagem_id());
                 validarTransicaoDeStatus(hospedagem.status(), request.status());
             }
@@ -333,14 +335,19 @@ public class HospedagemService {
                 case ORCAMENTO: {
                     var orcamentosIds = adicionarOrcamentos(hospedagem.id(), request.orcamentos());
 
-                    request.orcamentos().forEach(requestOrcamento ->
-                            orcamentosIds.forEach(orcamentoId ->
-                                    adicionarPessoasOrcamento(orcamentoId, requestOrcamento.pessoas())));
+                    request.orcamentos().forEach(requestOrcamento -> {
+                        log.info("Adicionando requisição de orcamento para hospedagem: [{}], nas datas: [{},{}]",
+                                hospedagem.id(),
+                                requestOrcamento.checkin(),
+                                requestOrcamento.checkout()
+                        );
+                        orcamentosIds.forEach(orcamentoId -> {
+                            adicionarPessoasOrcamento(orcamentoId, requestOrcamento.pessoas());
+                            log.info("Orcamento: [{}] adicionado pessoas: [{}]", orcamentoId, requestOrcamento.pessoas());
+                        });
+                    });
 
                     alterarStatus(request.hospedagem_id(), Hospedagem.Status.ORCAMENTO);
-                }
-                case RESERVA_SOLICITADA: {
-                    alterarStatus(request.hospedagem_id(), Hospedagem.Status.RESERVA_SOLICITADA);
                 }
                 case RESERVA_ATIVA: {
                     adicionarPessoas(hospedagem.id(), request.pessoas());
@@ -361,19 +368,26 @@ public class HospedagemService {
                     adicionarPagamentos(hospedagem.id(), request);
                     alterarStatus(hospedagem.id(), Hospedagem.Status.PERNOITE_ATIVA);
                 }
-//                case DAY_USE_ATIVA: {
-//                }
-
                 case ORCAMENTO_CANCELADO: {
+                    if (request.motivo_cancelamento() == null)
+                        throw new IllegalArgumentException("Motivo Cancelamento nao informado");
+                    adicionarMotivoCancelamento(request.motivo_cancelamento());
                     alterarStatus(hospedagem.id(), Hospedagem.Status.ORCAMENTO_CANCELADO);
                 }
                 case RESERVA_CANCELADA: {
+                    if (request.motivo_cancelamento() == null)
+                        throw new IllegalArgumentException("Motivo Cancelamento nao informado");
+                    adicionarMotivoCancelamento(request.motivo_cancelamento());
                     alterarStatus(hospedagem.id(), Hospedagem.Status.RESERVA_CANCELADA);
+
                 }
                 case RESERVA_AUSENTE: {
                     alterarStatus(hospedagem.id(), Hospedagem.Status.RESERVA_AUSENTE);
                 }
                 case PERNOITE_CANCELADA: {
+                    if (request.motivo_cancelamento() == null)
+                        throw new IllegalArgumentException("Motivo Cancelamento nao informado");
+                    adicionarMotivoCancelamento(request.motivo_cancelamento());
                     alterarStatus(hospedagem.id(), Hospedagem.Status.PERNOITE_CANCELADA);
                 }
                 case PERNOITE_FINALIZADA: {
@@ -410,13 +424,86 @@ public class HospedagemService {
                 pagamentosUUID.add(newPagamento.uuid());
             });
             adicionarHospedagemPagamento(hospedagemId, pagamentosUUID);
-
         }
     }
 
-
-
     public void alterarStatus(Long hospedagemId, Hospedagem.Status status) {
         hospedagemRepository.alterarStatus(hospedagemId, status);
+        log.info("Status da hospedagem: [{}] alterado para: [{}]", hospedagemId, status);
+    }
+
+    public MotivoCancelamentoHospedagem buscarMotivoCancelamento(Long hospedagemId) {
+        return hospedagemRepository.buscarMotivoCancelamento(hospedagemId);
+    }
+
+    public void adicionarMotivoCancelamento(MotivoCancelamentoHospedagem.Request request) {
+        validarCamposMotivoCancelamento(request, false);
+        hospedagemRepository.adicionarMotivoCancelamento(request);
+        log.info("Motivo cancelamento: [{}]", request.motivo_cancelamento());
+    }
+
+    public void editarMotivoCancelamento(MotivoCancelamentoHospedagem.Request request) {
+        validarCamposMotivoCancelamento(request, true);
+        hospedagemRepository.editarMotivoCancelamento(request);
+        log.info("Motivo cancelamento: [{}]", request.motivo_cancelamento());
+    }
+    private void validarCamposMotivoCancelamento(MotivoCancelamentoHospedagem.Request request, Boolean isUpdate) {
+        if (isUpdate) {
+            if (request.id() == null || request.id() <= 0){
+                throw new IllegalArgumentException("Id do motivo de cancelamento nao informado");
+            }
+        }
+        if (request.motivo_cancelamento() == null || request.motivo_cancelamento().isEmpty()){
+            throw new IllegalArgumentException("Motivo do cancelamento nao informado");
+        }
+    }
+
+    public Map<Long, Hospedagem> buscarAtivasPorQuartoNaData(LocalDate data) {
+        return hospedagemRepository.buscarAtivasPorQuartoNaData(data);
+    }
+
+    public boolean temReservaAtivaParaQuartoHoje(Long quartoId) {
+        return hospedagemRepository.temReservaAtivaParaQuartoHoje(quartoId);
+    }
+
+    public void adicionarConsumo(Long hospedagemId, Item.Consumo.Request request) {
+        hospedagemRepository.buscarPorId(hospedagemId);
+        validarCamposConsumo(request, false);
+        UUID pagamentoId = null;
+        if (request.pagamento() != null) {
+            pagamentoId = pagamentoService.criar(request.pagamento()).uuid();
+        }
+        hospedagemRepository.adicionarConsumo(hospedagemId, request, pagamentoId);
+    }
+
+    public void editarConsumo(Item.Consumo.Request request) {
+        validarCamposConsumo(request, true);
+        hospedagemRepository.editarConsumo(request);
+    }
+
+    public List<Item.Consumo> buscarConsumosPorHospedagem(Long hospedagemId) {
+        return hospedagemRepository.buscarConsumosPorHospedagem(hospedagemId);
+    }
+
+    private void validarCamposConsumo(Item.Consumo.Request request, Boolean isUpdate) {
+        if (isUpdate) {
+            if (request.id() == null || request.id() <= 0){
+                throw new IllegalArgumentException("Id do consumo nao informado");
+            }
+        }
+        if (request.despesa_pessoal() == null){
+            throw new IllegalArgumentException("Despesa pessoal nao informada");
+        }
+        if (request.item() == null || request.item().id() == null || request.item().id() <= 0){
+            throw new IllegalArgumentException("Item nao informado");
+        }
+        if (request.quantidade() == null || request.quantidade() <= 0){
+            throw new IllegalArgumentException("Quantidade nao informada");
+        }
+        if (request.quarto() != null){
+            if (request.quarto().id() == null || request.quarto().id() <= 0){
+                throw new IllegalArgumentException("Quarto nao informado");
+            }
+        }
     }
 }

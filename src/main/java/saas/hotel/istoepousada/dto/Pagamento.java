@@ -58,16 +58,16 @@ public record Pagamento(
       @NotNull Float valor,
       MultipartFile arquivo) {}
 
-  public record Desconto(
-      @NotNull UUID uuid,
-      @NotNull Funcionario.Nome funcionario,
-      Float porcentagem,
-      Float valor,
-      @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime data_hora_registro) {
-    public record Request(@NotNull Pagamento.Uuid pagamento, Float porcentagem, Float valor) {}
-
-    public record Update(@NotNull UUID uuid, Float porcentagem, Float valor) {}
-  }
+//  public record Desconto(
+//      @NotNull UUID uuid,
+//      @NotNull Funcionario.Nome funcionario,
+//      Float porcentagem,
+//      Float valor,
+//      @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime data_hora_registro) {
+//    public record Request(@NotNull Pagamento.Uuid pagamento, Float porcentagem, Float valor) {}
+//
+//    public record Update(@NotNull UUID uuid, Float porcentagem, Float valor) {}
+//  }
 
   public record TipoPagamento(Long id, String descricao) {
     public record Id(@NotNull Long id) {}
