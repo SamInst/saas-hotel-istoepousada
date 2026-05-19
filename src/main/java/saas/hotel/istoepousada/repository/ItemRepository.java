@@ -21,7 +21,8 @@ public class ItemRepository {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  public record ConsumoParaCancelamento(UUID pagamentoId, Long itemId, Long quartoId, Float quantidade) {}
+  public record ConsumoParaCancelamento(
+      UUID pagamentoId, Long itemId, Long quartoId, Float quantidade) {}
 
   public Page<Item> buscar(Long id, String termo, Long categoriaId, Pageable pageable) {
 
@@ -473,7 +474,8 @@ public class ItemRepository {
         estoque_id);
   }
 
-  public void registrarHistoricoReposicao(Item.HistoricoEstoque.Request request, Long funcionarioId) {
+  public void registrarHistoricoReposicao(
+      Item.HistoricoEstoque.Request request, Long funcionarioId) {
     Long estoqueId;
     try {
       estoqueId =

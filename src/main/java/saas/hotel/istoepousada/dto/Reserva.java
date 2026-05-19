@@ -1,16 +1,16 @@
-//package saas.hotel.istoepousada.dto;
+// package saas.hotel.istoepousada.dto;
 //
-//import com.fasterxml.jackson.annotation.JsonAlias;
-//import com.fasterxml.jackson.annotation.JsonFormat;
-//import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-//import jakarta.validation.constraints.NotNull;
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//import java.util.List;
-//import org.springframework.jdbc.core.RowMapper;
-//import saas.hotel.istoepousada.config.BrLocalDateDeserializer;
+// import com.fasterxml.jackson.annotation.JsonAlias;
+// import com.fasterxml.jackson.annotation.JsonFormat;
+// import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+// import jakarta.validation.constraints.NotNull;
+// import java.time.LocalDate;
+// import java.time.LocalDateTime;
+// import java.util.List;
+// import org.springframework.jdbc.core.RowMapper;
+// import saas.hotel.istoepousada.config.BrLocalDateDeserializer;
 //
-//public record Reserva(
+// public record Reserva(
 //    @NotNull Long id,
 //    Quarto.Descricao quarto,
 //    Categoria.Nome categoria,
@@ -282,4 +282,4 @@
 //            null,
 //            null);
 //      };
-//}
+// }

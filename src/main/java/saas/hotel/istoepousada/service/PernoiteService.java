@@ -1,27 +1,27 @@
-//package saas.hotel.istoepousada.service;
+// package saas.hotel.istoepousada.service;
 //
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//import java.time.LocalTime;
-//import java.time.temporal.ChronoUnit;
-//import java.util.ArrayList;
-//import java.util.Comparator;
-//import java.util.List;
-//import java.util.Map;
-//import java.util.UUID;
-//import org.springframework.stereotype.Service;
-//import org.springframework.transaction.annotation.Transactional;
-//import saas.hotel.istoepousada.dto.*;
-//import saas.hotel.istoepousada.handler.exceptions.BusinessException;
-//import saas.hotel.istoepousada.handler.exceptions.ConflictException;
-//import saas.hotel.istoepousada.repository.CategoriaRepository;
-//import saas.hotel.istoepousada.repository.PagamentoRepository;
-//import saas.hotel.istoepousada.repository.PernoiteRepository;
-//import saas.hotel.istoepousada.repository.QuartoRepository;
-//import saas.hotel.istoepousada.repository.RelatorioRepository;
+// import java.time.LocalDate;
+// import java.time.LocalDateTime;
+// import java.time.LocalTime;
+// import java.time.temporal.ChronoUnit;
+// import java.util.ArrayList;
+// import java.util.Comparator;
+// import java.util.List;
+// import java.util.Map;
+// import java.util.UUID;
+// import org.springframework.stereotype.Service;
+// import org.springframework.transaction.annotation.Transactional;
+// import saas.hotel.istoepousada.dto.*;
+// import saas.hotel.istoepousada.handler.exceptions.BusinessException;
+// import saas.hotel.istoepousada.handler.exceptions.ConflictException;
+// import saas.hotel.istoepousada.repository.CategoriaRepository;
+// import saas.hotel.istoepousada.repository.PagamentoRepository;
+// import saas.hotel.istoepousada.repository.PernoiteRepository;
+// import saas.hotel.istoepousada.repository.QuartoRepository;
+// import saas.hotel.istoepousada.repository.RelatorioRepository;
 //
-//@Service
-//public class PernoiteService {
+// @Service
+// public class PernoiteService {
 //
 //  private final PernoiteRepository pernoiteRepository;
 //  private final ReservaRepository reservaRepository;
@@ -69,7 +69,8 @@
 //  }
 //
 //  private void validarCamposObrigatoriosSemReserva(Pernoite.CreateRequest request) {
-//    if (request.quarto_id() == null) throw new IllegalArgumentException("quarto_id é obrigatório.");
+//    if (request.quarto_id() == null) throw new IllegalArgumentException("quarto_id é
+// obrigatório.");
 //    if (request.data_entrada() == null)
 //      throw new IllegalArgumentException("data_entrada é obrigatória.");
 //    if (request.data_saida() == null)
@@ -124,7 +125,8 @@
 ////      pernoiteRepository.addPessoasToDiaria(diariaIds.getFirst(), pessoaIds);
 ////    }
 ////
-////    if (reserva.pagamentos() != null && !reserva.pagamentos().isEmpty() && !diariaIds.isEmpty()) {
+////    if (reserva.pagamentos() != null && !reserva.pagamentos().isEmpty() && !diariaIds.isEmpty())
+// {
 ////      for (Reserva.ReservaPagamento rp : reserva.pagamentos()) {
 ////        if (rp.pagamento() != null && rp.pagamento().uuid() != null) {
 ////          pernoiteRepository.addPagamentoToPernoite(pernoiteId, rp.pagamento().uuid());
@@ -160,11 +162,13 @@
 ////    }
 ////
 ////    Long pernoiteId =
-////        pernoiteRepository.insertPernoite(request.data_entrada(), request.data_saida(), valorTotal);
+////        pernoiteRepository.insertPernoite(request.data_entrada(), request.data_saida(),
+// valorTotal);
 ////
 ////    List<Long> diariaIds =
 ////        criarDiarias(
-////            pernoiteId, catInfo, request.data_entrada(), noites, qtdPessoas, request.quarto_id());
+////            pernoiteId, catInfo, request.data_entrada(), noites, qtdPessoas,
+// request.quarto_id());
 ////
 ////    quartoRepository.updateStatus(request.quarto_id(), Quarto.Status.OCUPADO);
 ////
@@ -195,7 +199,8 @@
 ////    List<ReservaRepository.Sazonalidade> sazonalidades =
 ////        reservaRepository.findSazonalidades(catInfo.id());
 ////
-////    List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.Sazonalidade::id).toList();
+////    List<Long> sazonIds =
+// sazonalidades.stream().map(ReservaRepository.Sazonalidade::id).toList();
 ////    Map<Long, List<Categoria.ModeloOcupacao>> modelosOcupacao =
 ////        sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosOcupacao(sazonIds);
 ////    Map<Long, List<Categoria.ModeloFixo>> modelosFixo =
@@ -261,7 +266,8 @@
 ////
 ////    List<ReservaRepository.Sazonalidade> sazonalidades =
 ////        reservaRepository.findSazonalidades(catInfo.id());
-////    List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.Sazonalidade::id).toList();
+////    List<Long> sazonIds =
+// sazonalidades.stream().map(ReservaRepository.Sazonalidade::id).toList();
 ////    Map<Long, List<Categoria.ModeloOcupacao>> modelosOcupacao =
 ////        sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosOcupacao(sazonIds);
 ////    Map<Long, List<Categoria.ModeloFixo>> modelosFixo =
@@ -285,7 +291,8 @@
 ////            categoria != null
 ////                ? (float)
 ////                    calcularPrecoNoite(
-////                        noite, categoria, sazonalidades, modelosOcupacao, modelosFixo, qtdPessoas)
+////                        noite, categoria, sazonalidades, modelosOcupacao, modelosFixo,
+// qtdPessoas)
 ////                : 0f;
 ////        pernoiteRepository.insertDiaria(id, i + 1, inicio, fim, valor, quartoId);
 ////      }
@@ -315,7 +322,8 @@
 ////    }
 ////
 ////    pernoiteRepository.updatePernoite(
-////        id, dataEntrada, dataSaida, request.hora_chegada(), request.hora_saida(), novoValorTotal);
+////        id, dataEntrada, dataSaida, request.hora_chegada(), request.hora_saida(),
+// novoValorTotal);
 ////
 ////
 ////
@@ -505,7 +513,8 @@
 ////      int qtdPessoas) {
 ////    List<ReservaRepository.Sazonalidade> sazonalidades =
 ////        reservaRepository.findSazonalidades(catInfo.id());
-////    List<Long> sazonIds = sazonalidades.stream().map(ReservaRepository.Sazonalidade::id).toList();
+////    List<Long> sazonIds =
+// sazonalidades.stream().map(ReservaRepository.Sazonalidade::id).toList();
 ////    Map<Long, List<Categoria.ModeloOcupacao>> modelosOcupacao =
 ////        sazonIds.isEmpty() ? Map.of() : reservaRepository.findSazonModelosOcupacao(sazonIds);
 ////    Map<Long, List<Categoria.ModeloFixo>> modelosFixo =
@@ -538,4 +547,4 @@
 //  private LocalDateTime buildDateTime(LocalDate date, LocalTime time) {
 //    return LocalDateTime.of(date, time != null ? time : LocalTime.MIDNIGHT);
 //  }
-//}
+// }

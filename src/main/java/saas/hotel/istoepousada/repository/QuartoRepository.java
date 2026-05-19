@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.repository;
 
+import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -13,19 +14,17 @@ import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Quarto;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
-import java.util.*;
-
 @Slf4j
 @Repository
 public class QuartoRepository {
-    private final JdbcTemplate jdbcTemplate;
+  private final JdbcTemplate jdbcTemplate;
 
-    public QuartoRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
+  public QuartoRepository(JdbcTemplate jdbcTemplate) {
+    this.jdbcTemplate = jdbcTemplate;
+  }
 
-    private static final String SELECT_QUARTO_BASE =
-            """
+  private static final String SELECT_QUARTO_BASE =
+      """
                     SELECT
                       quarto.id                         AS quarto_id,
                       quarto.descricao                  AS quarto_descricao,
@@ -38,105 +37,105 @@ public class QuartoRepository {
                     FROM public.quarto quarto
                     """;
 
-    private static final ResultSetExtractor<List<Quarto>> QUARTO_EXTRACTOR =
-            rs -> {
-                List<Quarto> list = new ArrayList<>();
-                int rowNum = 0;
-                while (rs.next()) {
-                    list.add(Quarto.ROW_MAPPER.mapRow(rs, rowNum++));
-                }
-                return list;
-            };
-
-    public record QuartoComCategoria(
-            long quartoId,
-            String descricao,
-            int qtdPessoas,
-            Quarto.Status status,
-            int camaCasal,
-            int camaSolteiro,
-            int rede,
-            int beliche,
-            long categoriaId,
-            String categoriaNome,
-            String categoriaDescricao) {}
-
-    public Page<Quarto> buscar(Long id, String termo, Quarto.Status status, Pageable pageable) {
-        String baseFrom = " FROM public.quarto quarto ";
-
-        StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
-        List<Object> params = new ArrayList<>();
-
-        if (id != null) {
-            where.append(" AND quarto.id = ? ");
-            params.add(id);
+  private static final ResultSetExtractor<List<Quarto>> QUARTO_EXTRACTOR =
+      rs -> {
+        List<Quarto> list = new ArrayList<>();
+        int rowNum = 0;
+        while (rs.next()) {
+          list.add(Quarto.ROW_MAPPER.mapRow(rs, rowNum++));
         }
+        return list;
+      };
 
-        if (termo != null && !termo.isBlank()) {
-            String t = termo.trim();
-            boolean isNumeric = t.matches("\\d+");
-            where.append(" AND (quarto.descricao ILIKE ? ");
-            params.add("%" + t + "%");
-            if (isNumeric) {
-                where.append(" OR quarto.id = ? ");
-                params.add(Long.parseLong(t));
-            }
-            where.append(") ");
-        }
+  public record QuartoComCategoria(
+      long quartoId,
+      String descricao,
+      int qtdPessoas,
+      Quarto.Status status,
+      int camaCasal,
+      int camaSolteiro,
+      int rede,
+      int beliche,
+      long categoriaId,
+      String categoriaNome,
+      String categoriaDescricao) {}
 
-        if (status != null) {
-            where.append(" AND quarto.status = CAST(? AS public.status_quarto_enum) ");
-            params.add(status.name());
-        }
+  public Page<Quarto> buscar(Long id, String termo, Quarto.Status status, Pageable pageable) {
+    String baseFrom = " FROM public.quarto quarto ";
 
-        Long total;
-        try {
-            total =
-                    jdbcTemplate.queryForObject(
-                            "SELECT COUNT(*)" + baseFrom + where, Long.class, params.toArray());
-        } catch (EmptyResultDataAccessException ex) {
-            total = 0L;
-        }
+    StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
+    List<Object> params = new ArrayList<>();
 
-        if (total == 0) {
-            return new PageImpl<>(List.of(), pageable, 0);
-        }
-
-        String idsSql =
-                "SELECT quarto.id AS id" + baseFrom + where + " ORDER BY quarto.id ASC LIMIT ? OFFSET ? ";
-
-        List<Object> idsParams = new ArrayList<>(params);
-        idsParams.add(pageable.getPageSize());
-        idsParams.add(pageable.getOffset());
-
-        List<Long> ids =
-                jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
-
-        if (ids.isEmpty()) {
-            return new PageImpl<>(List.of(), pageable, total);
-        }
-
-        String in = String.join(",", Collections.nCopies(ids.size(), "?"));
-        String pageSql = SELECT_QUARTO_BASE + " WHERE quarto.id IN (" + in + ") ORDER BY quarto.id";
-        List<Quarto> content = jdbcTemplate.query(pageSql, QUARTO_EXTRACTOR, ids.toArray());
-        return new PageImpl<>(Objects.requireNonNull(content), pageable, total);
+    if (id != null) {
+      where.append(" AND quarto.id = ? ");
+      params.add(id);
     }
 
-    public Quarto findByIdOrThrow(Long id) {
-        if (id == null) throw new IllegalArgumentException("Id é obrigatório.");
-        try {
-            return jdbcTemplate.queryForObject(
-                    SELECT_QUARTO_BASE + " WHERE quarto.id = ? ", Quarto.ROW_MAPPER, id);
-        } catch (EmptyResultDataAccessException ex) {
-            throw new NotFoundException("Quarto não encontrado: " + id);
-        }
+    if (termo != null && !termo.isBlank()) {
+      String t = termo.trim();
+      boolean isNumeric = t.matches("\\d+");
+      where.append(" AND (quarto.descricao ILIKE ? ");
+      params.add("%" + t + "%");
+      if (isNumeric) {
+        where.append(" OR quarto.id = ? ");
+        params.add(Long.parseLong(t));
+      }
+      where.append(") ");
     }
 
-    @Transactional
-    public Quarto insert(Quarto.Request quarto) {
-        Long quartoId =
-                jdbcTemplate.queryForObject(
-                        """
+    if (status != null) {
+      where.append(" AND quarto.status = CAST(? AS public.status_quarto_enum) ");
+      params.add(status.name());
+    }
+
+    Long total;
+    try {
+      total =
+          jdbcTemplate.queryForObject(
+              "SELECT COUNT(*)" + baseFrom + where, Long.class, params.toArray());
+    } catch (EmptyResultDataAccessException ex) {
+      total = 0L;
+    }
+
+    if (total == 0) {
+      return new PageImpl<>(List.of(), pageable, 0);
+    }
+
+    String idsSql =
+        "SELECT quarto.id AS id" + baseFrom + where + " ORDER BY quarto.id ASC LIMIT ? OFFSET ? ";
+
+    List<Object> idsParams = new ArrayList<>(params);
+    idsParams.add(pageable.getPageSize());
+    idsParams.add(pageable.getOffset());
+
+    List<Long> ids =
+        jdbcTemplate.query(idsSql, (rs, rowNum) -> rs.getLong("id"), idsParams.toArray());
+
+    if (ids.isEmpty()) {
+      return new PageImpl<>(List.of(), pageable, total);
+    }
+
+    String in = String.join(",", Collections.nCopies(ids.size(), "?"));
+    String pageSql = SELECT_QUARTO_BASE + " WHERE quarto.id IN (" + in + ") ORDER BY quarto.id";
+    List<Quarto> content = jdbcTemplate.query(pageSql, QUARTO_EXTRACTOR, ids.toArray());
+    return new PageImpl<>(Objects.requireNonNull(content), pageable, total);
+  }
+
+  public Quarto findByIdOrThrow(Long id) {
+    if (id == null) throw new IllegalArgumentException("Id é obrigatório.");
+    try {
+      return jdbcTemplate.queryForObject(
+          SELECT_QUARTO_BASE + " WHERE quarto.id = ? ", Quarto.ROW_MAPPER, id);
+    } catch (EmptyResultDataAccessException ex) {
+      throw new NotFoundException("Quarto não encontrado: " + id);
+    }
+  }
+
+  @Transactional
+  public Quarto insert(Quarto.Request quarto) {
+    Long quartoId =
+        jdbcTemplate.queryForObject(
+            """
                                 INSERT INTO public.quarto (
                                   id,
                                   descricao, quantidade_pessoa, status,
@@ -145,22 +144,22 @@ public class QuartoRepository {
                                 ) VALUES (?, ?, ?, 'DISPONIVEL'::status_quarto_enum, ?, ?, ?, ?)
                                 RETURNING id
                                 """,
-                        Long.class,
-                        quarto.numero(),
-                        quarto.descricao(),
-                        quarto.quantidade_pessoas(),
-                        quarto.quantidade_cama_casal(),
-                        quarto.quantidade_cama_solteiro(),
-                        quarto.quantidade_rede(),
-                        quarto.quantidade_beliche());
-        return findByIdOrThrow(quartoId);
-    }
+            Long.class,
+            quarto.numero(),
+            quarto.descricao(),
+            quarto.quantidade_pessoas(),
+            quarto.quantidade_cama_casal(),
+            quarto.quantidade_cama_solteiro(),
+            quarto.quantidade_rede(),
+            quarto.quantidade_beliche());
+    return findByIdOrThrow(quartoId);
+  }
 
-    @Transactional
-    public Quarto update(Quarto.Update request) {
-        int rows =
-                jdbcTemplate.update(
-                        """
+  @Transactional
+  public Quarto update(Quarto.Update request) {
+    int rows =
+        jdbcTemplate.update(
+            """
                                 UPDATE public.quarto SET
                                   descricao = ?,
                                   quantidade_pessoa = ?,
@@ -171,29 +170,29 @@ public class QuartoRepository {
                                   quantidade_beliche = ?
                                 WHERE id = ?
                                 """,
-                        request.descricao().trim(),
-                        request.quantidade_pessoas(),
-                        request.status().name(),
-                        request.quantidade_cama_casal(),
-                        request.quantidade_cama_solteiro(),
-                        request.quantidade_rede(),
-                        request.quantidade_beliche(),
-                        request.id());
-        if (rows == 0) throw new NotFoundException("Quarto não encontrado: " + request.id());
-        return findByIdOrThrow(request.id());
-    }
+            request.descricao().trim(),
+            request.quantidade_pessoas(),
+            request.status().name(),
+            request.quantidade_cama_casal(),
+            request.quantidade_cama_solteiro(),
+            request.quantidade_rede(),
+            request.quantidade_beliche(),
+            request.id());
+    if (rows == 0) throw new NotFoundException("Quarto não encontrado: " + request.id());
+    return findByIdOrThrow(request.id());
+  }
 
-    @Transactional
-    public void updateStatus(Long id, Quarto.Status status) {
-        jdbcTemplate.update(
-                "UPDATE public.quarto SET status = CAST(? AS public.status_quarto_enum) WHERE id = ?",
-                status.name(),
-                id);
-    }
+  @Transactional
+  public void updateStatus(Long id, Quarto.Status status) {
+    jdbcTemplate.update(
+        "UPDATE public.quarto SET status = CAST(? AS public.status_quarto_enum) WHERE id = ?",
+        status.name(),
+        id);
+  }
 
-    public List<Quarto.ItemQuarto> listarItens(Long quartoId) {
-        String sql =
-                """
+  public List<Quarto.ItemQuarto> listarItens(Long quartoId) {
+    String sql =
+        """
                         SELECT
                           qi.id                 AS quarto_item_id,
                           i.id                  AS item_id,
@@ -208,50 +207,52 @@ public class QuartoRepository {
                         WHERE qi.fk_quarto = ?
                         ORDER BY i.descricao
                         """;
-        return jdbcTemplate.query(sql, Quarto.ItemQuarto.ROW_MAPPER, quartoId);
-    }
+    return jdbcTemplate.query(sql, Quarto.ItemQuarto.ROW_MAPPER, quartoId);
+  }
 
-    @Transactional
-    public Quarto.ItemQuarto adicionarItem(Long quartoId, Quarto.QuartoItem.Request req, Long funcionarioId) {
-        Long id =
-                jdbcTemplate.queryForObject(
-                        """
+  @Transactional
+  public Quarto.ItemQuarto adicionarItem(
+      Long quartoId, Quarto.QuartoItem.Request req, Long funcionarioId) {
+    Long id =
+        jdbcTemplate.queryForObject(
+            """
                                 INSERT INTO public.quarto_item
                                   (fk_quarto, fk_item, quantidade_padrao, quantidade_atual, data_hora_reposicao, fk_funcionario)
                                 VALUES (?, ?, ?, ?, NOW(), ?)
                                 RETURNING id
                                 """,
-                        Long.class,
-                        quartoId,
-                        req.item().id(),
-                        req.quantidade_padrao(),
-                        req.quantidade_atual(),
-                        funcionarioId);
-        return findItemById(id);
-    }
+            Long.class,
+            quartoId,
+            req.item().id(),
+            req.quantidade_padrao(),
+            req.quantidade_atual(),
+            funcionarioId);
+    return findItemById(id);
+  }
 
-    @Transactional
-    public Quarto.ItemQuarto atualizarItem(Quarto.QuartoItem.Update req) {
-        jdbcTemplate.update(
-                "UPDATE public.quarto_item SET fk_item = ?, quantidade_padrao = ? WHERE id = ?",
-                req.item().id(),
-                req.quantidade_padrao(),
-                req.id());
-        return findItemById(req.id());
-    }
+  @Transactional
+  public Quarto.ItemQuarto atualizarItem(Quarto.QuartoItem.Update req) {
+    jdbcTemplate.update(
+        "UPDATE public.quarto_item SET fk_item = ?, quantidade_padrao = ? WHERE id = ?",
+        req.item().id(),
+        req.quantidade_padrao(),
+        req.id());
+    return findItemById(req.id());
+  }
 
-    @Transactional
-    public Quarto.ItemQuarto consumirItem(Quarto.QuartoItem.Consumir req) {
-        jdbcTemplate.update(
-                "UPDATE public.quarto_item SET quantidade_atual = GREATEST(0, quantidade_atual - ?) WHERE id = ?",
-                req.quantidade(),
-                req.id());
-        return findItemById(req.id());
-    }
+  @Transactional
+  public Quarto.ItemQuarto consumirItem(Quarto.QuartoItem.Consumir req) {
+    jdbcTemplate.update(
+        "UPDATE public.quarto_item SET quantidade_atual = GREATEST(0, quantidade_atual - ?) WHERE id = ?",
+        req.quantidade(),
+        req.id());
+    return findItemById(req.id());
+  }
 
-    public Quarto.ItemQuarto updateQuartoItem(Integer quantidade, Long id, Long funcionarioId) {
-        Long quartoItemId = jdbcTemplate.queryForObject(
-                """
+  public Quarto.ItemQuarto updateQuartoItem(Integer quantidade, Long id, Long funcionarioId) {
+    Long quartoItemId =
+        jdbcTemplate.queryForObject(
+            """
                         UPDATE public.quarto_item
                         SET quantidade_atual = LEAST(quantidade_atual + ?, quantidade_padrao),
                             data_hora_reposicao = NOW(),
@@ -259,16 +260,16 @@ public class QuartoRepository {
                         WHERE id = ?
                         RETURNING id
                         """,
-                Long.class,
-                quantidade,
-                funcionarioId,
-                id);
-        return findItemById(quartoItemId);
-    }
+            Long.class,
+            quantidade,
+            funcionarioId,
+            id);
+    return findItemById(quartoItemId);
+  }
 
-    public Long reporItemNoQuarto(Quarto.QuartoItem.Repor req, Long funcionarioId) {
-        return jdbcTemplate.queryForObject(
-                """
+  public Long reporItemNoQuarto(Quarto.QuartoItem.Repor req, Long funcionarioId) {
+    return jdbcTemplate.queryForObject(
+        """
                         UPDATE public.quarto_item
                         SET quantidade_atual = LEAST(quantidade_atual + ?, quantidade_padrao),
                             data_hora_reposicao = NOW(),
@@ -276,27 +277,27 @@ public class QuartoRepository {
                         WHERE id = ?
                         RETURNING fk_item
                         """,
-                Long.class,
-                req.quantidade(),
-                funcionarioId,
-                req.id());
-    }
+        Long.class,
+        req.quantidade(),
+        funcionarioId,
+        req.id());
+  }
 
-    public void descontarEstoque(Long itemId, Integer quantidade) {
-        jdbcTemplate.update(
-                """
+  public void descontarEstoque(Long itemId, Integer quantidade) {
+    jdbcTemplate.update(
+        """
                         UPDATE estoque
                         SET qtd_total_unidades = qtd_total_unidades - ?
                         WHERE fk_item = ?
                         """,
-                quantidade,
-                itemId);
-        log.info("Estoque atualizado com sucesso para o item: {}", itemId);
-    }
+        quantidade,
+        itemId);
+    log.info("Estoque atualizado com sucesso para o item: {}", itemId);
+  }
 
-    public Quarto.ItemQuarto findItemById(Long id) {
-        return jdbcTemplate.queryForObject(
-                """
+  public Quarto.ItemQuarto findItemById(Long id) {
+    return jdbcTemplate.queryForObject(
+        """
                         SELECT
                           qi.id                 AS quarto_item_id,
                           i.id                  AS item_id,
@@ -310,39 +311,40 @@ public class QuartoRepository {
                         LEFT JOIN public.estoque e ON e.fk_item = i.id
                         WHERE qi.id = ?
                         """,
-                Quarto.ItemQuarto.ROW_MAPPER,
-                id);
-    }
+        Quarto.ItemQuarto.ROW_MAPPER,
+        id);
+  }
 
-    // ── Manutenção ───────────────────────────────────────────────────────────────
+  // ── Manutenção ───────────────────────────────────────────────────────────────
 
-    @Transactional
-    public Quarto.QuartoManutencao inserirManutencao(Quarto.QuartoManutencao.Request req, Long funcionarioId) {
-        findByIdOrThrow(req.quarto().id());
-        Long id =
-                jdbcTemplate.queryForObject(
-                        """
+  @Transactional
+  public Quarto.QuartoManutencao inserirManutencao(
+      Quarto.QuartoManutencao.Request req, Long funcionarioId) {
+    findByIdOrThrow(req.quarto().id());
+    Long id =
+        jdbcTemplate.queryForObject(
+            """
                                 INSERT INTO public.quarto_manutencao
                                   (fk_quarto, fk_funcionario, descricao, nome_responsavel,
                                    data_hora_registro, data_hora_inicio, data_hora_fim, ativo)
                                 VALUES (?, ?, ?, ?, NOW(), ?, ?, true)
                                 RETURNING id
                                 """,
-                        Long.class,
-                        req.quarto().id(),
-                        funcionarioId,
-                        req.descricao(),
-                        req.nome_responsavel(),
-                        req.data_hora_inicio(),
-                        req.data_hora_fim());
-        updateStatus(req.quarto().id(), Quarto.Status.MANUTENCAO);
-        return findManutencaoById(id);
-    }
+            Long.class,
+            req.quarto().id(),
+            funcionarioId,
+            req.descricao(),
+            req.nome_responsavel(),
+            req.data_hora_inicio(),
+            req.data_hora_fim());
+    updateStatus(req.quarto().id(), Quarto.Status.MANUTENCAO);
+    return findManutencaoById(id);
+  }
 
-    @Transactional
-    public Quarto.QuartoManutencao atualizarManutencao(Quarto.QuartoManutencao.Update req) {
-        jdbcTemplate.update(
-                """
+  @Transactional
+  public Quarto.QuartoManutencao atualizarManutencao(Quarto.QuartoManutencao.Update req) {
+    jdbcTemplate.update(
+        """
                         UPDATE public.quarto_manutencao SET
                           descricao = ?,
                           nome_responsavel = ?,
@@ -351,29 +353,29 @@ public class QuartoRepository {
                           ativo = ?
                         WHERE id = ?
                         """,
-                req.descricao(),
-                req.nome_responsavel(),
-                req.data_hora_inicio(),
-                req.data_hora_fim(),
-                req.ativo(),
-                req.id());
-        return findManutencaoById(req.id());
-    }
+        req.descricao(),
+        req.nome_responsavel(),
+        req.data_hora_inicio(),
+        req.data_hora_fim(),
+        req.ativo(),
+        req.id());
+    return findManutencaoById(req.id());
+  }
 
-    @Transactional
-    public void finalizarManutencao(Long id) {
-        Long quartoId =
-                jdbcTemplate.queryForObject(
-                        "UPDATE public.quarto_manutencao SET ativo = false WHERE id = ? RETURNING fk_quarto",
-                        Long.class,
-                        id);
-        if (quartoId != null) updateStatus(quartoId, Quarto.Status.DISPONIVEL);
-    }
+  @Transactional
+  public void finalizarManutencao(Long id) {
+    Long quartoId =
+        jdbcTemplate.queryForObject(
+            "UPDATE public.quarto_manutencao SET ativo = false WHERE id = ? RETURNING fk_quarto",
+            Long.class,
+            id);
+    if (quartoId != null) updateStatus(quartoId, Quarto.Status.DISPONIVEL);
+  }
 
-    public Quarto.QuartoManutencao findManutencaoById(Long id) {
-        try {
-            return jdbcTemplate.queryForObject(
-                    """
+  public Quarto.QuartoManutencao findManutencaoById(Long id) {
+    try {
+      return jdbcTemplate.queryForObject(
+          """
                             SELECT
                               qm.id                    AS manutencao_id,
                               qm.fk_quarto             AS quarto_id,
@@ -390,48 +392,48 @@ public class QuartoRepository {
                             LEFT JOIN public.pessoa pf ON pf.id = f.fk_pessoa
                             WHERE qm.id = ?
                             """,
-                    Quarto.QuartoManutencao.ROW_MAPPER,
-                    id);
-        } catch (EmptyResultDataAccessException e) {
-            throw new NotFoundException("Manutenção não encontrada: " + id);
-        }
+          Quarto.QuartoManutencao.ROW_MAPPER,
+          id);
+    } catch (EmptyResultDataAccessException e) {
+      throw new NotFoundException("Manutenção não encontrada: " + id);
     }
+  }
 
-    @Transactional
-    public Quarto.QuartoLimpeza acionarLimpeza(Long quartoId, Long funcionarioId) {
-        findByIdOrThrow(quartoId);
-        Long id =
-                jdbcTemplate.queryForObject(
-                        """
+  @Transactional
+  public Quarto.QuartoLimpeza acionarLimpeza(Long quartoId, Long funcionarioId) {
+    findByIdOrThrow(quartoId);
+    Long id =
+        jdbcTemplate.queryForObject(
+            """
                                 INSERT INTO public.quarto_limpeza
                                   (fk_quarto, fk_funcionario, data_hora_registro, data_hora_inicio, ativo)
                                 VALUES (?, ?, NOW(), NOW(), true)
                                 RETURNING id
                                 """,
-                        Long.class,
-                        quartoId,
-                        funcionarioId);
-        updateStatus(quartoId, Quarto.Status.LIMPEZA);
-        return findLimpezaById(id);
-    }
+            Long.class,
+            quartoId,
+            funcionarioId);
+    updateStatus(quartoId, Quarto.Status.LIMPEZA);
+    return findLimpezaById(id);
+  }
 
-    @Transactional
-    public Long finalizarLimpeza(Long id) {
-        return jdbcTemplate.queryForObject(
-                """
+  @Transactional
+  public Long finalizarLimpeza(Long id) {
+    return jdbcTemplate.queryForObject(
+        """
                         UPDATE public.quarto_limpeza
                         SET ativo = false, data_hora_fim = NOW()
                         WHERE id = ?
                         RETURNING fk_quarto
                         """,
-                Long.class,
-                id);
-    }
+        Long.class,
+        id);
+  }
 
-    public Quarto.QuartoLimpeza findLimpezaById(Long id) {
-        try {
-            return jdbcTemplate.queryForObject(
-                    """
+  public Quarto.QuartoLimpeza findLimpezaById(Long id) {
+    try {
+      return jdbcTemplate.queryForObject(
+          """
                             SELECT
                               ql.id                    AS limpeza_id,
                               ql.fk_quarto             AS quarto_id,
@@ -446,18 +448,18 @@ public class QuartoRepository {
                             LEFT JOIN public.pessoa pf ON pf.id = f.fk_pessoa
                             WHERE ql.id = ?
                             """,
-                    Quarto.QuartoLimpeza.ROW_MAPPER,
-                    id);
-        } catch (EmptyResultDataAccessException e) {
-            throw new NotFoundException("Limpeza não encontrada: " + id);
-        }
+          Quarto.QuartoLimpeza.ROW_MAPPER,
+          id);
+    } catch (EmptyResultDataAccessException e) {
+      throw new NotFoundException("Limpeza não encontrada: " + id);
     }
+  }
 
-    // ── Recepção — queries individuais ───────────────────────────────────────────
+  // ── Recepção — queries individuais ───────────────────────────────────────────
 
-    public List<QuartoComCategoria> buscarQuartosComCategoria() {
-        return jdbcTemplate.query(
-                """
+  public List<QuartoComCategoria> buscarQuartosComCategoria() {
+    return jdbcTemplate.query(
+        """
                         SELECT
                           q.id                       AS quarto_id,
                           q.descricao                AS quarto_descricao,
@@ -475,25 +477,25 @@ public class QuartoRepository {
                         JOIN public.categoria c ON c.id = qc.fk_categoria
                         ORDER BY c.nome, q.id
                         """,
-                (rs, rowNum) ->
-                        new QuartoComCategoria(
-                                rs.getLong("quarto_id"),
-                                rs.getString("quarto_descricao"),
-                                rs.getInt("quarto_quantidade_pessoas"),
-                                Quarto.Status.valueOf(rs.getString("quarto_status")),
-                                rs.getInt("quarto_quantidade_cama_casal"),
-                                rs.getInt("quarto_quantidade_cama_solteiro"),
-                                rs.getInt("quarto_quantidade_rede"),
-                                rs.getInt("quarto_quantidade_beliche"),
-                                rs.getLong("categoria_id"),
-                                rs.getString("categoria_nome"),
-                                rs.getString("categoria_descricao")));
-    }
+        (rs, rowNum) ->
+            new QuartoComCategoria(
+                rs.getLong("quarto_id"),
+                rs.getString("quarto_descricao"),
+                rs.getInt("quarto_quantidade_pessoas"),
+                Quarto.Status.valueOf(rs.getString("quarto_status")),
+                rs.getInt("quarto_quantidade_cama_casal"),
+                rs.getInt("quarto_quantidade_cama_solteiro"),
+                rs.getInt("quarto_quantidade_rede"),
+                rs.getInt("quarto_quantidade_beliche"),
+                rs.getLong("categoria_id"),
+                rs.getString("categoria_nome"),
+                rs.getString("categoria_descricao")));
+  }
 
-    public Map<Long, Quarto.QuartoManutencao> buscarManutencaoAtivaPorQuarto() {
-        Map<Long, Quarto.QuartoManutencao> result = new HashMap<>();
-        jdbcTemplate.query(
-                """
+  public Map<Long, Quarto.QuartoManutencao> buscarManutencaoAtivaPorQuarto() {
+    Map<Long, Quarto.QuartoManutencao> result = new HashMap<>();
+    jdbcTemplate.query(
+        """
                         SELECT DISTINCT ON (qm.fk_quarto)
                           qm.fk_quarto             AS quarto_id,
                           qm.id                    AS manutencao_id,
@@ -511,16 +513,16 @@ public class QuartoRepository {
                         WHERE qm.ativo = true
                         ORDER BY qm.fk_quarto, qm.data_hora_registro DESC
                         """,
-                rs -> {
-                    result.put(rs.getLong("quarto_id"), Quarto.QuartoManutencao.ROW_MAPPER.mapRow(rs, 0));
-                });
-        return result;
-    }
+        rs -> {
+          result.put(rs.getLong("quarto_id"), Quarto.QuartoManutencao.ROW_MAPPER.mapRow(rs, 0));
+        });
+    return result;
+  }
 
-    public Map<Long, Quarto.QuartoLimpeza> buscarLimpezaAtivaPorQuarto() {
-        Map<Long, Quarto.QuartoLimpeza> result = new HashMap<>();
-        jdbcTemplate.query(
-                """
+  public Map<Long, Quarto.QuartoLimpeza> buscarLimpezaAtivaPorQuarto() {
+    Map<Long, Quarto.QuartoLimpeza> result = new HashMap<>();
+    jdbcTemplate.query(
+        """
                         SELECT DISTINCT ON (ql.fk_quarto)
                           ql.fk_quarto             AS quarto_id,
                           ql.id                    AS limpeza_id,
@@ -536,18 +538,18 @@ public class QuartoRepository {
                         WHERE ql.ativo = true
                         ORDER BY ql.fk_quarto, ql.data_hora_registro DESC
                         """,
-                rs -> {
-                    result.put(rs.getLong("quarto_id"), Quarto.QuartoLimpeza.ROW_MAPPER.mapRow(rs, 0));
-                });
-        return result;
-    }
+        rs -> {
+          result.put(rs.getLong("quarto_id"), Quarto.QuartoLimpeza.ROW_MAPPER.mapRow(rs, 0));
+        });
+    return result;
+  }
 
-    public Map<Long, List<Quarto.ItemQuarto>> buscarItensPorQuartos(List<Long> quartoIds) {
-        if (quartoIds.isEmpty()) return Map.of();
-        String inQ = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
-        Map<Long, List<Quarto.ItemQuarto>> result = new HashMap<>();
-        jdbcTemplate.query(
-                """
+  public Map<Long, List<Quarto.ItemQuarto>> buscarItensPorQuartos(List<Long> quartoIds) {
+    if (quartoIds.isEmpty()) return Map.of();
+    String inQ = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
+    Map<Long, List<Quarto.ItemQuarto>> result = new HashMap<>();
+    jdbcTemplate.query(
+        """
                         SELECT
                           qi.fk_quarto          AS quarto_id,
                           qi.id                 AS quarto_item_id,
@@ -562,63 +564,65 @@ public class QuartoRepository {
                         LEFT JOIN public.estoque e ON e.fk_item = i.id
                         WHERE qi.fk_quarto IN (%s)
                         ORDER BY qi.fk_quarto, i.descricao
-                        """.formatted(inQ),
-                rs -> {
-                    long qid = rs.getLong("quarto_id");
-                    result.computeIfAbsent(qid, k -> new ArrayList<>())
-                            .add(Quarto.ItemQuarto.ROW_MAPPER.mapRow(rs, 0));
-                },
-                quartoIds.toArray());
-        return result;
-    }
+                        """
+            .formatted(inQ),
+        rs -> {
+          long qid = rs.getLong("quarto_id");
+          result
+              .computeIfAbsent(qid, k -> new ArrayList<>())
+              .add(Quarto.ItemQuarto.ROW_MAPPER.mapRow(rs, 0));
+        },
+        quartoIds.toArray());
+    return result;
+  }
 
-    // ── Categoria ────────────────────────────────────────────────────────────────
+  // ── Categoria ────────────────────────────────────────────────────────────────
 
-    public void vincularCategoriaAtiva(Long quartoId, Long categoriaId, Long funcionarioId) {
-        jdbcTemplate.update(
-                """
+  public void vincularCategoriaAtiva(Long quartoId, Long categoriaId, Long funcionarioId) {
+    jdbcTemplate.update(
+        """
                         INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, fk_funcionario, data_hora_cadastro, ativo) VALUES (?, ?, ?, now(), true)
                         """,
-                quartoId,
-                categoriaId,
-                funcionarioId);
-    }
+        quartoId,
+        categoriaId,
+        funcionarioId);
+  }
 
-    public void atualizarCategoriaAtiva(Long quartoId, Long categoriaId, Long funcionarioId) {
-        jdbcTemplate.update(
-                "UPDATE public.quarto_categoria SET ativo = false WHERE fk_quarto = ?", quartoId);
+  public void atualizarCategoriaAtiva(Long quartoId, Long categoriaId, Long funcionarioId) {
+    jdbcTemplate.update(
+        "UPDATE public.quarto_categoria SET ativo = false WHERE fk_quarto = ?", quartoId);
 
-        Integer count =
-                jdbcTemplate.queryForObject(
-                        "SELECT COUNT(*) FROM public.quarto_categoria WHERE fk_quarto = ? AND fk_categoria = ?",
-                        Integer.class,
-                        quartoId,
-                        categoriaId);
+    Integer count =
+        jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM public.quarto_categoria WHERE fk_quarto = ? AND fk_categoria = ?",
+            Integer.class,
+            quartoId,
+            categoriaId);
 
-        if (count > 0) {
-            jdbcTemplate.update(
-                    "UPDATE public.quarto_categoria SET ativo = true WHERE fk_quarto = ? AND fk_categoria = ?",
-                    quartoId,
-                    categoriaId);
-        } else {
-            jdbcTemplate.update(
-                    """
+    if (count > 0) {
+      jdbcTemplate.update(
+          "UPDATE public.quarto_categoria SET ativo = true WHERE fk_quarto = ? AND fk_categoria = ?",
+          quartoId,
+          categoriaId);
+    } else {
+      jdbcTemplate.update(
+          """
                             INSERT INTO public.quarto_categoria (fk_quarto, fk_categoria, fk_funcionario, data_hora_cadastro, ativo)
                             VALUES (?, ?, ?, NOW(), true)
                             """,
-                    quartoId,
-                    categoriaId,
-                    funcionarioId);
-        }
+          quartoId,
+          categoriaId,
+          funcionarioId);
     }
+  }
 
-    public Map<Long, String> findQuartosDescricao(List<Long> quartoIds) {
-        String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
-        Map<Long, String> map = new HashMap<>();
-        jdbcTemplate.query(
-                "SELECT id, descricao FROM public.quarto WHERE id IN (%s)".formatted(in),
-                (RowCallbackHandler) rs -> map.put(rs.getLong("id"), rs.getString("descricao")),
-                quartoIds.toArray());
-        return map;
-    }
+  public Map<Long, String> findQuartosDescricao(List<Long> quartoIds) {
+    String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
+    Map<Long, String> map = new HashMap<>();
+    jdbcTemplate.query(
+        "SELECT id, descricao FROM public.quarto WHERE id IN (%s)".formatted(in),
+        (RowCallbackHandler) rs -> map.put(rs.getLong("id"), rs.getString("descricao")),
+        quartoIds.toArray());
+    return map;
+  }
 }

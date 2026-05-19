@@ -83,7 +83,8 @@ public class SazonabilidadeService {
       throw new IllegalArgumentException("fk_categoria é obrigatório.");
     Sazonalidade sazon = sazonalidadeRepository.findByIdOrThrow(request.fk_sazonalidade());
     verificarConflitos(sazon, request.fk_categoria(), sazon.id());
-    sazonalidadeRepository.vincular(request.fk_sazonalidade(), request.fk_categoria(), getFuncionarioId());
+    sazonalidadeRepository.vincular(
+        request.fk_sazonalidade(), request.fk_categoria(), getFuncionarioId());
   }
 
   public void toggleAtivo(Sazonalidade.VinculoCategoriaToggle request) {

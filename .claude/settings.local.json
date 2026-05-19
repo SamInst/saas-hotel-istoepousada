@@ -24,7 +24,8 @@
       "Bash(grep -E \"\\\\.java$\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sanhe\\\\Downloads\\\\istoepousada\\\\istoepousada\" -Recurse -Directory -Depth 2)",
       "Bash(Select-Object FullName)",
-      "Bash(./gradlew compileJava --rerun-tasks)"
+      "Bash(./gradlew compileJava --rerun-tasks)",
+      "PowerShell(Get-NetTCPConnection *)"
     ]
   }
 }

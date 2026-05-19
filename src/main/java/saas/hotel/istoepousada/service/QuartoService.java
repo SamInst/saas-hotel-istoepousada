@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -46,7 +45,8 @@ public class QuartoService {
   public Quarto criar(Quarto.Request quarto) {
     validarRequest(quarto);
     var novoQuarto = quartoRepository.insert(quarto);
-    quartoRepository.vincularCategoriaAtiva(novoQuarto.id(), quarto.categoria().id(), getFuncionarioId());
+    quartoRepository.vincularCategoriaAtiva(
+        novoQuarto.id(), quarto.categoria().id(), getFuncionarioId());
     return novoQuarto;
   }
 
@@ -54,7 +54,8 @@ public class QuartoService {
   public Quarto atualizar(Quarto.Update quarto) {
     validarUpdate(quarto);
     var updatedQuarto = quartoRepository.update(quarto);
-    quartoRepository.atualizarCategoriaAtiva(quarto.id(), quarto.categoria().id(), getFuncionarioId());
+    quartoRepository.atualizarCategoriaAtiva(
+        quarto.id(), quarto.categoria().id(), getFuncionarioId());
     return updatedQuarto;
   }
 
@@ -79,8 +80,7 @@ public class QuartoService {
     Map<Long, List<Quarto.ItemQuarto>> itensPorQuarto =
         quartoRepository.buscarItensPorQuartos(quartoIds);
 
-    Map<Long, Hospedagem> hospedagemPorQuarto =
-        hospedagemService.buscarAtivasPorQuartoNaData(data);
+    Map<Long, Hospedagem> hospedagemPorQuarto = hospedagemService.buscarAtivasPorQuartoNaData(data);
 
     Map<Long, List<Recepcao.QuartoData.Categoria.Quartos>> quartosPorCat = new LinkedHashMap<>();
     Map<Long, String[]> catNames = new LinkedHashMap<>();
@@ -102,10 +102,12 @@ public class QuartoService {
 
       quartosPorCat
           .computeIfAbsent(qr.categoriaId(), k -> new ArrayList<>())
-          .add(new Recepcao.QuartoData.Categoria.Quartos(quarto, hospedagemPorQuarto.get(qr.quartoId())));
+          .add(
+              new Recepcao.QuartoData.Categoria.Quartos(
+                  quarto, hospedagemPorQuarto.get(qr.quartoId())));
 
       catNames.putIfAbsent(
-          qr.categoriaId(), new String[]{qr.categoriaNome(), qr.categoriaDescricao()});
+          qr.categoriaId(), new String[] {qr.categoriaNome(), qr.categoriaDescricao()});
     }
 
     List<Recepcao.QuartoData.Categoria> categorias = new ArrayList<>();
@@ -193,9 +195,10 @@ public class QuartoService {
   @Transactional
   public Quarto.QuartoLimpeza acionarLimpeza(Long quartoId, Quarto.QuartoLimpeza.Request req) {
     if (quartoId == null) throw new IllegalArgumentException("ID do quarto é obrigatório.");
-    Long funcionarioId = req.funcionario() != null
-        ? req.funcionario().id()
-        : pessoaService.getFuncionarioIdFromRequest();
+    Long funcionarioId =
+        req.funcionario() != null
+            ? req.funcionario().id()
+            : pessoaService.getFuncionarioIdFromRequest();
     return quartoRepository.acionarLimpeza(quartoId, funcionarioId);
   }
 
@@ -259,7 +262,7 @@ public class QuartoService {
     return quartoRepository.findQuartosDescricao(quartoIds);
   }
 
-  private Long getFuncionarioId(){
+  private Long getFuncionarioId() {
     return pessoaService.getFuncionarioIdFromRequest();
   }
 }

@@ -155,8 +155,7 @@ public record Quarto(
               rs.getInt("quarto_item_quantidade_atual"),
               rs.getInt("quarto_item_quantidade_padrao"),
               preco,
-              rs.getInt("qtd_total_unidades")
-          );
+              rs.getInt("qtd_total_unidades"));
         };
   }
 

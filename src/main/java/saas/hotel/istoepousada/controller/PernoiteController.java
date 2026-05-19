@@ -1,24 +1,24 @@
-//package saas.hotel.istoepousada.controller;
+// package saas.hotel.istoepousada.controller;
 //
-//import jakarta.validation.Valid;
-//import java.util.List;
-//import java.util.UUID;
-//import org.springframework.http.HttpStatus;
-//import org.springframework.web.bind.annotation.DeleteMapping;
-//import org.springframework.web.bind.annotation.PathVariable;
-//import org.springframework.web.bind.annotation.PostMapping;
-//import org.springframework.web.bind.annotation.PutMapping;
-//import org.springframework.web.bind.annotation.RequestBody;
-//import org.springframework.web.bind.annotation.RequestParam;
-//import org.springframework.web.bind.annotation.ResponseStatus;
-//import org.springframework.web.bind.annotation.RestController;
-//import saas.hotel.istoepousada.dto.Item;
-//import saas.hotel.istoepousada.dto.Pagamento;
-//import saas.hotel.istoepousada.dto.Pernoite;
-//import saas.hotel.istoepousada.service.PernoiteService;
+// import jakarta.validation.Valid;
+// import java.util.List;
+// import java.util.UUID;
+// import org.springframework.http.HttpStatus;
+// import org.springframework.web.bind.annotation.DeleteMapping;
+// import org.springframework.web.bind.annotation.PathVariable;
+// import org.springframework.web.bind.annotation.PostMapping;
+// import org.springframework.web.bind.annotation.PutMapping;
+// import org.springframework.web.bind.annotation.RequestBody;
+// import org.springframework.web.bind.annotation.RequestParam;
+// import org.springframework.web.bind.annotation.ResponseStatus;
+// import org.springframework.web.bind.annotation.RestController;
+// import saas.hotel.istoepousada.dto.Item;
+// import saas.hotel.istoepousada.dto.Pagamento;
+// import saas.hotel.istoepousada.dto.Pernoite;
+// import saas.hotel.istoepousada.service.PernoiteService;
 //
-//@RestController
-//public class PernoiteController {
+// @RestController
+// public class PernoiteController {
 //
 //  private final PernoiteService service;
 //
@@ -35,7 +35,8 @@
 ////  }
 ////
 ////  @PutMapping("/pernoites/{id}")
-////  public Pernoite editar(@PathVariable Long id, @RequestBody @Valid Pernoite.EditRequest request) {
+////  public Pernoite editar(@PathVariable Long id, @RequestBody @Valid Pernoite.EditRequest
+// request) {
 ////    return service.edit(id, request);
 ////  }
 ////
@@ -92,7 +93,8 @@
 //  }
 //
 //  @DeleteMapping("/diarias/{id}/consumos/{consumoId}")
-//  public Pernoite.Diaria removerConsumoDiaria(@PathVariable Long id, @PathVariable Long consumoId) {
+//  public Pernoite.Diaria removerConsumoDiaria(@PathVariable Long id, @PathVariable Long consumoId)
+// {
 //    return service.removeConsumoFromDiaria(id, consumoId);
 //  }
 //
@@ -103,4 +105,4 @@
 //      @PathVariable Long id, @RequestParam Pernoite.Diaria.Status status) {
 //    return service.updateDiariaStatus(id, status);
 //  }
-//}
+// }

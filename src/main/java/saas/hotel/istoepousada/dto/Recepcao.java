@@ -10,9 +10,7 @@ public record Recepcao(List<QuartoData> datas) {
       Integer quantidade_total_pessoas_hospedadas,
       List<Categoria> categorias) {
     public record Categoria(Long id, String nome, String descricao, List<Quartos> quartos) {
-      public record Quartos(
-              Quarto quarto,
-              Hospedagem hospedagem) {}
+      public record Quartos(Quarto quarto, Hospedagem hospedagem) {}
     }
   }
 

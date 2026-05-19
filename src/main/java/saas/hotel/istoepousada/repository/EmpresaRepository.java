@@ -199,5 +199,4 @@ public class EmpresaRepository {
 
     jdbcTemplate.update(sql, vinculo.empresa().id(), vinculo.pessoa().id());
   }
-
 }

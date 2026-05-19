@@ -1,27 +1,27 @@
-//package saas.hotel.istoepousada.repository;
+// package saas.hotel.istoepousada.repository;
 //
-//import java.sql.SQLException;
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//import java.time.LocalTime;
-//import java.util.ArrayList;
-//import java.util.Collections;
-//import java.util.HashMap;
-//import java.util.HashSet;
-//import java.util.List;
-//import java.util.Map;
-//import java.util.Set;
-//import java.util.UUID;
-//import org.springframework.dao.EmptyResultDataAccessException;
-//import org.springframework.jdbc.core.JdbcTemplate;
-//import org.springframework.jdbc.core.RowCallbackHandler;
-//import org.springframework.stereotype.Repository;
-//import org.springframework.transaction.annotation.Transactional;
-//import saas.hotel.istoepousada.handler.exceptions.BusinessException;
-//import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
+// import java.sql.SQLException;
+// import java.time.LocalDate;
+// import java.time.LocalDateTime;
+// import java.time.LocalTime;
+// import java.util.ArrayList;
+// import java.util.Collections;
+// import java.util.HashMap;
+// import java.util.HashSet;
+// import java.util.List;
+// import java.util.Map;
+// import java.util.Set;
+// import java.util.UUID;
+// import org.springframework.dao.EmptyResultDataAccessException;
+// import org.springframework.jdbc.core.JdbcTemplate;
+// import org.springframework.jdbc.core.RowCallbackHandler;
+// import org.springframework.stereotype.Repository;
+// import org.springframework.transaction.annotation.Transactional;
+// import saas.hotel.istoepousada.handler.exceptions.BusinessException;
+// import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 //
-//@Repository
-//public class ReservaRepository {
+// @Repository
+// public class ReservaRepository {
 //
 //  private final JdbcTemplate jdbcTemplate;
 //  private final PessoaRepository pessoaRepository;
@@ -198,7 +198,8 @@
 //    String sql =
 //        SELECT_RESERVA_BASE
 //            + """
-//            WHERE r.status IN ('ATIVO'::public.status_reserva, 'SOLICITADA'::public.status_reserva)
+//            WHERE r.status IN ('ATIVO'::public.status_reserva,
+// 'SOLICITADA'::public.status_reserva)
 //              AND r.data_hora_entrada::date <= ?
 //              AND r.data_hora_saida::date >= ?
 //            ORDER BY r.data_hora_entrada ASC
@@ -590,7 +591,8 @@
 //  @Transactional
 //  public void insertOrcamentoPessoa(Long reservaId, String nome, LocalDate dataNascimento) {
 //    jdbcTemplate.update(
-//        "INSERT INTO public.orcamento_reserva_pessoa (fk_reserva, nome, data_nascimento) VALUES (?, ?, ?)",
+//        "INSERT INTO public.orcamento_reserva_pessoa (fk_reserva, nome, data_nascimento) VALUES
+// (?, ?, ?)",
 //        reservaId,
 //        nome,
 //        dataNascimento);
@@ -601,7 +603,8 @@
 //    String in = String.join(",", Collections.nCopies(reservaIds.size(), "?"));
 //    List<Map<String, Object>> rows =
 //        jdbcTemplate.queryForList(
-//            "SELECT id, fk_reserva, nome, data_nascimento FROM public.orcamento_reserva_pessoa WHERE fk_reserva IN ("
+//            "SELECT id, fk_reserva, nome, data_nascimento FROM public.orcamento_reserva_pessoa
+// WHERE fk_reserva IN ("
 //                + in
 //                + ")",
 //            reservaIds.toArray());
@@ -629,7 +632,8 @@
 //  public List<Reserva> findByOrcamentoId(Long orcamentoId) {
 //    String sql =
 //        SELECT_RESERVA_BASE
-//            + " WHERE orv.fk_orcamento = ? AND r.status = 'ORCAMENTO'::public.status_reserva ORDER BY r.data_hora_entrada ASC ";
+//            + " WHERE orv.fk_orcamento = ? AND r.status = 'ORCAMENTO'::public.status_reserva ORDER
+// BY r.data_hora_entrada ASC ";
 //    List<Reserva> bases = jdbcTemplate.query(sql, Reserva.ROW_MAPPER, orcamentoId);
 //    return enriquecer(bases);
 //  }
@@ -674,7 +678,8 @@
 //
 //  @Transactional
 //  public void atualizarStatus(List<Long> ids, Reserva.Status status) {
-//    String inClause = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(","));
+//    String inClause = ids.stream().map(id ->
+// "?").collect(java.util.stream.Collectors.joining(","));
 //    List<Object> params = new ArrayList<>();
 //    params.add(status.name());
 //    params.addAll(ids);
@@ -813,7 +818,8 @@
 //  public Reserva ativar(Long id) {
 //    int rows =
 //        jdbcTemplate.update(
-//            "UPDATE public.reserva SET status = 'ATIVO'::public.status_reserva WHERE id = ? AND status = 'ORCAMENTO'::public.status_reserva",
+//            "UPDATE public.reserva SET status = 'ATIVO'::public.status_reserva WHERE id = ? AND
+// status = 'ORCAMENTO'::public.status_reserva",
 //            id);
 //    if (rows == 0)
 //      throw new BusinessException(
@@ -829,4 +835,4 @@
 //  private Long getFuncionarioId() {
 //    return pessoaRepository.getFuncionarioIdFromRequest();
 //  }
-//}
+// }

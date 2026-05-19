@@ -1,25 +1,25 @@
-//package saas.hotel.istoepousada.service;
+// package saas.hotel.istoepousada.service;
 //
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//import java.time.LocalTime;
-//import java.time.format.DateTimeFormatter;
-//import java.time.temporal.ChronoUnit;
-//import java.util.*;
-//import java.util.stream.Collectors;
-//import org.springframework.stereotype.Service;
-//import org.springframework.transaction.annotation.Transactional;
-//import saas.hotel.istoepousada.dto.*;
-//import saas.hotel.istoepousada.handler.exceptions.BusinessException;
-//import saas.hotel.istoepousada.handler.exceptions.ConflictException;
-//import saas.hotel.istoepousada.repository.CategoriaRepository;
-//import saas.hotel.istoepousada.repository.PagamentoRepository;
-//import saas.hotel.istoepousada.repository.PessoaRepository;
-//import saas.hotel.istoepousada.repository.RelatorioRepository;
-//import saas.hotel.istoepousada.repository.ReservaRepository;
+// import java.time.LocalDate;
+// import java.time.LocalDateTime;
+// import java.time.LocalTime;
+// import java.time.format.DateTimeFormatter;
+// import java.time.temporal.ChronoUnit;
+// import java.util.*;
+// import java.util.stream.Collectors;
+// import org.springframework.stereotype.Service;
+// import org.springframework.transaction.annotation.Transactional;
+// import saas.hotel.istoepousada.dto.*;
+// import saas.hotel.istoepousada.handler.exceptions.BusinessException;
+// import saas.hotel.istoepousada.handler.exceptions.ConflictException;
+// import saas.hotel.istoepousada.repository.CategoriaRepository;
+// import saas.hotel.istoepousada.repository.PagamentoRepository;
+// import saas.hotel.istoepousada.repository.PessoaRepository;
+// import saas.hotel.istoepousada.repository.RelatorioRepository;
+// import saas.hotel.istoepousada.repository.ReservaRepository;
 //
-//@Service
-//public class ReservaService {
+// @Service
+// public class ReservaService {
 //
 //  private final ReservaRepository reservaRepository;
 //  private final CategoriaRepository categoriaRepository;
@@ -87,7 +87,8 @@
 ////    Long orcamentoId = null;
 ////    if (isOrcamento) {
 ////      String nome = resolverNomeSolicitante(request.reservas());
-////      orcamentoId = reservaRepository.insertOrcamento(nome, relatorioRepository.getFuncionarioId());
+////      orcamentoId = reservaRepository.insertOrcamento(nome,
+// relatorioRepository.getFuncionarioId());
 ////    }
 ////
 ////    List<Reserva> resultados = new ArrayList<>();
@@ -159,7 +160,8 @@
 //                    null));
 //        reservaRepository.vincularPagamento(reservaId, criado.uuid());
 //        relatorioRepository.registrarRelatorioDeConsumo(
-//            criado, relatorioRepository.getFuncionarioId(), "Reserva - Quarto " + req.fk_quarto());
+//            criado, relatorioRepository.getFuncionarioId(), "Reserva - Quarto " +
+// req.fk_quarto());
 //      }
 //    }
 //
@@ -186,7 +188,8 @@
 //    LocalDateTime novaSaida = null;
 //
 //    boolean mudouAlgo =
-//        update.fk_quarto() != null || update.data_entrada() != null || update.data_saida() != null;
+//        update.fk_quarto() != null || update.data_entrada() != null || update.data_saida() !=
+// null;
 //
 //    if (mudouAlgo) {
 //      ReservaRepository.CategoriaCheckin catInfo =
@@ -326,7 +329,8 @@
 ////      List<Long> quartoIds, LocalDate dataEntrada, LocalDate dataSaida) {
 ////    if (quartoIds == null || quartoIds.isEmpty())
 ////      throw new IllegalArgumentException("Informe ao menos um quarto.");
-////    if (dataEntrada == null) throw new IllegalArgumentException("Data de entrada é obrigatória.");
+////    if (dataEntrada == null) throw new IllegalArgumentException("Data de entrada é
+// obrigatória.");
 ////    if (dataSaida == null) throw new IllegalArgumentException("Data de saída é obrigatória.");
 ////    if (!dataEntrada.isBefore(dataSaida))
 ////      throw new IllegalArgumentException("Data de saída deve ser posterior à de entrada.");
@@ -357,14 +361,16 @@
 //
 //  @Transactional(readOnly = true)
 //  public List<Reserva.ResultadoPreco> calcularPreco(List<Reserva.CalcularPrecoRequest> requests) {
-//    if (requests == null || requests.isEmpty()) throw new IllegalArgumentException("Lista vazia.");
+//    if (requests == null || requests.isEmpty()) throw new IllegalArgumentException("Lista
+// vazia.");
 //
 //    List<Reserva.CalculoPrecosResponse> resolved =
 //        requests.stream()
 //                .map(this::calcularPorDataNascimento)
 //                .toList();
 //
-//    List<Long> quartoIds = resolved.stream().map(Reserva.CalculoPrecosResponse::fk_quarto).toList();
+//    List<Long> quartoIds =
+// resolved.stream().map(Reserva.CalculoPrecosResponse::fk_quarto).toList();
 //    Map<Long, ReservaRepository.CategoriaCheckin> catInfoMap =
 //        reservaRepository.findCategoriasCheckinByQuartoIds(quartoIds);
 //
@@ -393,10 +399,13 @@
 //            .distinct()
 //            .toList();
 //
-//    Map<Long, List<Categoria.ModeloOcupacao>> sazonalidadeModeloPrecoPorOcupacao = sazonalidadeIds.isEmpty() ?
-//            Map.of() : categoriaRepository.buscaModeloPrecoPorOcupacaoSazonalidade(sazonalidadeIds);
+//    Map<Long, List<Categoria.ModeloOcupacao>> sazonalidadeModeloPrecoPorOcupacao =
+// sazonalidadeIds.isEmpty() ?
+//            Map.of() :
+// categoriaRepository.buscaModeloPrecoPorOcupacaoSazonalidade(sazonalidadeIds);
 //
-//    Map<Long, List<Categoria.ModeloFixo>> sazonalidadeModeloPrecoFixo = sazonalidadeIds.isEmpty() ?
+//    Map<Long, List<Categoria.ModeloFixo>> sazonalidadeModeloPrecoFixo = sazonalidadeIds.isEmpty()
+// ?
 //            Map.of() : categoriaRepository.buscaModeloPrecoFixoSazonalidade(sazonalidadeIds);
 //
 //    boolean temMenoresIdade =
@@ -436,13 +445,16 @@
 //        .toList();
 //  }
 //
-//  private Reserva.CalculoPrecosResponse calcularPorDataNascimento(Reserva.CalcularPrecoRequest request) {
+//  private Reserva.CalculoPrecosResponse calcularPorDataNascimento(Reserva.CalcularPrecoRequest
+// request) {
 //    if (request.datas_nascimento() == null || request.datas_nascimento().isEmpty())
 //      throw new IllegalArgumentException("Informe ao menos uma data de nascimento.");
 //
 //    LocalDate dataRef =
-//        request.hora_inicio() != null ? request.hora_inicio().toLocalDate() : request.data_entrada();
-//    if (dataRef == null) throw new IllegalArgumentException("Informe data_entrada ou hora_inicio.");
+//        request.hora_inicio() != null ? request.hora_inicio().toLocalDate() :
+// request.data_entrada();
+//    if (dataRef == null) throw new IllegalArgumentException("Informe data_entrada ou
+// hora_inicio.");
 //
 //    List<Integer> criancas = new ArrayList<>();
 //    int adultos = 0;
@@ -452,7 +464,8 @@
 //      else criancas.add(idade);
 //    }
 //    if (adultos == 0)
-//      throw new BusinessException("É necessário ao menos um adulto (18 anos ou mais) na reserva.");
+//      throw new BusinessException("É necessário ao menos um adulto (18 anos ou mais) na
+// reserva.");
 //
 //    return new Reserva.CalculoPrecosResponse(
 //        request.fk_quarto(),
@@ -474,19 +487,22 @@
 //      Map<Long, List<Categoria.MenorIdade>> sazonalidadeMenoresIdade,
 //      Map<Long, Categoria.DayUseOperacao> sazonalidadeDayUse,
 //      String quartoDesc) {
-//    if (request.fk_quarto() == null) throw new IllegalArgumentException("fk_quarto é obrigatório.");
+//    if (request.fk_quarto() == null) throw new IllegalArgumentException("fk_quarto é
+// obrigatório.");
 //    if (request.quantidade_adultos() == null || request.quantidade_adultos() <= 0) {
 //      throw new IllegalArgumentException("quantidade_adultos deve ser maior que zero.");
 //    }
 //
 //    // Day Use: quando hora_inicio e hora_fim são informados
 //    if (request.hora_inicio() != null && request.hora_fim() != null) {
-//      return calcularDayUseUnico(request, categoriaCheckin, categoria, sazonalidades, sazonalidadeDayUse, quartoDesc);
+//      return calcularDayUseUnico(request, categoriaCheckin, categoria, sazonalidades,
+// sazonalidadeDayUse, quartoDesc);
 //    }
 //
 //    if (request.data_entrada() == null)
 //      throw new IllegalArgumentException("data_entrada é obrigatória.");
-//    if (request.data_saida() == null) throw new IllegalArgumentException("data_saida é obrigatória.");
+//    if (request.data_saida() == null) throw new IllegalArgumentException("data_saida é
+// obrigatória.");
 //
 //    if (request.data_entrada().isAfter(request.data_saida())) {
 //      throw new BusinessException("Data de saída não pode ser anterior à de entrada.");
@@ -494,12 +510,15 @@
 //
 //    // Datas iguais = entrada após meia-noite: calcula como 1 diária usando data_entrada - 1
 //    boolean mesmaData = request.data_entrada().isEqual(request.data_saida());
-//    LocalDate dataEntradaCalculo = mesmaData ? request.data_entrada().minusDays(1) : request.data_entrada();
+//    LocalDate dataEntradaCalculo = mesmaData ? request.data_entrada().minusDays(1) :
+// request.data_entrada();
 //    int noites =
-//        mesmaData ? 1 : (int) ChronoUnit.DAYS.between(request.data_entrada(), request.data_saida());
+//        mesmaData ? 1 : (int) ChronoUnit.DAYS.between(request.data_entrada(),
+// request.data_saida());
 //
 //    Quarto.Descricao quartoObj = new Quarto.Descricao(request.fk_quarto(), quartoDesc);
-//    Categoria.Nome categoriaObj = new Categoria.Nome(categoriaCheckin.id(), categoriaCheckin.nome());
+//    Categoria.Nome categoriaObj = new Categoria.Nome(categoriaCheckin.id(),
+// categoriaCheckin.nome());
 //
 //    double valorTotal = 0.0;
 //    List<Reserva.ItemPreco> detalhes = new ArrayList<>();
@@ -508,7 +527,8 @@
 //    // Rastreia sazonalidades efetivamente aplicadas
 //    Map<Long, Sazonalidade.Nome> sazonAplicadasMap = new LinkedHashMap<>();
 //
-//    boolean temCriancas = request.idades_criancas() != null && !request.idades_criancas().isEmpty();
+//    boolean temCriancas = request.idades_criancas() != null &&
+// !request.idades_criancas().isEmpty();
 //
 //    for (int i = 0; i < noites; i++) {
 //      LocalDate night = dataEntradaCalculo.plusDays(i);
@@ -553,7 +573,8 @@
 //      List<Categoria.ModeloOcupacao> baseOcupacao =
 //          filtrarPorSazon(categoria.modelos_ocupacao(), null);
 //      List<Categoria.ModeloFixo> baseFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), null);
-//      double precoBase = resolverPrecoAdultos(baseOcupacao, baseFixo, request.quantidade_adultos());
+//      double precoBase = resolverPrecoAdultos(baseOcupacao, baseFixo,
+// request.quantidade_adultos());
 //
 //      double noiteAdultosPreco =
 //          resolverPrecoAdultos(modelosOcupacao, modelosFixo, request.quantidade_adultos());
@@ -624,7 +645,8 @@
 //        } else {
 //          desc.append(" + Crianças de ")
 //              .append(
-//                  criancasGratuitas.stream().map(String::valueOf).collect(Collectors.joining(", ")))
+//                  criancasGratuitas.stream().map(String::valueOf).collect(Collectors.joining(",
+// ")))
 //              .append(" anos (gratuidade)");
 //        }
 //      }
@@ -861,7 +883,8 @@
 //              && s.semanal().contains(date.getDayOfWeek().getValue());
 //
 //      boolean appliesMensal =
-//          s.mensal() != null && !s.mensal().isEmpty() && s.mensal().contains(date.getDayOfMonth());
+//          s.mensal() != null && !s.mensal().isEmpty() &&
+// s.mensal().contains(date.getDayOfMonth());
 //
 //      boolean appliesAnual =
 //          s.anual() != null && !s.anual().isEmpty() && s.anual().contains(date.getMonthValue());
@@ -955,7 +978,8 @@
 //              regra.porcentagens_por_quantidade().stream()
 //                  .filter(p -> p.quantidade() <= qtdCriancas)
 //                  .max(
-//                      Comparator.comparingInt(Categoria.MenorPorcentagemPorQuantidade::quantidade));
+//
+// Comparator.comparingInt(Categoria.MenorPorcentagemPorQuantidade::quantidade));
 //        }
 //        double porcentagem = porc.map(p -> (double) p.porcentagem()).orElse(0.0);
 //        yield valorBase * porcentagem / 100.0;
@@ -1014,4 +1038,4 @@
 //  private LocalDateTime buildDateTime(LocalDate date, LocalTime time) {
 //    return LocalDateTime.of(date, time != null ? time : LocalTime.MIDNIGHT);
 //  }
-//}
+// }

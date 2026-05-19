@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Empresa;
-import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.repository.EmpresaRepository;
 import saas.hotel.istoepousada.repository.PessoaRepository;
 
@@ -15,15 +14,10 @@ import saas.hotel.istoepousada.repository.PessoaRepository;
 public class EmpresaService {
   private final EmpresaRepository empresaRepository;
   private final PessoaRepository pessoaRepository;
-  private final PessoaService pessoaService;
 
-  public EmpresaService(
-      EmpresaRepository empresaRepository,
-      PessoaRepository pessoaRepository,
-      PessoaService pessoaService) {
+  public EmpresaService(EmpresaRepository empresaRepository, PessoaRepository pessoaRepository) {
     this.empresaRepository = empresaRepository;
     this.pessoaRepository = pessoaRepository;
-    this.pessoaService = pessoaService;
   }
 
   public Page<Empresa> buscarPorIdNomeOuCnpj(Long id, String termo, Pageable pageable) {
@@ -77,7 +71,7 @@ public class EmpresaService {
   }
 
   private Long getFuncionarioId() {
-    return pessoaService.getFuncionarioIdFromRequest();
+    return pessoaRepository.getFuncionarioIdFromRequest();
   }
 
   private void validarEmpresaUpdate(Empresa.Update empresa) {

@@ -2,7 +2,6 @@ package saas.hotel.istoepousada.repository;
 
 import java.util.List;
 import java.util.UUID;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import saas.hotel.istoepousada.dto.Pagamento;
@@ -98,7 +97,9 @@ public class PagamentoRepository {
   }
 
   public List<Pagamento> findByHospedagemId(Long id) {
-    var sql = SELECT_PAGAMENTO_BASE + " JOIN hospedagem_pagamento ON hospedagem_pagamento.fk_pagamento = p.id WHERE hospedagem_pagamento.fk_hospedagem = ? ORDER BY p.data_hora_registro DESC";
+    var sql =
+        SELECT_PAGAMENTO_BASE
+            + " JOIN hospedagem_pagamento ON hospedagem_pagamento.fk_pagamento = p.id WHERE hospedagem_pagamento.fk_hospedagem = ? ORDER BY p.data_hora_registro DESC";
     return jdbcTemplate.query(sql, Pagamento.ROW_MAPPER, id);
   }
 
@@ -166,5 +167,4 @@ public class PagamentoRepository {
         Boolean.class,
         uuid);
   }
-
 }

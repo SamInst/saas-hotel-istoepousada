@@ -1,28 +1,28 @@
-//package saas.hotel.istoepousada.repository;
+// package saas.hotel.istoepousada.repository;
 //
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//import java.time.LocalTime;
-//import java.util.ArrayList;
-//import java.util.Collections;
-//import java.util.HashMap;
-//import java.util.List;
-//import java.util.Map;
-//import java.util.UUID;
-//import org.springframework.dao.EmptyResultDataAccessException;
-//import org.springframework.jdbc.core.JdbcTemplate;
-//import org.springframework.stereotype.Repository;
-//import org.springframework.transaction.annotation.Transactional;
-//import saas.hotel.istoepousada.dto.Funcionario;
-//import saas.hotel.istoepousada.dto.Item;
-//import saas.hotel.istoepousada.dto.Pagamento;
-//import saas.hotel.istoepousada.dto.Pernoite;
-//import saas.hotel.istoepousada.dto.Pessoa;
-//import saas.hotel.istoepousada.dto.Quarto;
-//import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
+// import java.time.LocalDate;
+// import java.time.LocalDateTime;
+// import java.time.LocalTime;
+// import java.util.ArrayList;
+// import java.util.Collections;
+// import java.util.HashMap;
+// import java.util.List;
+// import java.util.Map;
+// import java.util.UUID;
+// import org.springframework.dao.EmptyResultDataAccessException;
+// import org.springframework.jdbc.core.JdbcTemplate;
+// import org.springframework.stereotype.Repository;
+// import org.springframework.transaction.annotation.Transactional;
+// import saas.hotel.istoepousada.dto.Funcionario;
+// import saas.hotel.istoepousada.dto.Item;
+// import saas.hotel.istoepousada.dto.Pagamento;
+// import saas.hotel.istoepousada.dto.Pernoite;
+// import saas.hotel.istoepousada.dto.Pessoa;
+// import saas.hotel.istoepousada.dto.Quarto;
+// import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 //
-//@Repository
-//public class PernoiteRepository {
+// @Repository
+// public class PernoiteRepository {
 //
 //  private final JdbcTemplate jdbcTemplate;
 //  private final PessoaRepository pessoaRepository;
@@ -296,7 +296,8 @@
 //
 //    if (basesMap.isEmpty()) return basesMap;
 //
-//    List<Pernoite.Diaria> todasDiarias = basesMap.values().stream().flatMap(List::stream).toList();
+//    List<Pernoite.Diaria> todasDiarias =
+// basesMap.values().stream().flatMap(List::stream).toList();
 //    List<Pernoite.Diaria> enriquecidas = enriquecerDiarias(todasDiarias);
 //
 //    Map<Long, Pernoite.Diaria> enriquecidaById = new HashMap<>();
@@ -582,7 +583,8 @@
 //  public Long insertPernoite(LocalDate dataEntrada, LocalDate dataSaida, Float valorTotal) {
 //    return jdbcTemplate.queryForObject(
 //        """
-//        INSERT INTO public.pernoite (fk_funcionario, status, data_entrada, data_saida, valor_total, ativo)
+//        INSERT INTO public.pernoite (fk_funcionario, status, data_entrada, data_saida,
+// valor_total, ativo)
 //        VALUES (?, 'ATIVO', ?, ?, ?, true)
 //        RETURNING id
 //        """,
@@ -643,7 +645,8 @@
 //  @Transactional
 //  public void deleteDiariasAPartirDoNumero(Long pernoiteId, int fromNumero) {
 //    jdbcTemplate.update(
-//        "DELETE FROM public.diaria WHERE fk_pernoite = ? AND numero >= ?", pernoiteId, fromNumero);
+//        "DELETE FROM public.diaria WHERE fk_pernoite = ? AND numero >= ?", pernoiteId,
+// fromNumero);
 //  }
 //
 //  // ── Update pernoite ─────────────────────────────────────────────────────────
@@ -716,7 +719,8 @@
 //  public void addPessoasToDiaria(Long diariaId, List<Long> pessoaIds) {
 //    for (int i = 0; i < pessoaIds.size(); i++) {
 //      jdbcTemplate.update(
-//          "INSERT INTO public.diaria_pessoa (diaria_id, pessoa_id, representante) VALUES (?, ?, ?)",
+//          "INSERT INTO public.diaria_pessoa (diaria_id, pessoa_id, representante) VALUES (?, ?,
+// ?)",
 //          diariaId,
 //          pessoaIds.get(i),
 //          i == 0);
@@ -848,4 +852,4 @@
 //  public Long getFuncionarioId() {
 //    return pessoaRepository.getFuncionarioIdFromRequest();
 //  }
-//}
+// }
