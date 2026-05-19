@@ -18,7 +18,6 @@ import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
 public class CargoRepository {
-
   private final JdbcTemplate jdbcTemplate;
 
   public CargoRepository(JdbcTemplate jdbcTemplate) {

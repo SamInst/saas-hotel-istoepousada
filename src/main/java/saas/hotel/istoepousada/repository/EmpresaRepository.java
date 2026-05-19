@@ -9,18 +9,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import saas.hotel.istoepousada.dto.Empresa;
-import saas.hotel.istoepousada.dto.Funcionario;
-import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
 public class EmpresaRepository {
   private final JdbcTemplate jdbcTemplate;
-  private final PessoaRepository pessoaRepository;
 
-  public EmpresaRepository(JdbcTemplate jdbcTemplate, PessoaRepository pessoaRepository) {
+  public EmpresaRepository(JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
-    this.pessoaRepository = pessoaRepository;
   }
 
   public Page<Empresa> findByIdNomeOuCnpj(Long id, String termo, Pageable pageable) {
@@ -91,37 +87,7 @@ public class EmpresaRepository {
 
     List<Empresa> empresas = jdbcTemplate.query(sql, Empresa.ROW_MAPPER, query_params.toArray());
 
-    List<Empresa> content =
-        empresas.stream()
-            .map(
-                empresa -> {
-                  List<Pessoa> pessoas_vinculadas =
-                      pessoaRepository.findPessoasByEmpresaId(empresa.id());
-                  return new Empresa(
-                      empresa.id(),
-                      empresa.data_hora_registro(),
-                      empresa.razao_social(),
-                      empresa.nome_fantasia(),
-                      empresa.cnpj(),
-                      empresa.telefone(),
-                      empresa.email(),
-                      empresa.endereco(),
-                      empresa.cep(),
-                      empresa.numero(),
-                      empresa.complemento(),
-                      empresa.pais(),
-                      empresa.estado(),
-                      empresa.municipio(),
-                      empresa.bairro(),
-                      empresa.tipo_empresa(),
-                      empresa.status(),
-                      new Funcionario.Nome(
-                          empresa.funcionario().id(), empresa.funcionario().nome()),
-                      pessoas_vinculadas);
-                })
-            .toList();
-
-    return new PageImpl<>(content, pageable, total);
+    return new PageImpl<>(empresas, pageable, total);
   }
 
   public Optional<Empresa> findById(Long id) {
@@ -131,7 +97,7 @@ public class EmpresaRepository {
     return Optional.of(page.getContent().getFirst());
   }
 
-  public Empresa create(Empresa.Request empresa) {
+  public Empresa create(Empresa.Request empresa, Long funcionarioId) {
     var empresa_id =
         jdbcTemplate.queryForObject(
             """
@@ -171,12 +137,12 @@ public class EmpresaRepository {
             empresa.razao_social(),
             empresa.nome_fantasia(),
             empresa.tipo_empresa(),
-            getFuncionarioIdLogado());
+            funcionarioId);
 
     return findByIdNomeOuCnpj(empresa_id, null, Pageable.ofSize(1)).getContent().getFirst();
   }
 
-  public Empresa update(Empresa.Update empresa) {
+  public Empresa update(Empresa.Update empresa, Long funcionarioId) {
     String sql =
         """
         UPDATE empresa SET
@@ -219,7 +185,7 @@ public class EmpresaRepository {
         empresa.bairro(),
         empresa.tipo_empresa(),
         status,
-        getFuncionarioIdLogado(),
+        funcionarioId,
         empresa.id());
 
     return findByIdNomeOuCnpj(empresa.id(), null, Pageable.ofSize(1)).getContent().getFirst();
@@ -234,7 +200,4 @@ public class EmpresaRepository {
     jdbcTemplate.update(sql, vinculo.empresa().id(), vinculo.pessoa().id());
   }
 
-  public Long getFuncionarioIdLogado() {
-    return pessoaRepository.getFuncionarioIdFromRequest();
-  }
 }

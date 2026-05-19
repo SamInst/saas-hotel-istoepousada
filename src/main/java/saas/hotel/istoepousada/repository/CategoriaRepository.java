@@ -25,13 +25,10 @@ import java.util.*;
 @Slf4j
 @Repository
 public class CategoriaRepository {
-
     private final JdbcTemplate jdbcTemplate;
-    private final PessoaRepository pessoaRepository;
 
-    public CategoriaRepository(JdbcTemplate jdbcTemplate, PessoaRepository pessoaRepository) {
+    public CategoriaRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.pessoaRepository = pessoaRepository;
     }
 
     // ── Busca ─────────────────────────────────────────────────────────────────
@@ -193,8 +190,7 @@ public class CategoriaRepository {
 
     // ── Insert completo ───────────────────────────────────────────────────────
 
-    @Transactional
-    public Categoria insert(Categoria.Request request) {
+    public Categoria insert(Categoria.Request request, Long funcionarioId) {
         Long categoriaId =
                 jdbcTemplate.queryForObject(
                         """
@@ -203,7 +199,7 @@ public class CategoriaRepository {
                                 RETURNING id
                                 """,
                         Long.class,
-                        getFuncionarioId(),
+                        funcionarioId,
                         request.nome().trim(),
                         request.descricao(),
                         request.hora_checkin(),
@@ -218,15 +214,15 @@ public class CategoriaRepository {
                 request.day_use(),
                 request.fk_quartos(),
                 request.fk_sazonalidades(),
-                request.menores_idade());
+                request.menores_idade(),
+                funcionarioId);
 
         return findByIdOrThrow(categoriaId);
     }
 
     // ── Update completo ───────────────────────────────────────────────────────
 
-    @Transactional
-    public Categoria update(Categoria.Update request) {
+    public Categoria update(Categoria.Update request, Long funcionarioId) {
         findByIdOrThrow(request.id());
 
         int rows =
@@ -259,7 +255,8 @@ public class CategoriaRepository {
                 request.day_use(),
                 request.fk_quartos(),
                 request.fk_sazonalidades(),
-                request.menores_idade());
+                request.menores_idade(),
+                funcionarioId);
 
         return findByIdOrThrow(request.id());
     }
@@ -274,9 +271,10 @@ public class CategoriaRepository {
             List<Categoria.DayUseOperacao.Input> dayUse,
             List<Long> fkQuartos,
             List<Long> fkSazonalidades,
-            List<Categoria.MenorIdade.Input> menoresIdade) {
+            List<Categoria.MenorIdade.Input> menoresIdade,
+            Long funcionarioId) {
 
-        Long fkFunc = getFuncionarioId();
+        Long fkFunc = funcionarioId;
 
         if (modelosOcupacao != null) {
             for (var mo : modelosOcupacao) {
@@ -1042,8 +1040,6 @@ public class CategoriaRepository {
         return map;
     }
 
-    // ── Regras de menor idade próprias de sazonalidade (fk_categoria IS NULL) ─
-
     public Map<Long, List<Categoria.MenorIdade>> findSazonMenoresIdade(List<Long> sazonIds) {
         if (sazonIds == null || sazonIds.isEmpty()) return Map.of();
 
@@ -1120,12 +1116,6 @@ public class CategoriaRepository {
         return map;
     }
 
-    // ── Utilitário ────────────────────────────────────────────────────────────
-
-    /**
-     * Verifica se algum dos quartos já pertence a uma categoria diferente de categoriaId. No INSERT,
-     * categoriaId é null (categoria ainda não existe) → qualquer vínculo existente é erro.
-     */
     private void validarQuartosDisponiveis(List<Long> fkQuartos, Long categoriaId) {
         if (fkQuartos == null || fkQuartos.isEmpty()) return;
 
@@ -1163,10 +1153,6 @@ public class CategoriaRepository {
             throw new IllegalArgumentException(
                     "Os seguintes quartos já pertencem a outra categoria: " + String.join(", ", ocupados));
         }
-    }
-
-    private Long getFuncionarioId() {
-        return pessoaRepository.getFuncionarioIdFromRequest();
     }
 
     public Map<Long, List<Categoria.ModeloOcupacao>> buscaModeloPrecoPorOcupacaoSazonalidade(List<Long> sazonIds) {
@@ -1221,17 +1207,19 @@ public class CategoriaRepository {
         if (sazonIds == null || sazonIds.isEmpty()) return Map.of();
         String in = String.join(",", Collections.nCopies(sazonIds.size(), "?"));
 
-        // Step 1: operacoes
         Map<Long, Long> operacaoSazonMap = new LinkedHashMap<>();
         Map<Long, Boolean> operacaoAtivoMap = new LinkedHashMap<>();
         jdbcTemplate.query(
                 ("""
-                        SELECT duo.id AS duo_id, duo.fk_sazonalidade AS duo_fk_sazonalidade, duo.ativo AS duo_ativo
-                        FROM public.day_use_modelo_operacao duo
-                        WHERE duo.fk_sazonalidade IN (%s) AND duo.fk_categoria IS NULL
-                        ORDER BY duo.fk_sazonalidade, duo.id
-                        """)
-                        .formatted(in),
+                SELECT
+                 duo.id AS duo_id,
+                 duo.fk_sazonalidade AS duo_fk_sazonalidade, 
+                 duo.ativo AS duo_ativo
+                FROM public.day_use_modelo_operacao duo
+                WHERE duo.fk_sazonalidade IN (%s) AND duo.fk_categoria IS NULL
+                ORDER BY duo.fk_sazonalidade, duo.id
+                """)
+                .formatted(in),
                 rs -> {
                     operacaoSazonMap.put(rs.getLong("duo_id"), rs.getLong("duo_fk_sazonalidade"));
                     operacaoAtivoMap.put(rs.getLong("duo_id"), rs.getBoolean("duo_ativo"));
@@ -1459,40 +1447,40 @@ public class CategoriaRepository {
             return null;
         }
     }
-    public float calcularValorTotal(
-            Long categoriaId,
-            LocalDate dataEntrada,
-            int diarias,
-            int quantidadePessoas) {
-        long inicio = System.currentTimeMillis();
-
-        List<Sazonalidade> sazonalidades = buscarSazonalidadesAtivas(categoriaId);
-        List<Long> sazonIds = sazonalidades.stream().map(Sazonalidade::id).toList();
-        Map<Long, List<Categoria.ModeloOcupacao>> modelosOcupacao =
-                sazonIds.isEmpty() ? Map.of() : buscaModeloPrecoPorOcupacaoSazonalidade(sazonIds);
-        Map<Long, List<Categoria.ModeloFixo>> modelosFixo = sazonIds.isEmpty() ? Map.of() : buscaModeloPrecoFixoSazonalidade(sazonIds);
-        Categoria categoria = findCategoriasParaCalculo(List.of(categoriaId))
-                .getOrDefault(categoriaId, null);
-        if (categoria == null) return 0f;
-
-        float total = 0f;
-        for (int i = 0; i < diarias; i++) {
-            total +=
-                    (float)
-                            calcularPrecoDiaria(
-                                    dataEntrada.plusDays(i),
-                                    categoria,
-                                    sazonalidades,
-                                    modelosOcupacao,
-                                    modelosFixo,
-                                    quantidadePessoas);
-        }
-
-        log.info("calcularValorTotal — categoria={} diarias={} pessoas={} total={} tempo={}ms",
-                categoriaId, diarias, quantidadePessoas, total, System.currentTimeMillis() - inicio);
-
-        return total;
-    }
+//    public float calcularValorTotal(
+//            Long categoriaId,
+//            LocalDate dataEntrada,
+//            int diarias,
+//            int quantidadePessoas) {
+//        long inicio = System.currentTimeMillis();
+//
+//        List<Sazonalidade> sazonalidades = buscarSazonalidadesAtivas(categoriaId);
+//        List<Long> sazonIds = sazonalidades.stream().map(Sazonalidade::id).toList();
+//        Map<Long, List<Categoria.ModeloOcupacao>> modelosOcupacao =
+//                sazonIds.isEmpty() ? Map.of() : buscaModeloPrecoPorOcupacaoSazonalidade(sazonIds);
+//        Map<Long, List<Categoria.ModeloFixo>> modelosFixo = sazonIds.isEmpty() ? Map.of() : buscaModeloPrecoFixoSazonalidade(sazonIds);
+//        Categoria categoria = findCategoriasParaCalculo(List.of(categoriaId))
+//                .getOrDefault(categoriaId, null);
+//        if (categoria == null) return 0f;
+//
+//        float total = 0f;
+//        for (int i = 0; i < diarias; i++) {
+//            total +=
+//                    (float)
+//                            calcularPrecoDiaria(
+//                                    dataEntrada.plusDays(i),
+//                                    categoria,
+//                                    sazonalidades,
+//                                    modelosOcupacao,
+//                                    modelosFixo,
+//                                    quantidadePessoas);
+//        }
+//
+//        log.info("calcularValorTotal — categoria={} diarias={} pessoas={} total={} tempo={}ms",
+//                categoriaId, diarias, quantidadePessoas, total, System.currentTimeMillis() - inicio);
+//
+//        return total;
+//    }
 
     public Map<Long, List<Sazonalidade>> findSazonalidades(List<Long> categoriaIds) {
         if (categoriaIds == null || categoriaIds.isEmpty()) return Map.of();
@@ -1500,8 +1488,17 @@ public class CategoriaRepository {
         Map<Long, List<Sazonalidade>> map = new LinkedHashMap<>();
         jdbcTemplate.query(
                 ("""
-        SELECT cs.fk_categoria, s.id, s.descricao, s.data_inicio, s.data_fim,
-               s.hora_checkin, s.hora_checkout, s.semanal, s.mensal, s.anual
+        SELECT
+        cs.fk_categoria,
+        s.id, 
+        s.descricao, 
+        s.data_inicio, 
+        s.data_fim,
+        s.hora_checkin, 
+        s.hora_checkout, 
+        s.semanal, 
+        s.mensal, 
+        s.anual
         FROM public.categoria_sazonalidade cs
         JOIN public.sazonalidade s ON s.id = cs.fk_sazonalidade
         WHERE cs.fk_categoria IN (%s) AND cs.ativo = true
@@ -1517,11 +1514,20 @@ public class CategoriaRepository {
                                                         rs.getString("descricao"),
                                                         rs.getObject("data_inicio", LocalDate.class),
                                                         rs.getObject("data_fim", LocalDate.class),
-                                                        rs.getObject("hora_checkin", LocalTime.class),
-                                                        rs.getObject("hora_checkout", LocalTime.class),
+                                                        rs.getObject("diario_hora_inicio_ciclo", LocalTime.class),
+                                                        rs.getObject("diario_hora_fim_ciclo", LocalTime.class),
                                                         parseIntArray(rs.getArray("semanal")),
                                                         parseIntArray(rs.getArray("mensal")),
-                                                        parseIntArray(rs.getArray("anual")))),
+                                                        parseIntArray(rs.getArray("anual")),
+                                                        rs.getObject("hora_checkin", LocalTime.class),
+                                                        rs.getObject("hora_checkout", LocalTime.class),
+                                                        null,
+                                                        null,
+                                                        null,
+                                                        null,
+                                                        null
+                                                )
+                                        ),
                 categoriaIds.toArray());
         return map;
     }

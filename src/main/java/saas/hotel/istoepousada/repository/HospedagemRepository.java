@@ -21,13 +21,9 @@ import java.util.stream.Collectors;
 @Repository
 public class HospedagemRepository {
     private final JdbcTemplate jdbcTemplate;
-    private final PessoaRepository pessoaRepository;
 
-    public HospedagemRepository(
-            JdbcTemplate jdbcTemplate,
-            PessoaRepository pessoaRepository) {
+    public HospedagemRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.pessoaRepository = pessoaRepository;
     }
 
     private static final String SELECT_HOSPEDAGEM =
@@ -100,7 +96,7 @@ public class HospedagemRepository {
         }
     }
 
-    public List<Long> adicionarOrcamentos(Long hospedagemId, List<Orcamento.Request> requests) {
+    public List<Long> adicionarOrcamentos(Long hospedagemId, List<Orcamento.Request> requests, Long funcionarioId) {
         List<Long> orcamentosIds = new ArrayList<>();
 
         requests.forEach(request -> {
@@ -112,7 +108,7 @@ public class HospedagemRepository {
                 VALUES (?, ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
                 ps.setString(1, request.nome_solicitante());
-                ps.setLong(2, getFuncionarioId());
+                ps.setLong(2, funcionarioId);
                 ps.setLong(3, request.categoria().id());
                 ps.setString(4, request.observacao());
                 ps.setObject(5, request.checkin());
@@ -237,7 +233,7 @@ public class HospedagemRepository {
                 pessoas);
     }
 
-    public Hospedagem insertHospedagem(Hospedagem.Request request){
+    public Hospedagem insertHospedagem(Hospedagem.Request request, Long funcionarioId){
         var hospedagem_id = jdbcTemplate.queryForObject("""
             insert into hospedagem (
                 fk_funcionario,
@@ -251,7 +247,7 @@ public class HospedagemRepository {
             returning id;
         """,
                 Long.class,
-                getFuncionarioId(),
+                funcionarioId,
                 request.data_hora_checkin(),
                 request.data_hora_checkout(),
                 request.valor_total(),
@@ -336,7 +332,7 @@ public class HospedagemRepository {
     }
 
 
-    public void adicionarConsumo(Long hospedagemId, Item.Consumo.Request request, UUID finalPagamentoId) {
+    public void adicionarConsumo(Long hospedagemId, Item.Consumo.Request request, UUID finalPagamentoId, Long funcionarioId) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
         jdbcTemplate.update(con -> {
@@ -344,7 +340,7 @@ public class HospedagemRepository {
                 INSERT INTO consumo (fk_funcionario, fk_pagamento, fk_item, quantidade, despesa_pessoal, fk_quarto)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """, Statement.RETURN_GENERATED_KEYS);
-            ps.setLong(1, getFuncionarioId());
+            ps.setLong(1, funcionarioId);
             ps.setObject(2, finalPagamentoId);
             ps.setLong(3, request.item().id());
             ps.setFloat(4, request.quantidade());
@@ -542,13 +538,13 @@ public class HospedagemRepository {
         return hospedagemConflito;
     }
 
-    public void adicionarMotivoCancelamento(MotivoCancelamentoHospedagem.Request request) {
+    public void adicionarMotivoCancelamento(MotivoCancelamentoHospedagem.Request request, Long funcionarioId) {
         jdbcTemplate.update("""
             INSERT INTO hospedagem_motivo_cancelamento (motivo_cancelamento, fk_funcionario, data_hora_registro, fk_hospedagem)
             VALUES (?, ?, now(), ?)
             """,
                 request.motivo_cancelamento(),
-                getFuncionarioId(),
+                funcionarioId,
                 request.fk_hospedagem());
     }
 
@@ -604,7 +600,9 @@ public class HospedagemRepository {
                   AND d.checkout::date > ?
                 ORDER BY d.fk_quarto, h.data_hora_checkin DESC
                 """,
-                rs -> quartoParaHospedagem.put(rs.getLong("quarto_id"), rs.getLong("hospedagem_id")),
+                rs -> {
+                    quartoParaHospedagem.put(rs.getLong("quarto_id"), rs.getLong("hospedagem_id"));
+                },
                 data, data);
 
         if (quartoParaHospedagem.isEmpty()) return Map.of();
@@ -638,7 +636,4 @@ public class HospedagemRepository {
         return count != null && count > 0;
     }
 
-    public Long getFuncionarioId(){
-       return pessoaRepository.getFuncionarioIdFromRequest();
-    }
 }

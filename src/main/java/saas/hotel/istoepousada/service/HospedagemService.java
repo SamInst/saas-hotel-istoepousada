@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.repository.HospedagemRepository;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -19,14 +18,16 @@ public class HospedagemService {
     private final PagamentoService pagamentoService;
     private final PessoaService pessoaService;
     private final CalcularPrecoService calcularPrecoService;
-    private final CategoriaService categoriaService;
 
-    public HospedagemService(HospedagemRepository hospedagemRepository, PagamentoService pagamentoService, PessoaService pessoaService, CalcularPrecoService calcularPrecoService, CategoriaService categoriaService) {
+    public HospedagemService(
+            HospedagemRepository hospedagemRepository,
+            PagamentoService pagamentoService,
+            PessoaService pessoaService,
+            CalcularPrecoService calcularPrecoService) {
         this.hospedagemRepository = hospedagemRepository;
         this.pagamentoService = pagamentoService;
         this.pessoaService = pessoaService;
         this.calcularPrecoService = calcularPrecoService;
-        this.categoriaService = categoriaService;
     }
 
     public Boolean isQuartoDisponivel(
@@ -191,7 +192,7 @@ public class HospedagemService {
             throw new NotFoundException("Hospedagem não encontrada para o id: " + hospedagemId);
         }
         validarCamposOrcamento(requests, false);
-        return hospedagemRepository.adicionarOrcamentos(hospedagemId, requests);
+        return hospedagemRepository.adicionarOrcamentos(hospedagemId, requests, getFuncionarioId());
     }
 
     private void validarCamposOrcamento(List<Orcamento.Request> requests, Boolean isUpdate) {
@@ -272,6 +273,10 @@ public class HospedagemService {
         hospedagemRepository.adicionarHospedagemPagamento(hospedagemId, pagamentosUUID);
     }
 
+    private Long getFuncionarioId() {
+        return pessoaService.getFuncionarioIdFromRequest();
+    }
+
     private void validarCampos(Hospedagem.Request request) {
         validarCampoPessoas(request);
         validarCamposPagamento(request);
@@ -324,7 +329,7 @@ public class HospedagemService {
                         request.data_hora_checkout(),
                         null
                 );
-                hospedagem = hospedagemRepository.insertHospedagem(request);
+                hospedagem = hospedagemRepository.insertHospedagem(request, getFuncionarioId());
             } else {
 
                 hospedagem = hospedagemRepository.buscarPorId(request.hospedagem_id());
@@ -438,7 +443,7 @@ public class HospedagemService {
 
     public void adicionarMotivoCancelamento(MotivoCancelamentoHospedagem.Request request) {
         validarCamposMotivoCancelamento(request, false);
-        hospedagemRepository.adicionarMotivoCancelamento(request);
+        hospedagemRepository.adicionarMotivoCancelamento(request, getFuncionarioId());
         log.info("Motivo cancelamento: [{}]", request.motivo_cancelamento());
     }
 
@@ -473,7 +478,7 @@ public class HospedagemService {
         if (request.pagamento() != null) {
             pagamentoId = pagamentoService.criar(request.pagamento()).uuid();
         }
-        hospedagemRepository.adicionarConsumo(hospedagemId, request, pagamentoId);
+        hospedagemRepository.adicionarConsumo(hospedagemId, request, pagamentoId, getFuncionarioId());
     }
 
     public void editarConsumo(Item.Consumo.Request request) {

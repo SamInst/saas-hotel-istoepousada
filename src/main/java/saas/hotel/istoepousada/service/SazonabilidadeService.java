@@ -12,26 +12,29 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import saas.hotel.istoepousada.dto.Sazonalidade;
 import saas.hotel.istoepousada.handler.exceptions.ConflictException;
-import saas.hotel.istoepousada.repository.SazonabilidadeRepository;
+import saas.hotel.istoepousada.repository.SazonalidadeRepository;
 
 @Service
 public class SazonabilidadeService {
 
-  private final SazonabilidadeRepository sazonabilidadeRepository;
+  private final SazonalidadeRepository sazonalidadeRepository;
+  private final PessoaService pessoaService;
 
-  public SazonabilidadeService(SazonabilidadeRepository sazonabilidadeRepository) {
-    this.sazonabilidadeRepository = sazonabilidadeRepository;
+  public SazonabilidadeService(
+      SazonalidadeRepository sazonalidadeRepository, PessoaService pessoaService) {
+    this.sazonalidadeRepository = sazonalidadeRepository;
+    this.pessoaService = pessoaService;
   }
 
   public Page<Sazonalidade> buscar(Long id, String termo, Pageable pageable) {
     if (pageable == null) throw new IllegalArgumentException("Pageable é obrigatório.");
-    return sazonabilidadeRepository.buscar(
+    return sazonalidadeRepository.buscar(
         id, StringUtils.hasText(termo) ? termo.trim() : null, pageable);
   }
 
   public Sazonalidade buscarPorId(Long id) {
     if (id == null) throw new IllegalArgumentException("Id é obrigatório.");
-    return sazonabilidadeRepository.findByIdOrThrow(id);
+    return sazonalidadeRepository.findByIdOrThrow(id);
   }
 
   @Transactional
@@ -43,7 +46,7 @@ public class SazonabilidadeService {
         verificarConflitos(temp, catId, null);
       }
     }
-    return sazonabilidadeRepository.insert(request);
+    return sazonalidadeRepository.insert(request, getFuncionarioId());
   }
 
   @Transactional
@@ -58,7 +61,7 @@ public class SazonabilidadeService {
     if (request.fk_categorias() != null) {
       categoriasParaVerificar = request.fk_categorias();
     } else {
-      Sazonalidade existente = sazonabilidadeRepository.findByIdOrThrow(request.id());
+      Sazonalidade existente = sazonalidadeRepository.findByIdOrThrow(request.id());
       categoriasParaVerificar =
           existente.categorias() == null
               ? List.of()
@@ -69,7 +72,7 @@ public class SazonabilidadeService {
       verificarConflitos(temp, catId, request.id());
     }
 
-    return sazonabilidadeRepository.update(request);
+    return sazonalidadeRepository.update(request, getFuncionarioId());
   }
 
   @Transactional
@@ -78,20 +81,20 @@ public class SazonabilidadeService {
       throw new IllegalArgumentException("fk_sazonalidade é obrigatório.");
     if (request.fk_categoria() == null)
       throw new IllegalArgumentException("fk_categoria é obrigatório.");
-    Sazonalidade sazon = sazonabilidadeRepository.findByIdOrThrow(request.fk_sazonalidade());
+    Sazonalidade sazon = sazonalidadeRepository.findByIdOrThrow(request.fk_sazonalidade());
     verificarConflitos(sazon, request.fk_categoria(), sazon.id());
-    sazonabilidadeRepository.vincular(request.fk_sazonalidade(), request.fk_categoria());
+    sazonalidadeRepository.vincular(request.fk_sazonalidade(), request.fk_categoria(), getFuncionarioId());
   }
 
   public void toggleAtivo(Sazonalidade.VinculoCategoriaToggle request) {
     if (request.id() == null) throw new IllegalArgumentException("Id é obrigatório.");
     if (request.ativo() == null) throw new IllegalArgumentException("Ativo é obrigatório.");
-    sazonabilidadeRepository.toggleAtivo(request.id(), request.ativo());
+    sazonalidadeRepository.toggleAtivo(request.id(), request.ativo());
   }
 
   public void removerVinculo(Long id) {
     if (id == null) throw new IllegalArgumentException("Id é obrigatório.");
-    sazonabilidadeRepository.removerVinculo(id);
+    sazonalidadeRepository.removerVinculo(id);
   }
 
   // ── Validações ────────────────────────────────────────────────────────────
@@ -174,7 +177,7 @@ public class SazonabilidadeService {
 
   private void verificarConflitos(Sazonalidade nova, Long fkCategoria, Long excludeSazonId) {
     List<Sazonalidade> existentes =
-        sazonabilidadeRepository.buscarAtivosParaCategoria(fkCategoria, excludeSazonId);
+        sazonalidadeRepository.buscarAtivosParaCategoria(fkCategoria, excludeSazonId);
     for (Sazonalidade existente : existentes) {
       verificarConflito(nova, existente);
     }
@@ -323,5 +326,9 @@ public class SazonabilidadeService {
         null,
         null,
         null);
+  }
+
+  private Long getFuncionarioId() {
+    return pessoaService.getFuncionarioIdFromRequest();
   }
 }

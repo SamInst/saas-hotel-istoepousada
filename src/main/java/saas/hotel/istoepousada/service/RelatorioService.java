@@ -20,14 +20,17 @@ public class RelatorioService {
   private final RelatorioRepository relatorioRepository;
   private final ArquivoService arquivoService;
   private final PagamentoRepository pagamentoRepository;
+  private final PessoaService pessoaService;
 
   public RelatorioService(
       RelatorioRepository relatorioRepository,
       ArquivoService arquivoService,
-      PagamentoRepository pagamentoRepository) {
+      PagamentoRepository pagamentoRepository,
+      PessoaService pessoaService) {
     this.relatorioRepository = relatorioRepository;
     this.arquivoService = arquivoService;
     this.pagamentoRepository = pagamentoRepository;
+    this.pessoaService = pessoaService;
   }
 
   public Relatorio.Extrato buscar(
@@ -57,7 +60,8 @@ public class RelatorioService {
   @Transactional
   public Relatorio criar(Relatorio.Request relatorio, MultipartFile arquivo) throws IOException {
     validarRequest(relatorio);
-    var novoRelatorio = relatorioRepository.insert(relatorio);
+    var pagamento = pagamentoRepository.create(relatorio.pagamento(), getFuncionarioId());
+    var novoRelatorio = relatorioRepository.insert(relatorio, pagamento, getFuncionarioId());
     log.info("Relatório criado com sucesso: {}", novoRelatorio.id());
 
     if (arquivo != null) {
@@ -82,25 +86,29 @@ public class RelatorioService {
       novoPath = arquivoService.salvarComprovante(arquivo);
       arquivoService.setPath(novoPath, relatorio.pagamento().uuid());
     }
+    var pagamentoUpdate =
+        new Pagamento.Update(
+            relatorio.pagamento().uuid(),
+            new Pagamento.TipoPagamento.Id(relatorio.pagamento().tipo_pagamento().id()),
+            relatorio.pagamento().nome_pagador(),
+            relatorio.pagamento().descricao(),
+            relatorio.pagamento().valor(),
+            relatorio.pagamento().arquivo());
+    if (relatorio.pagamento().valor() != null) {
+      pagamentoRepository.update(pagamentoUpdate, getFuncionarioId());
+    }
     return relatorioRepository.update(
         new Relatorio.Update(
             relatorio.id(),
             relatorio.descricao(),
-            new Pagamento.Update(
-                relatorio.pagamento().uuid(),
-                new Pagamento.TipoPagamento.Id(relatorio.pagamento().tipo_pagamento().id()),
-                relatorio.pagamento().nome_pagador(),
-                relatorio.pagamento().descricao(),
-                relatorio.pagamento().valor(),
-                relatorio.pagamento().desconto() == null
-                    ? null
-                    : new Pagamento.Desconto.Update(
-                        relatorio.pagamento().desconto().uuid(),
-                        relatorio.pagamento().desconto().porcentagem(),
-                        relatorio.pagamento().desconto().valor()),
-                relatorio.pagamento().arquivo()),
+            pagamentoUpdate,
             relatorio.quarto() == null ? null : new Quarto.Id(relatorio.quarto().id()),
-            relatorio.despesa_pessoal()));
+            relatorio.despesa_pessoal()),
+        getFuncionarioId());
+  }
+
+  private Long getFuncionarioId() {
+    return pessoaService.getFuncionarioIdFromRequest();
   }
 
   private void validarRequest(Relatorio.Request request) {

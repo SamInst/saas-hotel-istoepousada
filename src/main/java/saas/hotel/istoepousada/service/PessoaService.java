@@ -318,6 +318,10 @@ public class PessoaService {
     }
   }
 
+  public Long getFuncionarioIdFromRequest() {
+    return pessoaRepository.getFuncionarioIdFromRequest();
+  }
+
   public void vincularTitular(Pessoa.VinculoTitular vinculo) {
     pessoaRepository.vincularTitular(vinculo);
   }

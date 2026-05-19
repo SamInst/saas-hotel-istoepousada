@@ -51,12 +51,12 @@ public class CategoriaController {
     return categoriaService.atualizar(request);
   }
 
-  @GetMapping("/calcular")
-  public float calcularValorTotal(
-          @RequestParam Long categoriaId,
-          @RequestParam LocalDate dataEntrada,
-          @RequestParam int diarias,
-          @RequestParam int quantidadePessoas) {
-    return categoriaService.calcularValorTotal(categoriaId, dataEntrada, diarias, quantidadePessoas);
-  }
+//  @GetMapping("/calcular")
+//  public float calcularValorTotal(
+//          @RequestParam Long categoriaId,
+//          @RequestParam LocalDate dataEntrada,
+//          @RequestParam int diarias,
+//          @RequestParam int quantidadePessoas) {
+//    return categoriaService.calcularValorTotal(categoriaId, dataEntrada, diarias, quantidadePessoas);
+//  }
 }

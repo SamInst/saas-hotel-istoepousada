@@ -5,7 +5,6 @@ import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.handler.exceptions.BusinessException;
 import saas.hotel.istoepousada.repository.CategoriaRepository;
-import saas.hotel.istoepousada.repository.QuartoRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,11 +16,11 @@ import java.util.stream.Collectors;
 @Service
 public class CalcularPrecoService {
     private final CategoriaRepository categoriaRepository;
-    private final QuartoRepository quartoRepository;
+    private final QuartoService quartoService;
 
-    public CalcularPrecoService(CategoriaRepository categoriaRepository, QuartoRepository quartoRepository) {
+    public CalcularPrecoService(CategoriaRepository categoriaRepository, QuartoService quartoService) {
         this.categoriaRepository = categoriaRepository;
-        this.quartoRepository = quartoRepository;
+        this.quartoService = quartoService;
     }
 
     @Transactional(readOnly = true)
@@ -85,12 +84,12 @@ public class CalcularPrecoService {
         Map<Long, Categoria.DayUseOperacao> sazonDayUse = (temDayUse && !sazonalidadeIds.isEmpty()) ?
                 categoriaRepository.buscaDayUseSazonalidade(sazonalidadeIds) : Map.of();
 
-        Map<Long, String> quartosDescricao = quartoRepository.findQuartosDescricao(quartoIds);
+        Map<Long, String> quartosDescricao = quartoService.findQuartosDescricao(quartoIds);
 
         return resolved.stream()
                 .map(
                         req -> {
-                            ReservaRepository.CategoriaCheckin catInfo = catInfoMap.get(req.fk_quarto());
+                            CategoriaCheckin catInfo = catInfoMap.get(req.fk_quarto());
                             return calcularPrecoUnico(
                                     req,
                                     catInfo,
@@ -135,9 +134,9 @@ public class CalcularPrecoService {
 
     private CalcularPreco.Resultado calcularPrecoUnico(
             CalcularPreco request,
-            ReservaRepository.CategoriaCheckin categoriaCheckin,
+            CategoriaCheckin categoriaCheckin,
             Categoria categoria,
-            List<ReservaRepository.Sazonalidade> sazonalidades,
+            List<Sazonalidade> sazonalidades,
             Map<Long, List<Categoria.ModeloOcupacao>> sazonalidadeModelosPrecoPorOcupacao,
             Map<Long, List<Categoria.ModeloFixo>> sazonalidadeModelosPrecoFixo,
             Map<Long, List<Categoria.MenorIdade>> sazonalidadeMenoresIdade,
@@ -330,9 +329,9 @@ public class CalcularPrecoService {
 
     private CalcularPreco.Resultado calcularDayUseUnico(
             CalcularPreco req,
-            ReservaRepository.CategoriaCheckin catInfo,
+            CategoriaCheckin catInfo,
             Categoria categoria,
-            List<ReservaRepository.Sazonalidade> sazonalidades,
+            List<Sazonalidade> sazonalidades,
             Map<Long, Categoria.DayUseOperacao> sazonDayUse,
             String quartoDesc) {
         LocalDateTime horaInicio = req.hora_inicio();
@@ -507,21 +506,21 @@ public class CalcularPrecoService {
     }
 
     private Long findActiveSazonalidade(
-            List<ReservaRepository.Sazonalidade> sazonalidades, LocalDate date) {
+            List<Sazonalidade> sazonalidades, LocalDate date) {
 
         // Sazonalidade de range de data é soberana: tem prioridade sobre qualquer outra.
         // Um período com dataInicio ou dataFim nulo representa range aberto (sem início ou sem fim).
-        for (ReservaRepository.Sazonalidade s : sazonalidades) {
-            boolean isPeriodo = s.dataInicio() != null || s.dataFim() != null;
+        for (Sazonalidade s : sazonalidades) {
+            boolean isPeriodo = s.data_inicio() != null || s.data_fim() != null;
             if (!isPeriodo) continue;
             boolean inRange =
-                    (s.dataInicio() == null || !date.isBefore(s.dataInicio()))
-                            && (s.dataFim() == null || !date.isAfter(s.dataFim()));
+                    (s.data_fim() == null || !date.isBefore(s.data_inicio()))
+                            && (s.data_fim() == null || !date.isAfter(s.data_fim()));
             if (inRange) return s.id();
         }
 
         // Sem range de data: aplica semanal, mensal ou anual (primeira que bater)
-        for (ReservaRepository.Sazonalidade s : sazonalidades) {
+        for (Sazonalidade s : sazonalidades) {
             boolean appliesSemanal =
                     s.semanal() != null
                             && !s.semanal().isEmpty()

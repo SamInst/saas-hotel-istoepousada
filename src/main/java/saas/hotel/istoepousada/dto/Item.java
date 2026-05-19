@@ -83,7 +83,7 @@ public record Item(@NotNull Long id, String descricao) {
         Long id,
         Pagamento.Request pagamento,
         @NotNull Item.Id item,
-        @NotNull Float quantidade,
+        @NotNull Integer quantidade,
         Boolean despesa_pessoal,
         Quarto.Id quarto) {}
 

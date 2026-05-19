@@ -1,26 +1,40 @@
 package saas.hotel.istoepousada.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import saas.hotel.istoepousada.dto.Hospedagem;
 import saas.hotel.istoepousada.dto.Quarto;
 import saas.hotel.istoepousada.dto.Recepcao;
+import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 import saas.hotel.istoepousada.repository.QuartoRepository;
+import saas.hotel.istoepousada.repository.QuartoRepository.QuartoComCategoria;
 
 @Service
 public class QuartoService {
-
   private final QuartoRepository quartoRepository;
+  private final ItemService itemService;
+  private final HospedagemService hospedagemService;
+  private final PessoaService pessoaService;
 
-  public QuartoService(QuartoRepository quartoRepository) {
+  public QuartoService(
+      QuartoRepository quartoRepository,
+      ItemService itemService,
+      HospedagemService hospedagemService,
+      PessoaService pessoaService) {
     this.quartoRepository = quartoRepository;
+    this.itemService = itemService;
+    this.hospedagemService = hospedagemService;
+    this.pessoaService = pessoaService;
   }
-
-  // ── Buscar / CRUD quarto ─────────────────────────────────────────────────────
 
   public Page<Quarto> buscar(Long id, String termo, Quarto.Status status, Pageable pageable) {
     if (pageable == null) throw new IllegalArgumentException("pageable é obrigatório.");
@@ -31,32 +45,79 @@ public class QuartoService {
   @Transactional
   public Quarto criar(Quarto.Request quarto) {
     validarRequest(quarto);
-    return quartoRepository.insert(quarto);
+    var novoQuarto = quartoRepository.insert(quarto);
+    quartoRepository.vincularCategoriaAtiva(novoQuarto.id(), quarto.categoria().id(), getFuncionarioId());
+    return novoQuarto;
   }
 
   @Transactional
   public Quarto atualizar(Quarto.Update quarto) {
     validarUpdate(quarto);
-    return quartoRepository.update(quarto);
+    var updatedQuarto = quartoRepository.update(quarto);
+    quartoRepository.atualizarCategoriaAtiva(quarto.id(), quarto.categoria().id(), getFuncionarioId());
+    return updatedQuarto;
   }
 
   @Transactional
   public Quarto alterarStatus(Long id, Quarto.Status status) {
     if (id == null) throw new IllegalArgumentException("ID do quarto é obrigatório.");
     if (status == null) throw new IllegalArgumentException("Status é obrigatório.");
-    quartoRepository.findByIdOrThrow(id);
     quartoRepository.updateStatus(id, status);
     return quartoRepository.findByIdOrThrow(id);
   }
 
-  // ── Recepção ─────────────────────────────────────────────────────────────────
-
   public Recepcao.QuartoData buscarRecepcao(LocalDate data) {
     if (data == null) data = LocalDate.now();
-    return quartoRepository.buscarRecepcao(data);
-  }
 
-  // ── Itens ─────────────────────────────────────────────────────────────────────
+    List<QuartoComCategoria> quartoRows = quartoRepository.buscarQuartosComCategoria();
+    Map<Long, Quarto.QuartoManutencao> manutencaoPorQuarto =
+        quartoRepository.buscarManutencaoAtivaPorQuarto();
+    Map<Long, Quarto.QuartoLimpeza> limpezaPorQuarto =
+        quartoRepository.buscarLimpezaAtivaPorQuarto();
+
+    List<Long> quartoIds = quartoRows.stream().map(QuartoComCategoria::quartoId).toList();
+    Map<Long, List<Quarto.ItemQuarto>> itensPorQuarto =
+        quartoRepository.buscarItensPorQuartos(quartoIds);
+
+    Map<Long, Hospedagem> hospedagemPorQuarto =
+        hospedagemService.buscarAtivasPorQuartoNaData(data);
+
+    Map<Long, List<Recepcao.QuartoData.Categoria.Quartos>> quartosPorCat = new LinkedHashMap<>();
+    Map<Long, String[]> catNames = new LinkedHashMap<>();
+
+    for (QuartoComCategoria qr : quartoRows) {
+      Quarto quarto =
+          new Quarto(
+              qr.quartoId(),
+              qr.descricao(),
+              qr.qtdPessoas(),
+              qr.status(),
+              qr.camaCasal(),
+              qr.camaSolteiro(),
+              qr.rede(),
+              qr.beliche(),
+              itensPorQuarto.getOrDefault(qr.quartoId(), List.of()),
+              manutencaoPorQuarto.get(qr.quartoId()),
+              limpezaPorQuarto.get(qr.quartoId()));
+
+      quartosPorCat
+          .computeIfAbsent(qr.categoriaId(), k -> new ArrayList<>())
+          .add(new Recepcao.QuartoData.Categoria.Quartos(quarto, hospedagemPorQuarto.get(qr.quartoId())));
+
+      catNames.putIfAbsent(
+          qr.categoriaId(), new String[]{qr.categoriaNome(), qr.categoriaDescricao()});
+    }
+
+    List<Recepcao.QuartoData.Categoria> categorias = new ArrayList<>();
+    for (Map.Entry<Long, List<Recepcao.QuartoData.Categoria.Quartos>> entry :
+        quartosPorCat.entrySet()) {
+      String[] names = catNames.get(entry.getKey());
+      categorias.add(
+          new Recepcao.QuartoData.Categoria(entry.getKey(), names[0], names[1], entry.getValue()));
+    }
+
+    return new Recepcao.QuartoData(data, 0, categorias);
+  }
 
   public List<Quarto.ItemQuarto> listarItens(Long quartoId) {
     if (quartoId == null) throw new IllegalArgumentException("ID do quarto é obrigatório.");
@@ -72,7 +133,9 @@ public class QuartoService {
       throw new IllegalArgumentException("quantidade_padrao inválida.");
     if (req.quantidade_atual() == null || req.quantidade_atual() < 0)
       throw new IllegalArgumentException("quantidade_atual inválida.");
-    return quartoRepository.adicionarItem(quartoId, req);
+    var itemQuarto = quartoRepository.adicionarItem(quartoId, req, getFuncionarioId());
+    itemService.retirarDoEstoque(itemQuarto.item().id(), itemQuarto.quantidade_atual());
+    return itemQuarto;
   }
 
   @Transactional
@@ -94,7 +157,12 @@ public class QuartoService {
     if (req.id() == null) throw new IllegalArgumentException("ID do item é obrigatório.");
     if (req.quantidade() == null || req.quantidade() <= 0)
       throw new IllegalArgumentException("Quantidade deve ser maior que zero.");
-    return quartoRepository.reporItem(req);
+    Long itemId = quartoRepository.reporItemNoQuarto(req, getFuncionarioId());
+    if (!itemService.estoqueExisteParaItem(itemId)) {
+      throw new NotFoundException("Estoque nao encontrado para o item: " + itemId);
+    }
+    quartoRepository.descontarEstoque(itemId, req.quantidade());
+    return quartoRepository.findItemById(req.id());
   }
 
   // ── Manutenção ────────────────────────────────────────────────────────────────
@@ -105,7 +173,7 @@ public class QuartoService {
       throw new IllegalArgumentException("Quarto é obrigatório.");
     if (!StringUtils.hasText(req.descricao()))
       throw new IllegalArgumentException("Descrição é obrigatória.");
-    return quartoRepository.inserirManutencao(req);
+    return quartoRepository.inserirManutencao(req, getFuncionarioId());
   }
 
   @Transactional
@@ -125,13 +193,21 @@ public class QuartoService {
   @Transactional
   public Quarto.QuartoLimpeza acionarLimpeza(Long quartoId, Quarto.QuartoLimpeza.Request req) {
     if (quartoId == null) throw new IllegalArgumentException("ID do quarto é obrigatório.");
-    return quartoRepository.acionarLimpeza(quartoId, req);
+    Long funcionarioId = req.funcionario() != null
+        ? req.funcionario().id()
+        : pessoaService.getFuncionarioIdFromRequest();
+    return quartoRepository.acionarLimpeza(quartoId, funcionarioId);
   }
 
   @Transactional
   public void finalizarLimpeza(Long id) {
     if (id == null) throw new IllegalArgumentException("ID é obrigatório.");
-    quartoRepository.finalizarLimpeza(id);
+    Long quartoId = quartoRepository.finalizarLimpeza(id);
+    Quarto.Status novoStatus =
+        hospedagemService.temReservaAtivaParaQuartoHoje(quartoId)
+            ? Quarto.Status.RESERVADO
+            : Quarto.Status.DISPONIVEL;
+    quartoRepository.updateStatus(quartoId, novoStatus);
   }
 
   // ── Validações ────────────────────────────────────────────────────────────────
@@ -177,5 +253,13 @@ public class QuartoService {
       throw new IllegalArgumentException("quantidade_rede não pode ser negativo.");
     if (beliche != null && beliche < 0)
       throw new IllegalArgumentException("quantidade_beliche não pode ser negativo.");
+  }
+
+  public Map<Long, String> findQuartosDescricao(List<Long> quartoIds) {
+    return quartoRepository.findQuartosDescricao(quartoIds);
+  }
+
+  private Long getFuncionarioId(){
+    return pessoaService.getFuncionarioIdFromRequest();
   }
 }
