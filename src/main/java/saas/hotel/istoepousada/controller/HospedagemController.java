@@ -1,6 +1,8 @@
 package saas.hotel.istoepousada.controller;
 
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Hospedagem;
 import saas.hotel.istoepousada.dto.Item;
@@ -10,44 +12,96 @@ import saas.hotel.istoepousada.service.HospedagemService;
 @RestController
 @RequestMapping("/hospedagem")
 public class HospedagemController {
+
   private final HospedagemService hospedagemService;
 
   public HospedagemController(HospedagemService hospedagemService) {
     this.hospedagemService = hospedagemService;
   }
 
-  @PostMapping("/salvar")
-  public void salvarHospedagem(@RequestBody List<Hospedagem.Request> hospedagens) {
-    hospedagemService.salvarHospedagem(hospedagens);
+  // ── Consultas ────────────────────────────────────────────────────────────────
+
+  @GetMapping({"/buscar", ""})
+  public List<Hospedagem> buscar(
+      @RequestParam(required = false) List<Hospedagem.Status> status,
+      @RequestParam(required = false) @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate data,
+      @RequestParam(required = false) Integer mes,
+      @RequestParam(required = false) Integer ano,
+      @RequestParam(required = false) String nomeTitular) {
+    return hospedagemService.buscar(status, data, mes, ano, nomeTitular);
   }
 
-  @PostMapping("/{hospedagemId}/adicionar/diarias")
+  @GetMapping("/{hospedagemId}")
+  public Hospedagem buscarPorId(@PathVariable Long hospedagemId) {
+    return hospedagemService.buscarPorId(hospedagemId);
+  }
+
+  @PutMapping("/{hospedagemId}")
+  public Hospedagem editar(
+      @PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
+    return hospedagemService.editarHospedagem(hospedagemId, request);
+  }
+
+  // ── Ciclo de vida ────────────────────────────────────────────────────────────
+
+  @PutMapping("/{hospedagemId}/ativar")
+  public void ativar(
+      @PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
+    hospedagemService.ativarPernoite(hospedagemId, request);
+  }
+
+  @PutMapping("/{hospedagemId}/cancelar")
+  public void cancelar(
+      @PathVariable Long hospedagemId,
+      @RequestBody MotivoCancelamentoHospedagem.Request motivo) {
+    hospedagemService.cancelarPernoite(hospedagemId, motivo);
+  }
+
+  @PutMapping("/{hospedagemId}/finalizar")
+  public void finalizar(@PathVariable Long hospedagemId) {
+    hospedagemService.finalizarPernoite(hospedagemId);
+  }
+
+  @PutMapping("/{hospedagemId}/finalizar-pendente")
+  public void finalizarPendente(@PathVariable Long hospedagemId) {
+    hospedagemService.finalizarPernoitePagamentoPendente(hospedagemId);
+  }
+
+  // ── Diárias ──────────────────────────────────────────────────────────────────
+
+  @PostMapping("/{hospedagemId}/diarias")
   public void adicionarDiarias(
-      @PathVariable Long hospedagemId, @RequestBody List<Hospedagem.Diaria.Request> diarias) {
+      @PathVariable Long hospedagemId,
+      @RequestBody List<Hospedagem.Diaria.Request> diarias) {
     hospedagemService.adicionarDiarias(hospedagemId, diarias);
   }
 
-  /* Pagamento */
-  @PostMapping("/{hospedagemId}/adicionar/pagamentos")
+  // ── Pagamentos ───────────────────────────────────────────────────────────────
+
+  @PostMapping("/{hospedagemId}/pagamentos")
   public void adicionarPagamentos(
       @PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
     hospedagemService.adicionarPagamentos(hospedagemId, request);
   }
 
-  @PutMapping("/editar/motivo-cancelamento")
-  public void editarMotivoCancelamento(MotivoCancelamentoHospedagem.Request request) {
-    hospedagemService.editarMotivoCancelamento(request);
-  }
+  // ── Consumo ──────────────────────────────────────────────────────────────────
 
-  /* Consumo */
-  @PostMapping("/{hospedagemId}/adicionar/consumo")
+  @PostMapping("/{hospedagemId}/consumo")
   public void adicionarConsumo(
       @PathVariable Long hospedagemId, @RequestBody Item.Consumo.Request request) {
     hospedagemService.adicionarConsumo(hospedagemId, request);
   }
 
-  @PutMapping("/editar/consumo")
+  @PutMapping("/consumo")
   public void editarConsumo(@RequestBody Item.Consumo.Request request) {
     hospedagemService.editarConsumo(request);
+  }
+
+  // ── Cancelamento ─────────────────────────────────────────────────────────────
+
+  @PutMapping("/motivo-cancelamento")
+  public void editarMotivoCancelamento(
+      @RequestBody MotivoCancelamentoHospedagem.Request request) {
+    hospedagemService.editarMotivoCancelamento(request);
   }
 }
