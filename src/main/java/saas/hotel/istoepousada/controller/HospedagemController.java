@@ -36,24 +36,21 @@ public class HospedagemController {
     return hospedagemService.buscarPorId(hospedagemId);
   }
 
-  @PutMapping("/{hospedagemId}")
-  public Hospedagem editar(
-      @PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
-    return hospedagemService.editarHospedagem(hospedagemId, request);
+  @PutMapping
+  public Hospedagem editar(@RequestBody Hospedagem.Request request) {
+    return hospedagemService.editarHospedagem(request);
   }
 
   // ── Ciclo de vida ────────────────────────────────────────────────────────────
 
   @PutMapping("/{hospedagemId}/ativar")
-  public void ativar(
-      @PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
+  public void ativar(@PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
     hospedagemService.ativarPernoite(hospedagemId, request);
   }
 
   @PutMapping("/{hospedagemId}/cancelar")
   public void cancelar(
-      @PathVariable Long hospedagemId,
-      @RequestBody MotivoCancelamentoHospedagem.Request motivo) {
+      @PathVariable Long hospedagemId, @RequestBody MotivoCancelamentoHospedagem.Request motivo) {
     hospedagemService.cancelarPernoite(hospedagemId, motivo);
   }
 
@@ -71,8 +68,7 @@ public class HospedagemController {
 
   @PostMapping("/{hospedagemId}/diarias")
   public void adicionarDiarias(
-      @PathVariable Long hospedagemId,
-      @RequestBody List<Hospedagem.Diaria.Request> diarias) {
+      @PathVariable Long hospedagemId, @RequestBody List<Hospedagem.Diaria.Request> diarias) {
     hospedagemService.adicionarDiarias(hospedagemId, diarias);
   }
 
@@ -100,8 +96,7 @@ public class HospedagemController {
   // ── Cancelamento ─────────────────────────────────────────────────────────────
 
   @PutMapping("/motivo-cancelamento")
-  public void editarMotivoCancelamento(
-      @RequestBody MotivoCancelamentoHospedagem.Request request) {
+  public void editarMotivoCancelamento(@RequestBody MotivoCancelamentoHospedagem.Request request) {
     hospedagemService.editarMotivoCancelamento(request);
   }
 }

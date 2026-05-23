@@ -1,13 +1,11 @@
 package saas.hotel.istoepousada.controller;
 
+import java.util.List;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Hospedagem;
 import saas.hotel.istoepousada.dto.MotivoCancelamentoHospedagem;
 import saas.hotel.istoepousada.dto.Orcamento;
 import saas.hotel.istoepousada.service.HospedagemService;
-
-import java.util.List;
-
 
 @RestController
 @RequestMapping("/orcamento")
@@ -20,37 +18,37 @@ public class OrcamentoController {
   }
 
   @PostMapping
-  public void criar(@RequestBody List<Hospedagem.Request> requests) {
-    requests.forEach(hospedagemService::criarOrcamento);
+  public void criar(@RequestBody Orcamento.Request request) {
+    hospedagemService.criarOrcamento(request);
   }
 
-  @PutMapping("/{hospedagemId}/cancelar")
+  @PutMapping("/{orcamentoId}/cancelar")
   public void cancelar(
-      @PathVariable Long hospedagemId,
-      @RequestBody MotivoCancelamentoHospedagem.Request motivo) {
-    hospedagemService.cancelarOrcamento(hospedagemId, motivo);
+      @PathVariable Long orcamentoId, @RequestBody MotivoCancelamentoHospedagem.Request motivo) {
+    hospedagemService.cancelarOrcamento(orcamentoId, motivo);
   }
 
   @PutMapping("/editar")
-  public void editar(@RequestBody Hospedagem.Request request) {
+  public void editar(@RequestBody Orcamento.Request request) {
     hospedagemService.editarOrcamento(request);
   }
 
-  @PostMapping("/{orcamentoId}/pessoas")
+  @PostMapping("/{hospedagemId}/pessoas")
   public void adicionarPessoas(
-      @PathVariable Long orcamentoId,
-      @RequestBody List<Hospedagem.PessoaHospedagemOrcamento> pessoas) {
-    hospedagemService.adicionarPessoasHospedagemOrcamento(orcamentoId, pessoas);
+      @PathVariable Long hospedagemId,
+      @RequestBody List<Hospedagem.PessoaHospedagemOrcamento.Request> pessoas) {
+    hospedagemService.adicionarPessoasHospedagemOrcamento(hospedagemId, pessoas);
   }
 
-  @DeleteMapping("/{orcamentoId}/pessoas")
-  public void removerPessoas(
-      @PathVariable Long orcamentoId, @RequestBody List<Long> pessoasIds) {
-    hospedagemService.removerPessoasOrcamento(orcamentoId, pessoasIds);
+  @DeleteMapping("/pessoas")
+  public void removerPessoas(@RequestBody List<Long> pessoasOrcamentoIds) {
+    hospedagemService.removerPessoasOrcamento(pessoasOrcamentoIds);
   }
 
-  @GetMapping("/{hospedagemId}")
-  public Orcamento buscar(@PathVariable Long hospedagemId) {
-    return hospedagemService.buscarOrcamento(hospedagemId);
+  @GetMapping("/buscar")
+  public List<Orcamento> buscar(
+      @RequestParam(required = false) Long orcamentoId,
+      @RequestParam(required = false) String nomeSolicitante) {
+    return hospedagemService.buscarOrcamento(orcamentoId, nomeSolicitante);
   }
 }

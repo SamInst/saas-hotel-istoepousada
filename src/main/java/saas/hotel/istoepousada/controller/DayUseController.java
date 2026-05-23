@@ -22,15 +22,13 @@ public class DayUseController {
   }
 
   @PutMapping("/{hospedagemId}/ativar")
-  public void ativar(
-      @PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
+  public void ativar(@PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
     hospedagemService.ativarDayUse(hospedagemId, request);
   }
 
   @PutMapping("/{hospedagemId}/cancelar")
   public void cancelar(
-      @PathVariable Long hospedagemId,
-      @RequestBody MotivoCancelamentoHospedagem.Request motivo) {
+      @PathVariable Long hospedagemId, @RequestBody MotivoCancelamentoHospedagem.Request motivo) {
     hospedagemService.cancelarDayUse(hospedagemId, motivo);
   }
 
