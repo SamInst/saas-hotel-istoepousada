@@ -159,27 +159,29 @@ public class HospedagemRepository {
     String baseSql =
         """
                 SELECT
-                    orcamento.id                             AS orcamento_id,
-                    orcamento.nome_solicitante               AS orcamento_nome_solicitante,
-                    orcamento.data_hora_registro             AS orcamento_data_hora_registro,
-                    orcamento_funcionario.id                 AS orcamento_funcionario_id,
-                    orcamento_pessoa_funcionario.nome        AS orcamento_funcionario_nome,
-                    hospedagem.id                            AS hospedagem_id,
-                    hospedagem.status                        AS hospedagem_status,
-                    hospedagem.data_hora_registro            AS hospedagem_data_hora_registro,
-                    hospedagem.data_hora_checkin             AS hospedagem_data_hora_checkin,
-                    hospedagem.data_hora_checkout            AS hospedagem_data_hora_checout,
-                    hospedagem.valor_total                   AS hospedagem_valor_total,
-                    hospedagem.observacao                    AS hospedagem_observacao,
-                    hospedagem_funcionario.id                AS hospedagem_funcionario_id,
-                    hospedagem_pessoa_funcionario.nome       AS hospedagem_funcionario_nome
+                    orcamento.id                                       AS orcamento_id,
+                    orcamento.nome_solicitante                         AS orcamento_nome_solicitante,
+                    orcamento.data_hora_registro                       AS orcamento_data_hora_registro,
+                    orcamento_funcionario.id                           AS orcamento_funcionario_id,
+                    orcamento_pessoa_funcionario.nome                  AS orcamento_funcionario_nome,
+                    hospedagem.id                                      AS hospedagem_id,
+                    hospedagem.status                                  AS hospedagem_status,
+                    hospedagem.data_hora_registro                      AS hospedagem_data_hora_registro,
+                    hospedagem.data_hora_checkin                       AS hospedagem_data_hora_checkin,
+                    hospedagem.data_hora_checkout                      AS hospedagem_data_hora_checout,
+                    hospedagem.valor_total                             AS hospedagem_valor_total,
+                    hospedagem.observacao                              AS hospedagem_observacao,
+                    hospedagem_funcionario.id                          AS hospedagem_funcionario_id,
+                    hospedagem_pessoa_funcionario.nome                 AS hospedagem_funcionario_nome
+                    
                 FROM public.orcamento
                 JOIN public.funcionario orcamento_funcionario ON orcamento_funcionario.id = orcamento.fk_funcionario
                 JOIN public.pessoa orcamento_pessoa_funcionario ON orcamento_pessoa_funcionario.id = orcamento_funcionario.fk_pessoa
                 LEFT JOIN public.hospedagem_orcamento ON hospedagem_orcamento.fk_orcamento = orcamento.id
                 LEFT JOIN public.hospedagem ON hospedagem.id = hospedagem_orcamento.fk_hospedagem
                 LEFT JOIN public.funcionario hospedagem_funcionario ON hospedagem_funcionario.id = hospedagem.fk_funcionario
-                LEFT JOIN public.pessoa hospedagem_pessoa_funcionario ON hospedagem_pessoa_funcionario.id = hospedagem_funcionario.fk_pessoa
+                LEFT JOIN public.pessoa hospedagem_pessoa_funcionario ON hospedagem_pessoa_funcionario.id = hospedagem_funcionario.fk_pessoa 
+                
                 """;
 
     List<String> conditions = new ArrayList<>();
@@ -238,7 +240,7 @@ public class HospedagemRepository {
                                         null,
                                         null,
                                         buscarPessoasHospedagemOrcamento(h.id()),
-                                        null))
+                                        buscarMotivoCancelamento(h.id())))
                             .toList();
                     return new Orcamento(
                         o.id(),
@@ -268,17 +270,17 @@ public class HospedagemRepository {
     var hospedagem_id =
         jdbcTemplate.queryForObject(
             """
-                                    insert into hospedagem (
-                                        fk_funcionario,
-                                        data_hora_registro,
-                                        data_hora_checkin,
-                                        data_hora_checkout,
-                                        valor_total,
-                                        status,
-                                        observacao)
-                                    values (?, now(), ?, ?, ?, ?::hospedagem_status, ?)
-                                    returning id;
-                                """,
+                        insert into hospedagem (
+                            fk_funcionario,
+                            data_hora_registro,
+                            data_hora_checkin,
+                            data_hora_checkout,
+                            valor_total,
+                            status,
+                            observacao)
+                        values (?, now(), ?, ?, ?, ?::hospedagem_status, ?)
+                        returning id;
+                    """,
             Long.class,
             funcionarioId,
             request.data_hora_checkin(),
@@ -625,26 +627,30 @@ public class HospedagemRepository {
   }
 
   public MotivoCancelamentoHospedagem buscarMotivoCancelamento(Long hospedagemId) {
-    return jdbcTemplate.queryForObject(
-        """
-                        SELECT hospedagem_motivo_cancelamento.id,
-                               hospedagem_motivo_cancelamento.motivo_cancelamento,
-                               hospedagem_motivo_cancelamento.data_hora_registro,
-                               funcionario.id   AS funcionario_id,
-                               pessoa.nome      AS funcionario_nome
-                        FROM hospedagem_motivo_cancelamento
-                        JOIN funcionario ON funcionario.id = hospedagem_motivo_cancelamento.fk_funcionario
-                        join public.pessoa on pessoa.id = funcionario.fk_pessoa
-                        WHERE hospedagem_motivo_cancelamento.fk_hospedagem = ?
-                        """,
-        (rs, x) ->
-            new MotivoCancelamentoHospedagem(
-                rs.getLong("id"),
-                rs.getString("motivo_cancelamento"),
-                new Funcionario.Nome(
-                    rs.getLong("funcionario_id"), rs.getString("funcionario_nome")),
-                rs.getTimestamp("data_hora_registro").toLocalDateTime()),
-        hospedagemId);
+      try {
+          return jdbcTemplate.queryForObject(
+                  """
+                                  SELECT hospedagem_motivo_cancelamento.id,
+                                         hospedagem_motivo_cancelamento.motivo_cancelamento,
+                                         hospedagem_motivo_cancelamento.data_hora_registro,
+                                         funcionario.id   AS funcionario_id,
+                                         pessoa.nome      AS funcionario_nome
+                                  FROM hospedagem_motivo_cancelamento
+                                  JOIN funcionario ON funcionario.id = hospedagem_motivo_cancelamento.fk_funcionario
+                                  join public.pessoa on pessoa.id = funcionario.fk_pessoa
+                                  WHERE hospedagem_motivo_cancelamento.fk_hospedagem = ?
+                                  """,
+                  (rs, x) ->
+                          new MotivoCancelamentoHospedagem(
+                                  rs.getLong("id"),
+                                  rs.getString("motivo_cancelamento"),
+                                  new Funcionario.Nome(
+                                          rs.getLong("funcionario_id"), rs.getString("funcionario_nome")),
+                                  rs.getTimestamp("data_hora_registro").toLocalDateTime()),
+                  hospedagemId);
+      } catch (EmptyResultDataAccessException e) {
+          return null;
+      }
   }
 
   public Map<Long, Hospedagem> buscarAtivasPorQuartoNaData(LocalDate data) {

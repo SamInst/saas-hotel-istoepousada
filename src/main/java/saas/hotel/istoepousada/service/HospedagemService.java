@@ -342,7 +342,7 @@ public class HospedagemService {
     hospedagemRepository.editarOrcamento(orcamentoRequest);
   }
 
-  public void adicionarPessoasHospedagemOrcamento(
+  public void adicionarPessoasHospedagemOrcamentoSolicitacao(
       Long hospedagemId, List<Hospedagem.PessoaHospedagemOrcamento.Request> pessoas) {
     validarCamposPessoasOrcamento(pessoas, false);
     hospedagemRepository.adicionarPessoasHospedagemOrcamento(hospedagemId, pessoas);
@@ -362,8 +362,10 @@ public class HospedagemService {
         throw new IllegalArgumentException("Id da hospedagem não informado ou inválido");
       }
     }
-    if (request.quarto_id() == null)
-      throw new IllegalArgumentException("E necessário informar o quarto da hospedagem.");
+    if (!request.status().equals(Hospedagem.Status.RESERVA_SOLICITADA)){
+      if (request.quarto_id() == null)
+        throw new IllegalArgumentException("E necessário informar o quarto da hospedagem.");
+    }
     if (request.data_hora_checkin() == null)
       throw new IllegalArgumentException("E necessário informar a data de checkin da hospedagem.");
     if (request.data_hora_checkout() == null)
@@ -407,7 +409,7 @@ public class HospedagemService {
               Hospedagem newHospedagem =
                   hospedagemRepository.insertHospedagem(insertRequest, getFuncionarioId());
               validarCamposPessoasOrcamento(hospedagem.pessoas_orcamento(), false);
-              adicionarPessoasHospedagemOrcamento(
+              adicionarPessoasHospedagemOrcamentoSolicitacao(
                   newHospedagem.id(), hospedagem.pessoas_orcamento());
               hospedagensIds.add(newHospedagem.id());
             });
@@ -423,7 +425,11 @@ public class HospedagemService {
             hospedagem -> {
               hospedagemRepository.buscarPorId(hospedagem.id());
               validarTransicaoDeStatus(hospedagem.status(), Hospedagem.Status.ORCAMENTO_CANCELADO);
-              adicionarMotivoCancelamento(motivo);
+              adicionarMotivoCancelamento(new MotivoCancelamentoHospedagem.Request(
+                      hospedagem.id(),
+                      null,
+                      motivo.motivo_cancelamento())
+              );
               alterarStatus(hospedagem.id(), Hospedagem.Status.ORCAMENTO_CANCELADO);
             });
     log.info(
@@ -436,20 +442,30 @@ public class HospedagemService {
   // ── Flow: Reserva ────────────────────────────────────────────────────────────
 
   @Transactional
-  public void solicitarReserva(Long hospedagemId) {
-    Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
-    validarTransicaoDeStatus(hospedagem.status(), Hospedagem.Status.RESERVA_SOLICITADA);
-    alterarStatus(hospedagemId, Hospedagem.Status.RESERVA_SOLICITADA);
+  public void solicitarReserva(Hospedagem.Request request) {
+    validarCamposHospedagem(request, false);
+    Hospedagem hospedagem = hospedagemRepository.insertHospedagem(request, null);
+    adicionarPessoasHospedagemOrcamentoSolicitacao(hospedagem.id(), request.pessoas_orcamento());
   }
 
   @Transactional
   public void ativarReserva(Long hospedagemId, Hospedagem.Request request) {
-    Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+    Hospedagem hospedagem ;
+    if (hospedagemId != null){
+      hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+    } else {
+      hospedagem = hospedagemRepository.insertHospedagem(request, getFuncionarioId());
+    }
+    validarCamposHospedagem(request, false);
     validarTransicaoDeStatus(hospedagem.status(), Hospedagem.Status.RESERVA_ATIVA);
-    validarCamposPagamento(request);
-    if (request.pessoas() != null && !request.pessoas().isEmpty())
+
+    if (request.pessoas() != null && !request.pessoas().isEmpty()) {
       adicionarPessoas(hospedagemId, request.pessoas());
-    adicionarPagamentos(hospedagemId, request);
+    }
+    if (request.pagamentos() != null && !request.pagamentos().isEmpty()){
+      validarCamposPagamento(request);
+      adicionarPagamentos(hospedagemId, request);
+    }
     alterarStatus(hospedagemId, Hospedagem.Status.RESERVA_ATIVA);
   }
 

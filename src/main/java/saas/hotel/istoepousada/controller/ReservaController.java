@@ -15,9 +15,9 @@ public class ReservaController {
     this.hospedagemService = hospedagemService;
   }
 
-  @PostMapping("/{hospedagemId}/solicitar")
-  public void solicitar(@PathVariable Long hospedagemId) {
-    hospedagemService.solicitarReserva(hospedagemId);
+  @PostMapping("/solicitar")
+  public void solicitar(@RequestBody Hospedagem.Request request) {
+    hospedagemService.solicitarReserva(request);
   }
 
   @PutMapping("/{hospedagemId}/ativar")

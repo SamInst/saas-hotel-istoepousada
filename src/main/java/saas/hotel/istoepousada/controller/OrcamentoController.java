@@ -37,7 +37,7 @@ public class OrcamentoController {
   public void adicionarPessoas(
       @PathVariable Long hospedagemId,
       @RequestBody List<Hospedagem.PessoaHospedagemOrcamento.Request> pessoas) {
-    hospedagemService.adicionarPessoasHospedagemOrcamento(hospedagemId, pessoas);
+    hospedagemService.adicionarPessoasHospedagemOrcamentoSolicitacao(hospedagemId, pessoas);
   }
 
   @DeleteMapping("/pessoas")
