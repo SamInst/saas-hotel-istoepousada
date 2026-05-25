@@ -2,6 +2,7 @@ package saas.hotel.istoepousada.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import org.slf4j.Logger;
@@ -49,13 +50,12 @@ public class HospedagemService {
       log.info("Quarto não disponivel: STATUS {}", Quarto.Status.OCUPADO);
       throw new IllegalStateException("Quarto não disponivel: STATUS " + Quarto.Status.OCUPADO);
     }
-    var quartoDisponivel =
-        hospedagemRepository.isQuartoDisponivel(quartoId, checkin, checkout, hospedagemIdExcluido);
-    log.info("Quarto disponivel: {}", quartoDisponivel);
-    if (!quartoDisponivel) {
+    var temConflito = hospedagemRepository.isQuartoDisponivel(quartoId, checkin, checkout, hospedagemIdExcluido);
+    log.info("Conflito encontrado: {}", temConflito);
+    if (temConflito) {
       log.info("Quarto não disponivel para as datas informadas [{}->{}]", checkin, checkout);
       throw new IllegalArgumentException(
-          "Quarto não disponivel nas datas informadas [" + checkin + "->" + checkout + "]");
+              "Quarto não disponivel nas datas informadas [" + checkin + "->" + checkout + "]");
     }
     return true;
   }
@@ -77,10 +77,6 @@ public class HospedagemService {
 
     diarias.forEach(
         diaria -> {
-          log.info(
-              "Adicionando diarias para a hospedagem {} e quarto {}",
-              hospedagemId,
-              diaria.quarto_id());
           if (isDiariaJaExiste(hospedagemId, diaria)) {
             log.info(
                 "Diária [{}>{}] já existe para a hospedagem {} e quarto {}",
@@ -458,23 +454,51 @@ public class HospedagemService {
     adicionarPessoasHospedagemOrcamentoSolicitacao(hospedagem.id(), request.pessoas_orcamento());
   }
 
+  private void calcularDiarias(
+      Long hospedagemId,
+      Long quartoId,
+      LocalDateTime checkin,
+      LocalDateTime checkout,
+      List<Long> pessoas) {
+    List<Hospedagem.Diaria.Request> diarias = new ArrayList<>();
+
+    var dataInicio = checkin;
+
+    int total_diarias = Period.between(dataInicio.toLocalDate(), checkout.toLocalDate()).getDays();
+
+    for (int i = 0; i < total_diarias; i++) {
+      diarias.add(
+          new Hospedagem.Diaria.Request(quartoId, dataInicio, dataInicio.plusDays(1), pessoas));
+      dataInicio = dataInicio.plusDays(1);
+    }
+    adicionarDiarias(hospedagemId, diarias);
+  }
+
   @Transactional
   public void ativarReserva(Long hospedagemId, Hospedagem.Request request) {
     validarCamposHospedagem(request, false);
-    isQuartoDisponivel(
-        request.quarto_id(), request.data_hora_checkin(), request.data_hora_checkout(), null);
+
     Hospedagem hospedagem;
     if (hospedagemId != null) {
       hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
       if (hospedagem.status().equals(Hospedagem.Status.RESERVA_ATIVA))
         throw new IllegalArgumentException("Reserva já ativa para esse quarto e data.");
-    } else hospedagem = hospedagemRepository.insertHospedagem(request, getFuncionarioId());
-
+    } else {
+      isQuartoDisponivel(
+          request.quarto_id(), request.data_hora_checkin(), request.data_hora_checkout(), null);
+      hospedagem = hospedagemRepository.insertHospedagem(request, getFuncionarioId());
+      calcularDiarias(
+          hospedagem.id(),
+          request.quarto_id(),
+          request.data_hora_checkin(),
+          request.data_hora_checkout(),
+          request.pessoas());
+    }
     validarTransicaoDeStatus(hospedagem.status(), Hospedagem.Status.RESERVA_ATIVA);
 
-    if (request.pessoas() != null && !request.pessoas().isEmpty()) {
+    if (request.pessoas() != null && !request.pessoas().isEmpty())
       adicionarPessoas(hospedagem.id(), request.pessoas());
-    }
+
     if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
       validarCamposPagamento(request);
       adicionarPagamentos(hospedagem.id(), request);
@@ -512,14 +536,14 @@ public class HospedagemService {
       throw new IllegalArgumentException("A hospedagem deve ter pelo menos uma pessoa.");
     validarCamposPagamento(request);
 
+    // TODO: fazer lista de diarias e para cada diaria adicionar.
     List<Hospedagem.Diaria.Request> diarias =
         List.of(
             new Hospedagem.Diaria.Request(
                 request.quarto_id(),
                 request.data_hora_checkin(),
                 request.data_hora_checkout(),
-                request.pessoas(),
-                null));
+                request.pessoas()));
     adicionarDiarias(hospedagemId, diarias);
     adicionarPessoas(hospedagemId, request.pessoas());
     adicionarPagamentos(hospedagemId, request);

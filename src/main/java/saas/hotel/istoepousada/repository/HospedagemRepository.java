@@ -572,43 +572,61 @@ public class HospedagemRepository {
         "SELECT status FROM public.quarto WHERE id = ?", Quarto.Status.class, quartoId);
   }
 
-  public Boolean isQuartoDisponivel(
-      Long quartoId, LocalDateTime checkin, LocalDateTime checkout, Long hospedagemIdExcluido) {
-    log.info(
-        "Validando disponibilidade do quarto {} com checkin {} e checkout {}",
-        quartoId,
-        checkin,
-        checkout);
-    String sqlHospedagem =
-        """
-                        SELECT COUNT(*) > 0
-                        FROM diaria
-                        JOIN hospedagem ON hospedagem.id = diaria.fk_hospedagem
-                        WHERE diaria.fk_quarto = 2
-                          AND hospedagem.status IN (
-                          'ORCAMENTO',
-                          'RESERVA_ATIVA',
-                          'RESERVA_SOLICITADA',
-                          'PERNOITE_ATIVO',
-                          'DAY_USE_SOLICITADO',
-                          'DAY_USE_ATIVO')
-                          AND diaria.checkin < '2026-05-25T13:00'
-                          AND diaria.checkout > '2026-05-28T12:00'
-                        """
-            + (hospedagemIdExcluido != null ? " AND hospedagem.id != ? " : "");
+    public Boolean isQuartoDisponivel(
+            Long quartoId, LocalDateTime checkin, LocalDateTime checkout, Long hospedagemIdExcluido) {
+        String sql = """
+      SELECT COUNT(*) > 0
+      FROM hospedagem
+      WHERE hospedagem.fk_quarto = ?
+        AND (
+          (
+            hospedagem.status = 'ORCAMENTO'
+            AND hospedagem.data_hora_checkin < ?
+            AND hospedagem.data_hora_checkout > ?
+          )
+          OR
+          (
+            hospedagem.status IN (
+              'RESERVA_SOLICITADA',
+              'RESERVA_ATIVA',
+              'PERNOITE_ATIVO',
+              'DAY_USE_SOLICITADO',
+              'DAY_USE_ATIVO'
+            )
+            AND EXISTS (
+              SELECT 1
+              FROM diaria
+              WHERE diaria.fk_hospedagem = hospedagem.id
+                AND diaria.fk_quarto = ?
+                AND diaria.checkin < ?
+                AND diaria.checkout > ?
+            )
+          )
+        )
+      """
+                + (hospedagemIdExcluido != null ? " AND hospedagem.id != ?" : "");
 
-    boolean hospedagemConflito;
-    if (hospedagemIdExcluido != null) {
-      hospedagemConflito =
-          jdbcTemplate.queryForObject(
-              sqlHospedagem, Boolean.class, quartoId, checkin, checkout, hospedagemIdExcluido);
-    } else {
-      hospedagemConflito =
-          jdbcTemplate.queryForObject(sqlHospedagem, Boolean.class, quartoId, checkout, checkin);
+        boolean conflito;
+        if (hospedagemIdExcluido != null) {
+            conflito = jdbcTemplate.queryForObject(
+                    sql, Boolean.class,
+                    quartoId,                          // fk_quarto
+                    checkout, checkin,                 // bloco ORCAMENTO
+                    quartoId, checkout, checkin,       // bloco EXISTS
+                    hospedagemIdExcluido               // exclusão
+            );
+        } else {
+            conflito = jdbcTemplate.queryForObject(
+                    sql, Boolean.class,
+                    quartoId,                          // fk_quarto
+                    checkout, checkin,                 // bloco ORCAMENTO
+                    quartoId, checkout, checkin        // bloco EXISTS
+            );
+        }
+
+        log.info("Conflito encontrado: {}", conflito);
+        return conflito;
     }
-    log.info("Quarto disponivel: {}", hospedagemConflito);
-    return hospedagemConflito;
-  }
 
   public void adicionarMotivoCancelamento(
       MotivoCancelamentoHospedagem.Request request, Long funcionarioId) {

@@ -53,8 +53,7 @@ public record Hospedagem(
         @NotNull Long quarto_id,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime checkin,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime checkout,
-        List<Long> pessoas,
-        List<Pagamento.Request> pagamentos) {}
+        List<Long> pessoas) {}
 
     public record Update(
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime checkin,
