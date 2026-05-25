@@ -2,6 +2,7 @@ package saas.hotel.istoepousada.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.repository.HospedagemRepository;
+import saas.hotel.istoepousada.repository.QuartoRepository;
 
 @Service
 public class HospedagemService {
@@ -18,16 +20,19 @@ public class HospedagemService {
   private final PagamentoService pagamentoService;
   private final PessoaService pessoaService;
   private final CalcularPrecoService calcularPrecoService;
+  private final QuartoRepository quartoRepository;
 
   public HospedagemService(
       HospedagemRepository hospedagemRepository,
       PagamentoService pagamentoService,
       PessoaService pessoaService,
-      CalcularPrecoService calcularPrecoService) {
+      CalcularPrecoService calcularPrecoService,
+      QuartoRepository quartoRepository) {
     this.hospedagemRepository = hospedagemRepository;
     this.pagamentoService = pagamentoService;
     this.pessoaService = pessoaService;
     this.calcularPrecoService = calcularPrecoService;
+    this.quartoRepository = quartoRepository;
   }
 
   // ── Quarto / Disponibilidade ─────────────────────────────────────────────────
@@ -37,17 +42,22 @@ public class HospedagemService {
     log.info(
         "Validando disponibilidade do quarto {} para checkin {} e checkout {}",
         quartoId,
-        checkin,
-        checkout);
+        checkin.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+        checkout.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
     var statusAtual = hospedagemRepository.statusQuarto(quartoId);
     if (statusAtual == Quarto.Status.OCUPADO) {
       log.info("Quarto não disponivel: STATUS {}", Quarto.Status.OCUPADO);
-      return false;
+      throw new IllegalStateException("Quarto não disponivel: STATUS " + Quarto.Status.OCUPADO);
     }
-    var hospedagemConflito =
+    var quartoDisponivel =
         hospedagemRepository.isQuartoDisponivel(quartoId, checkin, checkout, hospedagemIdExcluido);
-    log.info("Quarto disponivel: {}", hospedagemConflito);
-    return hospedagemConflito;
+    log.info("Quarto disponivel: {}", quartoDisponivel);
+    if (!quartoDisponivel) {
+      log.info("Quarto não disponivel para as datas informadas [{}->{}]", checkin, checkout);
+      throw new IllegalArgumentException(
+          "Quarto não disponivel nas datas informadas [" + checkin + "->" + checkout + "]");
+    }
+    return true;
   }
 
   // ── Diárias ──────────────────────────────────────────────────────────────────
@@ -130,6 +140,7 @@ public class HospedagemService {
   // ── Status ───────────────────────────────────────────────────────────────────
 
   public void validarTransicaoDeStatus(Hospedagem.Status anterior, Hospedagem.Status novo) {
+    if (anterior == novo) return;
     Map<Hospedagem.Status, Set<Hospedagem.Status>> transicoesPermitidas =
         Map.ofEntries(
             Map.entry(
@@ -362,7 +373,7 @@ public class HospedagemService {
         throw new IllegalArgumentException("Id da hospedagem não informado ou inválido");
       }
     }
-    if (!request.status().equals(Hospedagem.Status.RESERVA_SOLICITADA)){
+    if (!request.status().equals(Hospedagem.Status.RESERVA_SOLICITADA)) {
       if (request.quarto_id() == null)
         throw new IllegalArgumentException("E necessário informar o quarto da hospedagem.");
     }
@@ -425,11 +436,9 @@ public class HospedagemService {
             hospedagem -> {
               hospedagemRepository.buscarPorId(hospedagem.id());
               validarTransicaoDeStatus(hospedagem.status(), Hospedagem.Status.ORCAMENTO_CANCELADO);
-              adicionarMotivoCancelamento(new MotivoCancelamentoHospedagem.Request(
-                      hospedagem.id(),
-                      null,
-                      motivo.motivo_cancelamento())
-              );
+              adicionarMotivoCancelamento(
+                  new MotivoCancelamentoHospedagem.Request(
+                      hospedagem.id(), null, motivo.motivo_cancelamento()));
               alterarStatus(hospedagem.id(), Hospedagem.Status.ORCAMENTO_CANCELADO);
             });
     log.info(
@@ -445,28 +454,37 @@ public class HospedagemService {
   public void solicitarReserva(Hospedagem.Request request) {
     validarCamposHospedagem(request, false);
     Hospedagem hospedagem = hospedagemRepository.insertHospedagem(request, null);
+    alterarStatus(hospedagem.id(), Hospedagem.Status.RESERVA_SOLICITADA);
     adicionarPessoasHospedagemOrcamentoSolicitacao(hospedagem.id(), request.pessoas_orcamento());
   }
 
   @Transactional
   public void ativarReserva(Long hospedagemId, Hospedagem.Request request) {
-    Hospedagem hospedagem ;
-    if (hospedagemId != null){
-      hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
-    } else {
-      hospedagem = hospedagemRepository.insertHospedagem(request, getFuncionarioId());
-    }
     validarCamposHospedagem(request, false);
+    isQuartoDisponivel(
+        request.quarto_id(), request.data_hora_checkin(), request.data_hora_checkout(), null);
+    Hospedagem hospedagem;
+    if (hospedagemId != null) {
+      hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+      if (hospedagem.status().equals(Hospedagem.Status.RESERVA_ATIVA))
+        throw new IllegalArgumentException("Reserva já ativa para esse quarto e data.");
+    } else hospedagem = hospedagemRepository.insertHospedagem(request, getFuncionarioId());
+
     validarTransicaoDeStatus(hospedagem.status(), Hospedagem.Status.RESERVA_ATIVA);
 
     if (request.pessoas() != null && !request.pessoas().isEmpty()) {
-      adicionarPessoas(hospedagemId, request.pessoas());
+      adicionarPessoas(hospedagem.id(), request.pessoas());
     }
-    if (request.pagamentos() != null && !request.pagamentos().isEmpty()){
+    if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
       validarCamposPagamento(request);
-      adicionarPagamentos(hospedagemId, request);
+      adicionarPagamentos(hospedagem.id(), request);
     }
-    alterarStatus(hospedagemId, Hospedagem.Status.RESERVA_ATIVA);
+    alterarStatus(hospedagem.id(), Hospedagem.Status.RESERVA_ATIVA);
+    if (request.data_hora_checkin().toLocalDate().equals(LocalDate.now())) {
+      // TODO: adicionar verificação se existe hospedagem ativa ainda na data de hoje, antes de
+      // alterar para reservado
+      quartoRepository.updateStatus(request.quarto_id(), Quarto.Status.RESERVADO);
+    }
   }
 
   @Transactional
@@ -633,6 +651,7 @@ public class HospedagemService {
     var diarias = listarDiarias(hospedagem.id());
     var consumos = buscarConsumosPorHospedagem(hospedagem.id());
     var pagamentos = pagamentoService.buscarPorHospedagemId(hospedagem.id());
+    var quarto = quartoRepository.buscarPorHospedagemId(hospedagem.id());
 
     List<Hospedagem.PessoaHospedagemOrcamento> pessoasOrcamento =
         hospedagemRepository.buscarPessoasHospedagemOrcamento(hospedagem.id());
@@ -648,6 +667,7 @@ public class HospedagemService {
     return new Hospedagem(
         hospedagem.id(),
         hospedagem.funcionario(),
+        quarto,
         hospedagem.data_hora_registro(),
         hospedagem.data_hora_checkin(),
         hospedagem.data_hora_checkout(),

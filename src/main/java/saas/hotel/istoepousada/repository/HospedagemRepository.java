@@ -130,9 +130,9 @@ public class HospedagemRepository {
       Long hospedagemId, List<Hospedagem.PessoaHospedagemOrcamento.Request> pessoas) {
     jdbcTemplate.batchUpdate(
         """
-                        INSERT INTO orcamento_hospedagem_pessoa (fk_hospedagem, nome_pessoa, data_nascimento)
-                        VALUES (?, ?, ?)
-                        """,
+        INSERT INTO orcamento_hospedagem_pessoa (fk_hospedagem, nome_pessoa, data_nascimento)
+        VALUES (?, ?, ?)
+        """,
         pessoas,
         pessoas.size(),
         (ps, pessoa) -> {
@@ -145,9 +145,9 @@ public class HospedagemRepository {
   public void removerPessoasOrcamento(List<Long> pessoasOrcamentoIds) {
     jdbcTemplate.batchUpdate(
         """
-                        DELETE FROM orcamento_hospedagem_pessoa
-                        WHERE id = ?
-                        """,
+            DELETE FROM orcamento_hospedagem_pessoa
+            WHERE id = ?
+            """,
         pessoasOrcamentoIds,
         pessoasOrcamentoIds.size(),
         (ps, pessoaId) -> {
@@ -173,15 +173,14 @@ public class HospedagemRepository {
                     hospedagem.observacao                              AS hospedagem_observacao,
                     hospedagem_funcionario.id                          AS hospedagem_funcionario_id,
                     hospedagem_pessoa_funcionario.nome                 AS hospedagem_funcionario_nome
-                    
                 FROM public.orcamento
                 JOIN public.funcionario orcamento_funcionario ON orcamento_funcionario.id = orcamento.fk_funcionario
                 JOIN public.pessoa orcamento_pessoa_funcionario ON orcamento_pessoa_funcionario.id = orcamento_funcionario.fk_pessoa
                 LEFT JOIN public.hospedagem_orcamento ON hospedagem_orcamento.fk_orcamento = orcamento.id
                 LEFT JOIN public.hospedagem ON hospedagem.id = hospedagem_orcamento.fk_hospedagem
                 LEFT JOIN public.funcionario hospedagem_funcionario ON hospedagem_funcionario.id = hospedagem.fk_funcionario
-                LEFT JOIN public.pessoa hospedagem_pessoa_funcionario ON hospedagem_pessoa_funcionario.id = hospedagem_funcionario.fk_pessoa 
-                
+                LEFT JOIN public.pessoa hospedagem_pessoa_funcionario ON hospedagem_pessoa_funcionario.id = hospedagem_funcionario.fk_pessoa
+
                 """;
 
     List<String> conditions = new ArrayList<>();
@@ -228,6 +227,7 @@ public class HospedagemRepository {
                                     new Hospedagem(
                                         h.id(),
                                         h.funcionario(),
+                                        null,
                                         h.data_hora_registro(),
                                         h.data_hora_checkin(),
                                         h.data_hora_checkout(),
@@ -272,17 +272,19 @@ public class HospedagemRepository {
             """
                         insert into hospedagem (
                             fk_funcionario,
+                            fk_quarto,
                             data_hora_registro,
                             data_hora_checkin,
                             data_hora_checkout,
                             valor_total,
                             status,
                             observacao)
-                        values (?, now(), ?, ?, ?, ?::hospedagem_status, ?)
+                        values (?, ?, now(), ?, ?, ?, ?::hospedagem_status, ?)
                         returning id;
                     """,
             Long.class,
             funcionarioId,
+            request.quarto_id(),
             request.data_hora_checkin(),
             request.data_hora_checkout(),
             request.valor_total(),
@@ -572,12 +574,17 @@ public class HospedagemRepository {
 
   public Boolean isQuartoDisponivel(
       Long quartoId, LocalDateTime checkin, LocalDateTime checkout, Long hospedagemIdExcluido) {
+    log.info(
+        "Validando disponibilidade do quarto {} com checkin {} e checkout {}",
+        quartoId,
+        checkin,
+        checkout);
     String sqlHospedagem =
         """
                         SELECT COUNT(*) > 0
                         FROM diaria
                         JOIN hospedagem ON hospedagem.id = diaria.fk_hospedagem
-                        WHERE diaria.fk_quarto = ?
+                        WHERE diaria.fk_quarto = 2
                           AND hospedagem.status IN (
                           'ORCAMENTO',
                           'RESERVA_ATIVA',
@@ -585,8 +592,8 @@ public class HospedagemRepository {
                           'PERNOITE_ATIVO',
                           'DAY_USE_SOLICITADO',
                           'DAY_USE_ATIVO')
-                          AND diaria.checkin < ?
-                          AND diaria.checkout > ?
+                          AND diaria.checkin < '2026-05-25T13:00'
+                          AND diaria.checkout > '2026-05-28T12:00'
                         """
             + (hospedagemIdExcluido != null ? " AND hospedagem.id != ? " : "");
 
@@ -627,9 +634,9 @@ public class HospedagemRepository {
   }
 
   public MotivoCancelamentoHospedagem buscarMotivoCancelamento(Long hospedagemId) {
-      try {
-          return jdbcTemplate.queryForObject(
-                  """
+    try {
+      return jdbcTemplate.queryForObject(
+          """
                                   SELECT hospedagem_motivo_cancelamento.id,
                                          hospedagem_motivo_cancelamento.motivo_cancelamento,
                                          hospedagem_motivo_cancelamento.data_hora_registro,
@@ -640,17 +647,17 @@ public class HospedagemRepository {
                                   join public.pessoa on pessoa.id = funcionario.fk_pessoa
                                   WHERE hospedagem_motivo_cancelamento.fk_hospedagem = ?
                                   """,
-                  (rs, x) ->
-                          new MotivoCancelamentoHospedagem(
-                                  rs.getLong("id"),
-                                  rs.getString("motivo_cancelamento"),
-                                  new Funcionario.Nome(
-                                          rs.getLong("funcionario_id"), rs.getString("funcionario_nome")),
-                                  rs.getTimestamp("data_hora_registro").toLocalDateTime()),
-                  hospedagemId);
-      } catch (EmptyResultDataAccessException e) {
-          return null;
-      }
+          (rs, x) ->
+              new MotivoCancelamentoHospedagem(
+                  rs.getLong("id"),
+                  rs.getString("motivo_cancelamento"),
+                  new Funcionario.Nome(
+                      rs.getLong("funcionario_id"), rs.getString("funcionario_nome")),
+                  rs.getTimestamp("data_hora_registro").toLocalDateTime()),
+          hospedagemId);
+    } catch (EmptyResultDataAccessException e) {
+      return null;
+    }
   }
 
   public Map<Long, Hospedagem> buscarAtivasPorQuartoNaData(LocalDate data) {

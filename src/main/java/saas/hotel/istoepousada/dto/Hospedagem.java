@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.RowMapper;
 public record Hospedagem(
     @NotNull Long id,
     @NotNull Funcionario.Nome funcionario,
+    Quarto quarto,
     @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
     @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_checkin,
     @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_checkout,
@@ -114,6 +115,7 @@ public record Hospedagem(
             new Funcionario.Nome(
                 rs.getLong("hospedagem_funcionario_id"),
                 rs.getString("hospedagem_funcionario_nome")),
+            null, // quarto
             rs.getTimestamp("hospedagem_data_hora_registro").toLocalDateTime(),
             checkin,
             checkout,

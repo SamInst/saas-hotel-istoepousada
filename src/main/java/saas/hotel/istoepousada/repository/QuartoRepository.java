@@ -47,6 +47,18 @@ public class QuartoRepository {
         return list;
       };
 
+  public Quarto buscarPorHospedagemId(Long hospedagemId) {
+    try {
+      return jdbcTemplate.queryForObject(
+          SELECT_QUARTO_BASE
+              + " WHERE id = (SELECT fk_quarto FROM public.hospedagem WHERE hospedagem.id = ?)",
+          Quarto.ROW_MAPPER,
+          hospedagemId);
+    } catch (EmptyResultDataAccessException ex) {
+      return null;
+    }
+  }
+
   public record QuartoComCategoria(
       long quartoId,
       String descricao,

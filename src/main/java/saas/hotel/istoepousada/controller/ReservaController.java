@@ -20,8 +20,9 @@ public class ReservaController {
     hospedagemService.solicitarReserva(request);
   }
 
-  @PutMapping("/{hospedagemId}/ativar")
-  public void ativar(@PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
+  @PutMapping("/ativar")
+  public void ativar(
+      @RequestParam(required = false) Long hospedagemId, @RequestBody Hospedagem.Request request) {
     hospedagemService.ativarReserva(hospedagemId, request);
   }
 
