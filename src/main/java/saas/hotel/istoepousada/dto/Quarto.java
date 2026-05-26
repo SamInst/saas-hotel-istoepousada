@@ -137,6 +137,26 @@ public record Quarto(
 
   public record Descricao(Long id, String descricao) {}
 
+  /**
+   * Resposta da consulta de disponibilidade em lote.
+   *
+   * <p>O {@code status} reflete a situação do quarto <b>para o período solicitado</b>:
+   * <ul>
+   *   <li>{@link Status#DISPONIVEL}      – livre para reserva no período</li>
+   *   <li>{@link Status#RESERVADO}       – já possui hospedagem ativa no período</li>
+   *   <li>{@link Status#OCUPADO}         – fisicamente ocupado no momento</li>
+   *   <li>{@link Status#MANUTENCAO}      – em manutenção</li>
+   *   <li>{@link Status#LIMPEZA}         – em limpeza</li>
+   *   <li>{@link Status#FORA_DE_SERVICO} – fora de serviço</li>
+   * </ul>
+   *
+   * @param quarto_id  id do quarto
+   * @param descricao  descrição / nome do quarto
+   * @param status     situação efetiva do quarto para o período consultado
+   * @param disponivel true se o quarto estiver disponível no período solicitado
+   */
+  public record Disponibilidade(Long quarto_id, String descricao, Status status, boolean disponivel) {}
+
   public record ItemQuarto(
       @NotNull Long id,
       @NotNull Item item,

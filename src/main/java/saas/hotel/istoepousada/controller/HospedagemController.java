@@ -3,6 +3,7 @@ package saas.hotel.istoepousada.controller;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Hospedagem;
 import saas.hotel.istoepousada.dto.Item;
@@ -93,10 +94,28 @@ public class HospedagemController {
     hospedagemService.editarConsumo(request);
   }
 
+  // ── Pessoas ──────────────────────────────────────────────────────────────────
+
+  @PostMapping("/{hospedagemId}/pessoas")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void adicionarPessoas(
+      @PathVariable Long hospedagemId, @RequestBody List<Long> pessoasIds) {
+    hospedagemService.adicionarPessoas(hospedagemId, pessoasIds);
+  }
+
+  @DeleteMapping("/{hospedagemId}/pessoas")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void removerPessoas(
+      @PathVariable Long hospedagemId, @RequestBody List<Long> pessoasIds) {
+    hospedagemService.removerPessoas(hospedagemId, pessoasIds);
+  }
+
   // ── Cancelamento ─────────────────────────────────────────────────────────────
 
   @PutMapping("/motivo-cancelamento")
   public void editarMotivoCancelamento(@RequestBody MotivoCancelamentoHospedagem.Request request) {
     hospedagemService.editarMotivoCancelamento(request);
   }
+
+
 }

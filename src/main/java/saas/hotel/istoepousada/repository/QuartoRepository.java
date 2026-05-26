@@ -48,6 +48,11 @@ public class QuartoRepository {
         return list;
       };
 
+  /** Retorna todos os quartos cadastrados, ordenados pelo ID. */
+  public List<Quarto> buscarTodos() {
+    return jdbcTemplate.query(SELECT_QUARTO_BASE + " ORDER BY quarto.id ASC", Quarto.ROW_MAPPER);
+  }
+
   public Quarto buscarPorHospedagemId(Long hospedagemId) {
     try {
       return jdbcTemplate.queryForObject(

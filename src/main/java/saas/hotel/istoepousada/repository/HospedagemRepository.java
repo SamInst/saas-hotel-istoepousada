@@ -637,6 +637,7 @@ public class HospedagemRepository {
 
     public Boolean isQuartoDisponivel(
             Long quartoId, LocalDateTime checkin, LocalDateTime checkout, Long hospedagemIdExcluido) {
+
         String sql = """
       SELECT COUNT(*) > 0
       FROM hospedagem

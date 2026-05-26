@@ -40,6 +40,66 @@ public class HospedagemService {
 
   // ── Quarto / Disponibilidade ─────────────────────────────────────────────────
 
+  /**
+   * Retorna todos os quartos cadastrados com disponibilidade e status efetivo para o período.
+   *
+   * <p>O {@code status} retornado reflete a situação <b>para as datas solicitadas</b>:
+   * <ul>
+   *   <li>Status físico ({@code OCUPADO}, {@code MANUTENCAO}, {@code LIMPEZA},
+   *       {@code FORA_DE_SERVICO}) → mantido como está, quarto indisponível.</li>
+   *   <li>Conflito de hospedagem no período → status {@code RESERVADO}, indisponível.</li>
+   *   <li>Sem conflito → status {@code DISPONIVEL}.</li>
+   * </ul>
+   *
+   * @param dataEntrada data de entrada (checkin)
+   * @param dataSaida   data de saída  (checkout)
+   * @return lista com id, descricao, status efetivo e disponibilidade de cada quarto
+   */
+  public List<Quarto.Disponibilidade> verificarDisponibilidadeQuartos(
+      LocalDate dataEntrada, LocalDate dataSaida) {
+
+    LocalDateTime checkin  = dataEntrada.atStartOfDay();
+    LocalDateTime checkout = dataSaida.atStartOfDay();
+
+    // Busca todos os quartos em uma única query
+    List<Quarto> quartos = quartoRepository.buscarTodos();
+
+    return quartos.stream()
+        .map(quarto -> {
+          Quarto.Status statusEfetivo;
+          boolean disponivel;
+          try {
+            Quarto.Status statusFisico = quarto.status();
+
+            // Status físicos que bloqueiam independente de data
+            if (statusFisico == Quarto.Status.OCUPADO
+                || statusFisico == Quarto.Status.MANUTENCAO
+                || statusFisico == Quarto.Status.LIMPEZA
+                || statusFisico == Quarto.Status.FORA_DE_SERVICO) {
+              statusEfetivo = statusFisico;
+              disponivel    = false;
+            } else {
+              // Verifica conflito de hospedagem para o período solicitado
+              boolean temConflito =
+                  hospedagemRepository.isQuartoDisponivel(quarto.id(), checkin, checkout, null);
+              if (temConflito) {
+                statusEfetivo = Quarto.Status.RESERVADO;
+                disponivel    = false;
+              } else {
+                statusEfetivo = Quarto.Status.DISPONIVEL;
+                disponivel    = true;
+              }
+            }
+          } catch (Exception e) {
+            log.warn("Erro ao verificar disponibilidade do quarto {}: {}", quarto.id(), e.getMessage());
+            statusEfetivo = quarto.status();
+            disponivel    = false;
+          }
+          return new Quarto.Disponibilidade(quarto.id(), quarto.descricao(), statusEfetivo, disponivel);
+        })
+        .toList();
+  }
+
   public Boolean isQuartoDisponivel(
       Long quartoId, LocalDateTime checkin, LocalDateTime checkout, Long hospedagemIdExcluido) {
     log.info(
@@ -460,7 +520,8 @@ public class HospedagemService {
     adicionarPessoasHospedagemOrcamentoSolicitacao(hospedagem.id(), request.pessoas_orcamento());
   }
 
-  private void calcularDiarias(Long hospedagemId, Hospedagem.Request request) {
+  @Transactional
+  protected void calcularDiarias(Long hospedagemId, Hospedagem.Request request) {
     List<Hospedagem.Diaria.Request> diarias = new ArrayList<>();
     var dataInicio = request.data_hora_checkin();
     int total_diarias =
