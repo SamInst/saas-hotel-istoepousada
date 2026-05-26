@@ -6,6 +6,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowCallbackHandler;
@@ -628,6 +629,7 @@ public class QuartoRepository {
     }
   }
 
+  @Cacheable("quartos-descricao")
   public Map<Long, String> findQuartosDescricao(List<Long> quartoIds) {
     String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
     Map<Long, String> map = new HashMap<>();

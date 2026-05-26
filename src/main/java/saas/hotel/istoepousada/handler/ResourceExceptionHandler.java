@@ -185,6 +185,22 @@ public class ResourceExceptionHandler {
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
   }
 
+  @ExceptionHandler(IllegalStateException.class)
+  public ResponseEntity<Object> errorInternalServerErrorKeyException(
+          IllegalStateException e, HttpServletRequest request) {
+    var error =
+            new StandardError(
+                    Instant.now(),
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                    SQL_VIOLATION,
+                    e.getMessage(),
+                    "",
+                    request.getRequestURI());
+
+    e.printStackTrace();
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+  }
+
   @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
   public ResponseEntity<String> handleMediaTypeNotSupportedException(
       HttpMediaTypeNotSupportedException ex) {

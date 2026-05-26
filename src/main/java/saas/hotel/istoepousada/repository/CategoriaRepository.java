@@ -10,6 +10,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
@@ -140,6 +141,7 @@ public class CategoriaRepository {
     return enriquecerCategoria(Objects.requireNonNull(base));
   }
 
+  @Cacheable("categorias-calculo")
   public Map<Long, Categoria> findCategoriasParaCalculo(List<Long> categoriaIds) {
     if (categoriaIds == null || categoriaIds.isEmpty()) return Map.of();
     String in = String.join(",", Collections.nCopies(categoriaIds.size(), "?"));
@@ -1038,6 +1040,7 @@ public class CategoriaRepository {
     return map;
   }
 
+  @Cacheable("menores-idade-sazon")
   public Map<Long, List<Categoria.MenorIdade>> findSazonMenoresIdade(List<Long> sazonIds) {
     if (sazonIds == null || sazonIds.isEmpty()) return Map.of();
 
@@ -1153,6 +1156,7 @@ public class CategoriaRepository {
     }
   }
 
+  @Cacheable("modelos-ocupacao-sazon")
   public Map<Long, List<Categoria.ModeloOcupacao>> buscaModeloPrecoPorOcupacaoSazonalidade(
       List<Long> sazonIds) {
     if (sazonIds == null || sazonIds.isEmpty()) return Map.of();
@@ -1181,6 +1185,7 @@ public class CategoriaRepository {
     return map;
   }
 
+  @Cacheable("modelos-fixo-sazon")
   public Map<Long, List<Categoria.ModeloFixo>> buscaModeloPrecoFixoSazonalidade(
       List<Long> sazonIds) {
     if (sazonIds == null || sazonIds.isEmpty()) return Map.of();
@@ -1493,6 +1498,7 @@ public class CategoriaRepository {
   //        return total;
   //    }
 
+  @Cacheable("sazonalidades")
   public Map<Long, List<Sazonalidade>> findSazonalidades(List<Long> categoriaIds) {
     if (categoriaIds == null || categoriaIds.isEmpty()) return Map.of();
     String in = String.join(",", Collections.nCopies(categoriaIds.size(), "?"));
@@ -1543,6 +1549,7 @@ public class CategoriaRepository {
     return map;
   }
 
+  @Cacheable("categorias-checkin")
   public Map<Long, CategoriaCheckin> findCategoriasCheckinByQuartoIds(List<Long> quartoIds) {
     String in = String.join(",", Collections.nCopies(quartoIds.size(), "?"));
     Map<Long, CategoriaCheckin> map = new HashMap<>();

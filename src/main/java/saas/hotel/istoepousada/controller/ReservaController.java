@@ -36,4 +36,10 @@ public class ReservaController {
   public void ausente(@PathVariable Long hospedagemId) {
     hospedagemService.marcarReservaAusente(hospedagemId);
   }
+
+  @PutMapping("/{hospedagemId}/editar")
+  public Hospedagem editar(
+      @PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
+    return hospedagemService.editarReserva(hospedagemId, request);
+  }
 }

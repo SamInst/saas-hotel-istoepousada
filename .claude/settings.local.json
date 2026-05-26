@@ -26,7 +26,8 @@
       "Bash(Select-Object FullName)",
       "Bash(./gradlew compileJava --rerun-tasks)",
       "PowerShell(Get-NetTCPConnection *)",
-      "PowerShell(New-Item *)"
+      "PowerShell(New-Item *)",
+      "PowerShell(Head-Object *)"
     ]
   }
 }

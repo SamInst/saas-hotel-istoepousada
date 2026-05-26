@@ -5,6 +5,7 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -379,6 +380,20 @@ public class PessoaRepository {
     } catch (EmptyResultDataAccessException ex) {
       throw new NotFoundException("Pessoa não encontrada para o id: " + id);
     }
+  }
+
+  /** Busca apenas id + data_nascimento — mais leve que findById para cálculo de preço. */
+  public Map<Long, LocalDate> findDataNascimentoByIds(Set<Long> ids) {
+    if (ids == null || ids.isEmpty()) return Map.of();
+    String in = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+    Map<Long, LocalDate> result = new HashMap<>();
+    jdbcTemplate.query(
+        "SELECT id, data_nascimento FROM public.pessoa WHERE id IN (" + in + ")",
+        rs -> {
+          Date dataNasc = rs.getDate("data_nascimento");
+          if (dataNasc != null) result.put(rs.getLong("id"), dataNasc.toLocalDate());
+        });
+    return result;
   }
 
   public Pessoa insert(Pessoa.Request pessoa) {

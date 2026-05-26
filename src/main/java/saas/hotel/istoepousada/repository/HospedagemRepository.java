@@ -267,30 +267,33 @@ public class HospedagemRepository {
   }
 
   public Hospedagem insertHospedagem(Hospedagem.Request request, Long funcionarioId) {
-    var hospedagem_id =
-        jdbcTemplate.queryForObject(
-            """
-                        insert into hospedagem (
-                            fk_funcionario,
-                            fk_quarto,
-                            data_hora_registro,
-                            data_hora_checkin,
-                            data_hora_checkout,
-                            valor_total,
-                            status,
-                            observacao)
-                        values (?, ?, now(), ?, ?, ?, ?::hospedagem_status, ?)
-                        returning id;
-                    """,
-            Long.class,
-            funcionarioId,
-            request.quarto_id(),
-            request.data_hora_checkin(),
-            request.data_hora_checkout(),
-            request.valor_total(),
-            request.status().name(),
-            request.observacao());
-    return buscarPorId(hospedagem_id);
+    return buscarPorId(insertHospedagemId(request, funcionarioId));
+  }
+
+  /** Insere hospedagem e retorna apenas o ID gerado — evita o SELECT extra quando não necessário. */
+  public Long insertHospedagemId(Hospedagem.Request request, Long funcionarioId) {
+    return jdbcTemplate.queryForObject(
+        """
+                    insert into hospedagem (
+                        fk_funcionario,
+                        fk_quarto,
+                        data_hora_registro,
+                        data_hora_checkin,
+                        data_hora_checkout,
+                        valor_total,
+                        status,
+                        observacao)
+                    values (?, ?, now(), ?, ?, ?, ?::hospedagem_status, ?)
+                    returning id;
+                """,
+        Long.class,
+        funcionarioId,
+        request.quarto_id(),
+        request.data_hora_checkin(),
+        request.data_hora_checkout(),
+        request.valor_total(),
+        request.status().name(),
+        request.observacao());
   }
 
   public Hospedagem editarHospedagem(Hospedagem.Request request) {
@@ -311,12 +314,52 @@ public class HospedagemRepository {
     return buscarPorId(request.hospedagem_id());
   }
 
-  public void alterarStatus(Long hospedagemId, Hospedagem.Status status) {
+  /** Edição de reserva — inclui fk_quarto além dos campos de editarHospedagem. */
+  public Hospedagem editarReserva(Long hospedagemId, Hospedagem.Request request, Long funcionarioId) {
     jdbcTemplate.update(
         """
-                        update hospedagem set status = ?::hospedagem_status where id = ?
+                        UPDATE hospedagem
+                        SET fk_quarto          = COALESCE(?, fk_quarto),
+                            data_hora_checkin  = COALESCE(?, data_hora_checkin),
+                            data_hora_checkout = COALESCE(?, data_hora_checkout),
+                            valor_total        = COALESCE(?, valor_total),
+                            observacao         = COALESCE(?, observacao),
+                            fk_funcionario = ?
+                        WHERE id = ?
                         """,
+        request.quarto_id(),
+        request.data_hora_checkin(),
+        request.data_hora_checkout(),
+        request.valor_total(),
+        request.observacao(),
+        funcionarioId,
+        hospedagemId);
+    return buscarPorId(hospedagemId);
+  }
+
+  public Long buscarQuartoId(Long hospedagemId) {
+    return jdbcTemplate.queryForObject(
+        "SELECT fk_quarto FROM hospedagem WHERE id = ?", Long.class, hospedagemId);
+  }
+
+  public List<Long> buscarPessoasIds(Long hospedagemId) {
+    return jdbcTemplate.queryForList(
+        "SELECT pessoa_id FROM hospedagem_pessoa WHERE hospedagem_id = ?",
+        Long.class,
+        hospedagemId);
+  }
+
+  public void deletarDiarias(Long hospedagemId) {
+    jdbcTemplate.update("DELETE FROM diaria WHERE fk_hospedagem = ?", hospedagemId);
+  }
+
+  public void alterarStatus(Long hospedagemId, Hospedagem.Status status, Long funcionarioId) {
+    jdbcTemplate.update(
+        """
+            update hospedagem set status = ?::hospedagem_status, fk_funcionario = ? where id = ?
+            """,
         status.name(),
+        funcionarioId,
         hospedagemId);
   }
 
@@ -335,10 +378,10 @@ public class HospedagemRepository {
     List<Long> existentes =
         jdbcTemplate.queryForList(
             """
-                                SELECT pessoa_id FROM hospedagem_pessoa
-                                WHERE hospedagem_id = ?
-                                  AND pessoa_id IN (%s)
-                                """
+             SELECT pessoa_id FROM hospedagem_pessoa
+             WHERE hospedagem_id = ?
+               AND pessoa_id IN (%s)
+             """
                 .formatted(
                     pessoasIds.stream().map(String::valueOf).collect(Collectors.joining(","))),
             Long.class,
@@ -499,7 +542,8 @@ public class HospedagemRepository {
   }
 
   public void adicionarDiarias(
-      Long hospedagemId, List<Hospedagem.Diaria.Request> diarias, Double valorTotal) {
+      Long hospedagemId, List<Hospedagem.Diaria.Request> diarias, List<Double> valores) {
+    AtomicInteger index = new AtomicInteger(0);
     jdbcTemplate.batchUpdate(
         """
                         INSERT INTO diaria (fk_hospedagem, fk_quarto, numero, checkin, checkout, valor)
@@ -508,13 +552,32 @@ public class HospedagemRepository {
         diarias,
         diarias.size(),
         (ps, diaria) -> {
+          int i = index.getAndIncrement();
           ps.setLong(1, hospedagemId);
           ps.setLong(2, diaria.quarto_id());
-          ps.setInt(3, diarias.indexOf(diaria) + 1);
+          ps.setInt(3, i + 1);
           ps.setObject(4, diaria.checkin());
           ps.setObject(5, diaria.checkout());
-          ps.setDouble(6, valorTotal);
+          ps.setDouble(6, valores.get(i));
         });
+  }
+
+  /**
+   * Retorna chaves "quartoId_checkin_checkout" de todas as diárias já cadastradas para a
+   * hospedagem — permite verificação em lote no serviço, sem N queries individuais.
+   */
+  public Set<String> buscarChavesDiariasExistentes(Long hospedagemId) {
+    List<String> chaves =
+        jdbcTemplate.query(
+            "SELECT fk_quarto, checkin, checkout FROM diaria WHERE fk_hospedagem = ?",
+            (rs, rowNum) ->
+                rs.getLong("fk_quarto")
+                    + "_"
+                    + rs.getObject("checkin", LocalDateTime.class)
+                    + "_"
+                    + rs.getObject("checkout", LocalDateTime.class),
+            hospedagemId);
+    return new HashSet<>(chaves);
   }
 
   public Boolean isDiariaJaExiste(Long hospedagemId, Hospedagem.Diaria.Request diaria) {
