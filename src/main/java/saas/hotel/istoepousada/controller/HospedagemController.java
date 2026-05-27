@@ -111,11 +111,8 @@ public class HospedagemController {
   }
 
   // ── Cancelamento ─────────────────────────────────────────────────────────────
-
   @PutMapping("/motivo-cancelamento")
   public void editarMotivoCancelamento(@RequestBody MotivoCancelamentoHospedagem.Request request) {
     hospedagemService.editarMotivoCancelamento(request);
   }
-
-
 }
