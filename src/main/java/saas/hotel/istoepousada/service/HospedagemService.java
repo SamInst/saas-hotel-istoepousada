@@ -40,28 +40,12 @@ public class HospedagemService {
 
   // ── Quarto / Disponibilidade ─────────────────────────────────────────────────
 
-  /**
-   * Retorna todos os quartos cadastrados com disponibilidade e status efetivo para o período.
-   *
-   * <p>O {@code status} retornado reflete a situação <b>para as datas solicitadas</b>:
-   * <ul>
-   *   <li>Status físico ({@code OCUPADO}, {@code MANUTENCAO}, {@code LIMPEZA},
-   *       {@code FORA_DE_SERVICO}) → mantido como está, quarto indisponível.</li>
-   *   <li>Conflito de hospedagem no período → status {@code RESERVADO}, indisponível.</li>
-   *   <li>Sem conflito → status {@code DISPONIVEL}.</li>
-   * </ul>
-   *
-   * @param dataEntrada data de entrada (checkin)
-   * @param dataSaida   data de saída  (checkout)
-   * @return lista com id, descricao, status efetivo e disponibilidade de cada quarto
-   */
   public List<Quarto.Disponibilidade> verificarDisponibilidadeQuartos(
       LocalDate dataEntrada, LocalDate dataSaida) {
 
     LocalDateTime checkin  = dataEntrada.atStartOfDay();
     LocalDateTime checkout = dataSaida.atStartOfDay();
 
-    // Busca todos os quartos em uma única query
     List<Quarto> quartos = quartoRepository.buscarTodos();
 
     return quartos.stream()
@@ -71,7 +55,6 @@ public class HospedagemService {
           try {
             Quarto.Status statusFisico = quarto.status();
 
-            // Status físicos que bloqueiam independente de data
             if (statusFisico == Quarto.Status.OCUPADO
                 || statusFisico == Quarto.Status.MANUTENCAO
                 || statusFisico == Quarto.Status.LIMPEZA
@@ -79,7 +62,6 @@ public class HospedagemService {
               statusEfetivo = statusFisico;
               disponivel    = false;
             } else {
-              // Verifica conflito de hospedagem para o período solicitado
               boolean temConflito =
                   hospedagemRepository.isQuartoDisponivel(quarto.id(), checkin, checkout, null);
               if (temConflito) {
@@ -272,6 +254,9 @@ public class HospedagemService {
   }
 
   // ── Pessoas ──────────────────────────────────────────────────────────────────
+  public List<Pessoa.DadosPrincipais> buscarPessoasHospedagem(Long hospedagemId){
+    return  pessoaService.buscarByHospedagemId(hospedagemId);
+  }
 
   public void removerPessoas(Long hospedagemId, List<Long> pessoasIds) {
     hospedagemRepository.buscarPorId(hospedagemId);
@@ -799,6 +784,7 @@ public class HospedagemService {
     var consumos = buscarConsumosPorHospedagem(hospedagem.id());
     var pagamentos = pagamentoService.buscarPorHospedagemId(hospedagem.id());
     var quarto = quartoRepository.buscarPorHospedagemId(hospedagem.id());
+    var pessoas = buscarPessoasHospedagem(hospedagem.id());
 
     List<Hospedagem.PessoaHospedagemOrcamento> pessoasOrcamento =
         hospedagemRepository.buscarPessoasHospedagemOrcamento(hospedagem.id());
@@ -826,6 +812,7 @@ public class HospedagemService {
         diarias,
         consumos,
         pagamentos,
+        pessoas,
         pessoasOrcamento,
         motivo);
   }

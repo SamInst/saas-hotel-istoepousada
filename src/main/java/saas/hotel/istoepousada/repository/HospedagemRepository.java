@@ -239,6 +239,7 @@ public class HospedagemRepository {
                                         null,
                                         null,
                                         null,
+                                        null,
                                         buscarPessoasHospedagemOrcamento(h.id()),
                                         buscarMotivoCancelamento(h.id())))
                             .toList();

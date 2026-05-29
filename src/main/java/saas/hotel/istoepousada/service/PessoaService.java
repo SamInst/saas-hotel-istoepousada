@@ -326,6 +326,10 @@ public class PessoaService {
     }
   }
 
+  public List<Pessoa.DadosPrincipais> buscarByHospedagemId(Long hospedagemId) {
+    return pessoaRepository.buscarByHospedagemId(hospedagemId);
+  }
+
   public Long getFuncionarioIdFromRequest() {
     return pessoaRepository.getFuncionarioIdFromRequest();
   }

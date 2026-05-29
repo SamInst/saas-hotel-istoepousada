@@ -668,4 +668,27 @@ public class PessoaRepository {
         Boolean.class,
         placa);
   }
+
+  public List<Pessoa.DadosPrincipais> buscarByHospedagemId(Long hospedagemId) {
+    String sql =
+        """
+        SELECT
+            p.id                AS pessoa_id,
+            p.nome              AS pessoa_nome,
+            p.data_nascimento   AS pessoa_data_nascimento,
+            p.cpf               AS pessoa_cpf,
+            p.email             AS pessoa_email,
+            p.telefone          AS pessoa_telefone,
+            p.status            AS pessoa_status,
+            hp.representante    AS pessoa_titular
+        FROM pessoa p
+        JOIN hospedagem_pessoa hp ON hp.pessoa_id = p.id
+        WHERE hp.hospedagem_id = ?
+        """;
+    try {
+      return jdbcTemplate.query(sql, Pessoa.DadosPrincipais.ROW_MAPPER, hospedagemId);
+    } catch (EmptyResultDataAccessException ex) {
+      return List.of();
+    }
+  }
 }

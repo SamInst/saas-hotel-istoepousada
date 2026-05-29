@@ -23,6 +23,7 @@ public record Hospedagem(
     List<Diaria> diarias,
     List<Item.Consumo> consumos,
     List<Pagamento> pagamentos,
+    List<Pessoa.DadosPrincipais> pessoas,
     List<Hospedagem.PessoaHospedagemOrcamento> pessoas_orcamento,
     MotivoCancelamentoHospedagem motivo_cancelamento) {
 
@@ -127,6 +128,7 @@ public record Hospedagem(
             null, // consumos
             null, // pagamentos
             null, // orcamentos
+            null,
             null // motivo_cancelamento
             );
       };
