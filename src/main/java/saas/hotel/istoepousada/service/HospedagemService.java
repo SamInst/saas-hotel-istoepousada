@@ -820,9 +820,42 @@ public class HospedagemService {
       Integer mes,
       Integer ano,
       String nomeTitular) {
-    return hospedagemRepository.buscar(statuses, data, mes, ano, nomeTitular).stream()
-        .map(this::withDetails)
-        .toList();
+    List<Hospedagem> base = hospedagemRepository.buscar(statuses, data, mes, ano, nomeTitular);
+    if (base.isEmpty()) return List.of();
+    return withDetailsBatch(base);
+  }
+
+  private List<Hospedagem> withDetailsBatch(List<Hospedagem> hospedagens) {
+    List<Long> ids = hospedagens.stream().map(Hospedagem::id).toList();
+
+    Map<Long, List<Hospedagem.Diaria>>                    diariasMap    = hospedagemRepository.listarDiariasBatch(ids);
+    Map<Long, List<Item.Consumo>>                         consumosMap   = hospedagemRepository.buscarConsumosBatch(ids);
+    Map<Long, List<Pagamento>>                            pagamentosMap = pagamentoService.buscarPorHospedagemIds(ids);
+    Map<Long, Quarto>                                     quartosMap    = quartoRepository.buscarPorHospedagemIds(ids);
+    Map<Long, List<Pessoa.DadosPrincipais>>               pessoasMap    = pessoaService.buscarByHospedagemIds(ids);
+    Map<Long, List<Hospedagem.PessoaHospedagemOrcamento>> pessoasOrcMap = hospedagemRepository.buscarPessoasOrcamentoBatch(ids);
+    Map<Long, MotivoCancelamentoHospedagem>               motivosMap    = hospedagemRepository.buscarMotivoCancelamentoBatch(ids);
+
+    return hospedagens.stream().map(h -> new Hospedagem(
+        h.id(),
+        h.funcionario(),
+        quartosMap.get(h.id()),
+        h.data_hora_registro(),
+        h.data_hora_checkin(),
+        h.data_hora_checkout(),
+        h.status(),
+        h.valor_total(),
+        h.quantidade_diarias(),
+        h.numero_diaria_atual(),
+        h.observacao(),
+        diariasMap.getOrDefault(h.id(), List.of()),
+        consumosMap.getOrDefault(h.id(), List.of()),
+        pagamentosMap.getOrDefault(h.id(), List.of()),
+        pessoasMap.getOrDefault(h.id(), List.of()),
+        pessoasOrcMap.getOrDefault(h.id(), List.of()),
+        motivosMap.get(h.id()),
+        h.grupo_id()
+    )).toList();
   }
 
   public Hospedagem buscarPorId(Long id) {

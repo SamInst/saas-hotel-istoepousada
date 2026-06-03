@@ -1,6 +1,7 @@
 package saas.hotel.istoepousada.repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -101,6 +102,65 @@ public class PagamentoRepository {
         SELECT_PAGAMENTO_BASE
             + " JOIN hospedagem_pagamento ON hospedagem_pagamento.fk_pagamento = p.id WHERE hospedagem_pagamento.fk_hospedagem = ? ORDER BY p.data_hora_registro DESC";
     return jdbcTemplate.query(sql, Pagamento.ROW_MAPPER, id);
+  }
+
+  public Map<Long, List<Pagamento>> findByHospedagemIds(List<Long> ids) {
+    if (ids.isEmpty()) return Map.of();
+    String in = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+    String sql = """
+        SELECT
+          hp.fk_hospedagem     AS pagamento_fk_hospedagem,
+          p.id                 AS pagamento_id,
+          p.data_hora_registro AS pagamento_data_hora_registro,
+          p.nome_pagador       AS pagamento_nome_pagador,
+          p.descricao          AS pagamento_descricao,
+          p.valor              AS pagamento_valor,
+          p.cancelado          AS pagamento_cancelado,
+          p.path_arquivo       AS pagamento_path_arquivo,
+          tp.id                AS tipo_pagamento_id,
+          tp.descricao         AS tipo_pagamento_descricao,
+          f.id                 AS pagamento_funcionario_id,
+          pe.nome              AS pagamento_funcionario_nome,
+          d.id                 AS pagamento_desconto_id,
+          d.fk_funcionario     AS pagamento_desconto_funcionario_id,
+          pde.nome             AS pagamento_desconto_funcionario_nome,
+          d.porcentagem        AS pagamento_desconto_porcentagem,
+          d.valor              AS pagamento_desconto_valor,
+          d.data_hora_registro AS pagamento_desconto_data_hora_registro,
+          mc.id                AS pagamento_motivo_id,
+          mc.motivo_cancelamento AS pagamento_motivo_cancelamento,
+          mcf.id               AS pagamento_motivo_funcionario_id,
+          mcp.nome             AS pagamento_motivo_funcionario_nome,
+          mc.data_hora_registro AS pagamento_motivo_data_hora_registro
+        FROM hospedagem_pagamento hp
+        JOIN pagamento p ON p.id = hp.fk_pagamento
+        JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
+        LEFT JOIN funcionario f ON f.id = p.fk_funcionario
+        LEFT JOIN pessoa pe ON pe.id = f.fk_pessoa
+        LEFT JOIN LATERAL (
+          SELECT * FROM pagamento_desconto d
+          WHERE d.fk_pagamento = p.id
+          ORDER BY d.data_hora_registro DESC LIMIT 1
+        ) d ON true
+        LEFT JOIN funcionario df ON df.id = d.fk_funcionario
+        LEFT JOIN pessoa pde ON pde.id = df.fk_pessoa
+        LEFT JOIN LATERAL (
+          SELECT * FROM pagamento_motivo_cancelamento mc
+          WHERE mc.fk_pagamento = p.id
+          ORDER BY mc.data_hora_registro DESC LIMIT 1
+        ) mc ON true
+        LEFT JOIN funcionario mcf ON mcf.id = mc.fk_funcionario
+        LEFT JOIN pessoa mcp ON mcp.id = mcf.fk_pessoa
+        WHERE hp.fk_hospedagem IN (%s)
+        ORDER BY hp.fk_hospedagem, p.data_hora_registro DESC
+        """.formatted(in);
+    Map<Long, List<Pagamento>> result = new java.util.LinkedHashMap<>();
+    jdbcTemplate.query(sql, rs -> {
+      Long hId = rs.getLong("pagamento_fk_hospedagem");
+      Pagamento p = Pagamento.ROW_MAPPER.mapRow(rs, 0);
+      if (p != null) result.computeIfAbsent(hId, k -> new java.util.ArrayList<>()).add(p);
+    }, ids.toArray());
+    return result;
   }
 
   public List<Pagamento> findAll() {
