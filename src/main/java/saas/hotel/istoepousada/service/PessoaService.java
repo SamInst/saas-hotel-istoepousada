@@ -1,8 +1,11 @@
 package saas.hotel.istoepousada.service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -52,6 +55,11 @@ public class PessoaService {
       throw new IllegalArgumentException("Id é obrigatório.");
     }
     return pessoaRepository.findById(id);
+  }
+
+  /** Busca apenas data_nascimento por múltiplos IDs — leve, para cálculo de preço. */
+  public Map<Long, LocalDate> findDataNascimentoByIds(Set<Long> ids) {
+    return pessoaRepository.findDataNascimentoByIds(ids);
   }
 
   @Transactional
@@ -316,6 +324,14 @@ public class PessoaService {
                 }
               });
     }
+  }
+
+  public List<Pessoa.DadosPrincipais> buscarByHospedagemId(Long hospedagemId) {
+    return pessoaRepository.buscarByHospedagemId(hospedagemId);
+  }
+
+  public Long getFuncionarioIdFromRequest() {
+    return pessoaRepository.getFuncionarioIdFromRequest();
   }
 
   public void vincularTitular(Pessoa.VinculoTitular vinculo) {

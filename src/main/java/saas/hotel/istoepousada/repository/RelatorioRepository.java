@@ -17,83 +17,76 @@ import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 @Repository
 public class RelatorioRepository {
   private final JdbcTemplate jdbcTemplate;
-  private final PagamentoRepository pagamentoRepository;
-  private final PessoaRepository pessoaRepository;
 
-  public RelatorioRepository(
-      JdbcTemplate jdbcTemplate,
-      PagamentoRepository pagamentoRepository,
-      PessoaRepository pessoaRepository) {
+  public RelatorioRepository(JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
-    this.pagamentoRepository = pagamentoRepository;
-    this.pessoaRepository = pessoaRepository;
   }
 
   public static String BASE_SQL =
       """
-        SELECT
-            relatorio.id                               AS relatorio_id,
-            relatorio.data_hora                        AS relatorio_data_hora,
-            relatorio.relatorio                        AS relatorio_descricao,
-            relatorio.valor_historico_dinheiro         AS relatorio_valor_historico_dinheiro,
-            relatorio.despesa_pessoal                  AS relatorio_despesa_pessoal,
+                    SELECT
+                        relatorio.id                               AS relatorio_id,
+                        relatorio.data_hora                        AS relatorio_data_hora,
+                        relatorio.relatorio                        AS relatorio_descricao,
+                        relatorio.valor_historico_dinheiro         AS relatorio_valor_historico_dinheiro,
+                        relatorio.despesa_pessoal                  AS relatorio_despesa_pessoal,
 
-            q.id                                       AS quarto_id,
-            q.descricao                                AS quarto_descricao,
+                        q.id                                       AS quarto_id,
+                        q.descricao                                AS quarto_descricao,
 
-            funcionario_relatorio.id                   AS relatorio_funcionario_id,
-            pessoa_funcionario_relatorio.nome          AS relatorio_funcionario_nome,
+                        funcionario_relatorio.id                   AS relatorio_funcionario_id,
+                        pessoa_funcionario_relatorio.nome          AS relatorio_funcionario_nome,
 
-            pagamento.id                               AS pagamento_id,
-            pagamento.data_hora_registro               AS pagamento_data_hora_registro,
-            pagamento.nome_pagador                     AS pagamento_nome_pagador,
-            pagamento.descricao                        AS pagamento_descricao,
-            pagamento.valor                            AS pagamento_valor,
-            pagamento.cancelado                        AS pagamento_cancelado,
-            pagamento.path_arquivo                     AS pagamento_path_arquivo,
+                        pagamento.id                               AS pagamento_id,
+                        pagamento.data_hora_registro               AS pagamento_data_hora_registro,
+                        pagamento.nome_pagador                     AS pagamento_nome_pagador,
+                        pagamento.descricao                        AS pagamento_descricao,
+                        pagamento.valor                            AS pagamento_valor,
+                        pagamento.cancelado                        AS pagamento_cancelado,
+                        pagamento.path_arquivo                     AS pagamento_path_arquivo,
 
-            funcionario_pagamento.id                   AS pagamento_funcionario_id,
-            pessoa_funcionario_pagamento.nome          AS pagamento_funcionario_nome,
+                        funcionario_pagamento.id                   AS pagamento_funcionario_id,
+                        pessoa_funcionario_pagamento.nome          AS pagamento_funcionario_nome,
 
-            tipo_pagamento.id                          AS tipo_pagamento_id,
-            tipo_pagamento.descricao                   AS tipo_pagamento_descricao,
+                        tipo_pagamento.id                          AS tipo_pagamento_id,
+                        tipo_pagamento.descricao                   AS tipo_pagamento_descricao,
 
-            pagamento_desconto.id                      AS pagamento_desconto_id,
-            pagamento_desconto.porcentagem             AS pagamento_desconto_porcentagem,
-            pagamento_desconto.valor                   AS pagamento_desconto_valor,
-            pagamento_desconto.data_hora_registro      AS pagamento_desconto_data_hora_registro,
+                        pagamento_desconto.id                      AS pagamento_desconto_id,
+                        pagamento_desconto.porcentagem             AS pagamento_desconto_porcentagem,
+                        pagamento_desconto.valor                   AS pagamento_desconto_valor,
+                        pagamento_desconto.data_hora_registro      AS pagamento_desconto_data_hora_registro,
 
-            funcionario_pagamento_desconto.id          AS pagamento_desconto_funcionario_id,
-            pessoa_funcionario_pagamento_desconto.nome AS pagamento_desconto_funcionario_nome,
+                        funcionario_pagamento_desconto.id          AS pagamento_desconto_funcionario_id,
+                        pessoa_funcionario_pagamento_desconto.nome AS pagamento_desconto_funcionario_nome,
 
-            mc.id                                      AS pagamento_motivo_id,
-            mc.motivo_cancelamento                     AS pagamento_motivo_cancelamento,
-            mc.data_hora_registro                      AS pagamento_motivo_data_hora_registro,
-            funcionario_motivo.id                      AS pagamento_motivo_funcionario_id,
-            pessoa_funcionario_motivo.nome             AS pagamento_motivo_funcionario_nome
-        FROM relatorio
-        LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
-        LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-        LEFT JOIN quarto q  ON q.id = relatorio.quarto_id
+                        mc.id                                      AS pagamento_motivo_id,
+                        mc.motivo_cancelamento                     AS pagamento_motivo_cancelamento,
+                        mc.data_hora_registro                      AS pagamento_motivo_data_hora_registro,
+                        funcionario_motivo.id                      AS pagamento_motivo_funcionario_id,
+                        pessoa_funcionario_motivo.nome             AS pagamento_motivo_funcionario_nome
+                    FROM relatorio
+                    LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
+                    LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
+                    LEFT JOIN quarto q  ON q.id = relatorio.quarto_id
 
-        LEFT JOIN funcionario funcionario_relatorio ON funcionario_relatorio.id = relatorio.fk_funcionario
-        LEFT JOIN pessoa pessoa_funcionario_relatorio ON pessoa_funcionario_relatorio.id = funcionario_relatorio.fk_pessoa
+                    LEFT JOIN funcionario funcionario_relatorio ON funcionario_relatorio.id = relatorio.fk_funcionario
+                    LEFT JOIN pessoa pessoa_funcionario_relatorio ON pessoa_funcionario_relatorio.id = funcionario_relatorio.fk_pessoa
 
-        LEFT JOIN funcionario funcionario_pagamento ON funcionario_pagamento.id = pagamento.fk_funcionario
-        LEFT JOIN pessoa pessoa_funcionario_pagamento ON pessoa_funcionario_pagamento.id = funcionario_pagamento.fk_pessoa
+                    LEFT JOIN funcionario funcionario_pagamento ON funcionario_pagamento.id = pagamento.fk_funcionario
+                    LEFT JOIN pessoa pessoa_funcionario_pagamento ON pessoa_funcionario_pagamento.id = funcionario_pagamento.fk_pessoa
 
-        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
-        LEFT JOIN funcionario funcionario_pagamento_desconto ON funcionario_pagamento_desconto.id = pagamento_desconto.fk_funcionario
-        LEFT JOIN pessoa pessoa_funcionario_pagamento_desconto ON pessoa_funcionario_pagamento_desconto.id = funcionario_pagamento_desconto.fk_pessoa
+                    LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
+                    LEFT JOIN funcionario funcionario_pagamento_desconto ON funcionario_pagamento_desconto.id = pagamento_desconto.fk_funcionario
+                    LEFT JOIN pessoa pessoa_funcionario_pagamento_desconto ON pessoa_funcionario_pagamento_desconto.id = funcionario_pagamento_desconto.fk_pessoa
 
-        LEFT JOIN LATERAL (
-            SELECT * FROM public.pagamento_motivo_cancelamento
-            WHERE fk_pagamento = pagamento.id
-            ORDER BY data_hora_registro DESC LIMIT 1
-        ) mc ON true
-        LEFT JOIN funcionario funcionario_motivo ON funcionario_motivo.id = mc.fk_funcionario
-        LEFT JOIN pessoa pessoa_funcionario_motivo ON pessoa_funcionario_motivo.id = funcionario_motivo.fk_pessoa
-        """;
+                    LEFT JOIN LATERAL (
+                        SELECT * FROM public.pagamento_motivo_cancelamento
+                        WHERE fk_pagamento = pagamento.id
+                        ORDER BY data_hora_registro DESC LIMIT 1
+                    ) mc ON true
+                    LEFT JOIN funcionario funcionario_motivo ON funcionario_motivo.id = mc.fk_funcionario
+                    LEFT JOIN pessoa pessoa_funcionario_motivo ON pessoa_funcionario_motivo.id = funcionario_motivo.fk_pessoa
+                    """;
 
   public Relatorio.Extrato buscar(
       Long id,
@@ -110,12 +103,12 @@ public class RelatorioRepository {
 
     String baseFrom =
         """
-        FROM relatorio relatorio
-        LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
-        LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-        LEFT JOIN quarto ON quarto.id = relatorio.quarto_id
-        LEFT JOIN pessoa pessoa_funcionario ON pessoa_funcionario.id = relatorio.fk_funcionario
-        """;
+                        FROM relatorio relatorio
+                        LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
+                        LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
+                        LEFT JOIN quarto ON quarto.id = relatorio.quarto_id
+                        LEFT JOIN pessoa pessoa_funcionario ON pessoa_funcionario.id = relatorio.fk_funcionario
+                        """;
 
     StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
     List<Object> params = new ArrayList<>();
@@ -183,14 +176,14 @@ public class RelatorioRepository {
 
     String diasSql =
         """
-        SELECT DISTINCT DATE(relatorio.data_hora) AS dia
-        """
+                        SELECT DISTINCT DATE(relatorio.data_hora) AS dia
+                        """
             + baseFrom
             + where
             + """
-        ORDER BY dia DESC
-        LIMIT ? OFFSET ?
-        """;
+                        ORDER BY dia DESC
+                        LIMIT ? OFFSET ?
+                        """;
 
     List<Object> diasParams = new ArrayList<>(params);
     diasParams.add(pageable.getPageSize());
@@ -271,69 +264,57 @@ public class RelatorioRepository {
 
   public void registrarRelatorioDeConsumo(
       Pagamento pagamento, Long funcionarioId, String descricao) {
-    Float valorComDesconto =
-        calcularValorComDesconto(
-            pagamento.valor(),
-            pagamento.desconto() != null ? pagamento.desconto().porcentagem() : null,
-            pagamento.desconto() != null ? pagamento.desconto().valor() : null);
     Long tipoPagamentoId =
         pagamento.tipo_pagamento() != null ? pagamento.tipo_pagamento().id() : null;
-    Float valorHistoricoDinheiro = calcularNovoHistoricoDinheiro(valorComDesconto, tipoPagamentoId);
+    Float valorHistoricoDinheiro =
+        calcularNovoHistoricoDinheiro(pagamento.valor(), tipoPagamentoId);
 
     jdbcTemplate.update(
         """
-        INSERT INTO relatorio (data_hora, relatorio, fk_funcionario, quarto_id, valor_historico_dinheiro, despesa_pessoal, fk_pagamento)
-        VALUES (now(), ?, ?, null, ?, false, ?)
-        """,
+                        INSERT INTO relatorio (data_hora, relatorio, fk_funcionario, quarto_id, valor_historico_dinheiro, despesa_pessoal, fk_pagamento)
+                        VALUES (now(), ?, ?, null, ?, false, ?)
+                        """,
         descricao,
         funcionarioId,
         valorHistoricoDinheiro,
         pagamento.uuid());
   }
 
-  public Relatorio insert(Relatorio.Request request) {
-    Long tipoPagamentoId = request.pagamento().tipo_pagamento().id();
+  public Relatorio insert(Relatorio.Request request, Pagamento pagamento, Long funcionarioId) {
+    Long tipoPagamentoId =
+        pagamento.tipo_pagamento() != null ? pagamento.tipo_pagamento().id() : null;
 
-    Float valorOriginal = request.pagamento().valor();
-    Float descontoPorcentagem =
-        request.pagamento().desconto() != null
-            ? request.pagamento().desconto().porcentagem()
-            : null;
-    Float descontoValor =
-        request.pagamento().desconto() != null ? request.pagamento().desconto().valor() : null;
-    Float valorComDesconto =
-        calcularValorComDesconto(valorOriginal, descontoPorcentagem, descontoValor);
+    Float valorOriginal = pagamento.valor();
 
-    Float valorHistoricoDinheiro = calcularNovoHistoricoDinheiro(valorComDesconto, tipoPagamentoId);
+    Float valorHistoricoDinheiro = calcularNovoHistoricoDinheiro(valorOriginal, tipoPagamentoId);
 
     if (tipoPagamentoId != null && tipoPagamentoId == 1L && valorHistoricoDinheiro < 0) {
       Float saldoAtual = buscarUltimoHistoricoDinheiro();
       throw new BusinessException(
           String.format(
               "Saldo insuficiente no caixa. Saldo atual: R$ %.2f, valor a retirar: R$ %.2f.",
-              saldoAtual, Math.abs(valorComDesconto != null ? valorComDesconto : 0F)));
+              saldoAtual, Math.abs(valorOriginal != null ? valorOriginal : 0F)));
     }
 
     boolean despesaPessoal = Boolean.TRUE.equals(request.despesa_pessoal());
-    var pagamento = pagamentoRepository.create(request.pagamento());
 
     Long id =
         jdbcTemplate.queryForObject(
             """
-            INSERT INTO relatorio (
-                data_hora,
-                relatorio,
-                fk_funcionario,
-                quarto_id,
-                valor_historico_dinheiro,
-                despesa_pessoal,
-                fk_pagamento
-            ) VALUES (now(), ?, ?, ?, ?, ?, ?)
-            RETURNING id
-            """,
+                                INSERT INTO relatorio (
+                                    data_hora,
+                                    relatorio,
+                                    fk_funcionario,
+                                    quarto_id,
+                                    valor_historico_dinheiro,
+                                    despesa_pessoal,
+                                    fk_pagamento
+                                ) VALUES (now(), ?, ?, ?, ?, ?, ?)
+                                RETURNING id
+                                """,
             Long.class,
             request.relatorio(),
-            getFuncionarioId(),
+            funcionarioId,
             request.quarto() != null ? request.quarto().id() : null,
             valorHistoricoDinheiro,
             despesaPessoal,
@@ -342,13 +323,8 @@ public class RelatorioRepository {
     return getByIdOrThrow(new Relatorio.Id(id));
   }
 
-  public Relatorio update(Relatorio.Update relatorio) {
+  public Relatorio update(Relatorio.Update relatorio, Long funcionarioId) {
     Relatorio relatorioAntigo = getByIdOrThrow(new Relatorio.Id(relatorio.id()));
-
-    // Atualiza o pagamento primeiro para ter o desconto atualizado
-    if (relatorio.pagamento().valor() != null) {
-      pagamentoRepository.update(relatorio.pagamento());
-    }
 
     // Busca o pagamento atualizado com desconto
     Relatorio relatorioAtualizado = getByIdOrThrow(new Relatorio.Id(relatorio.id()));
@@ -369,13 +345,13 @@ public class RelatorioRepository {
         new Relatorio.Id(
             jdbcTemplate.queryForObject(
                 """
-                UPDATE relatorio SET
-                    relatorio = ?,
-                    quarto_id = ?,
-                    valor_historico_dinheiro = ?,
-                    despesa_pessoal = ?
-                WHERE id = ? returning id
-                """,
+                                        UPDATE relatorio SET
+                                            relatorio = ?,
+                                            quarto_id = ?,
+                                            valor_historico_dinheiro = ?,
+                                            despesa_pessoal = ?
+                                        WHERE id = ? returning id
+                                        """,
                 Long.class,
                 relatorio.descricao(),
                 quartoId,
@@ -387,31 +363,22 @@ public class RelatorioRepository {
     return getByIdOrThrow(id);
   }
 
-  private Float calcularValorComDesconto(
-      Float valorOriginal, Float descontoPorcentagem, Float descontoValor) {
+  private Float calcularValorComDesconto(Float valorOriginal) {
     if (valorOriginal == null) {
       return 0F;
     }
     if (valorOriginal <= 0) {
-      return valorOriginal; // desconto só se aplica a valores positivos (entradas)
+      return valorOriginal;
     }
 
-    Float valorFinal = valorOriginal;
-
-    if (descontoPorcentagem != null && descontoPorcentagem > 0) {
-      valorFinal = valorOriginal - (valorOriginal * descontoPorcentagem / 100);
-    } else if (descontoValor != null && descontoValor > 0) {
-      valorFinal = valorOriginal - descontoValor;
-    }
-
-    return valorFinal;
+    return valorOriginal;
   }
 
   private Float calcularNovoHistoricoDinheiro(Float valor, Long tipoPagamentoId) {
     Float ultimoHistorico = buscarUltimoHistoricoDinheiro();
 
     if (tipoPagamentoId == null || tipoPagamentoId != 1) {
-      return ultimoHistorico; // NÃO altera caixa
+      return ultimoHistorico;
     }
 
     return ultimoHistorico + (valor != null ? valor : 0F);
@@ -429,11 +396,11 @@ public class RelatorioRepository {
   private Float buscarUltimoHistoricoDinheiro() {
     String sql =
         """
-        SELECT COALESCE(valor_historico_dinheiro, 0)
-        FROM relatorio
-        ORDER BY data_hora DESC, id DESC
-        LIMIT 1
-        """;
+                        SELECT COALESCE(valor_historico_dinheiro, 0)
+                        FROM relatorio
+                        ORDER BY data_hora DESC, id DESC
+                        LIMIT 1
+                        """;
     try {
       Float valor = jdbcTemplate.queryForObject(sql, Float.class);
       return valor != null ? valor : 0F;
@@ -445,13 +412,13 @@ public class RelatorioRepository {
   private Float buscarHistoricoAnteriorAoRegistro(Long relatorioId) {
     String sql =
         """
-            SELECT COALESCE(valor_historico_dinheiro, 0)
-            FROM relatorio
-            WHERE relatorio.data_hora < (SELECT data_hora FROM relatorio WHERE id = ?)
-               OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id < ?)
-            ORDER BY relatorio.data_hora DESC, relatorio.id DESC
-            LIMIT 1
-            """;
+                        SELECT COALESCE(valor_historico_dinheiro, 0)
+                        FROM relatorio
+                        WHERE relatorio.data_hora < (SELECT data_hora FROM relatorio WHERE id = ?)
+                           OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id < ?)
+                        ORDER BY relatorio.data_hora DESC, relatorio.id DESC
+                        LIMIT 1
+                        """;
 
     try {
       return jdbcTemplate.queryForObject(sql, Float.class, relatorioId, relatorioId, relatorioId);
@@ -463,20 +430,20 @@ public class RelatorioRepository {
   private void recalcularHistoricoPosteriores(Long relatorioId, Float novoHistorico) {
     String sqlBuscar =
         """
-        SELECT
-           relatorio.id,
-           COALESCE(pagamento.valor, 0) AS valor,
-           tipo_pagamento.id AS tipo_id,
-           pagamento_desconto.porcentagem AS desconto_porcentagem,
-           pagamento_desconto.valor AS desconto_valor
-       FROM relatorio
-       LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
-       LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-       LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
-       WHERE relatorio.data_hora > (SELECT data_hora FROM relatorio WHERE id = ?)
-          OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id > ?)
-       ORDER BY relatorio.data_hora ASC, relatorio.id ASC
-       """;
+                         SELECT
+                            relatorio.id,
+                            COALESCE(pagamento.valor, 0) AS valor,
+                            tipo_pagamento.id AS tipo_id,
+                            pagamento_desconto.porcentagem AS desconto_porcentagem,
+                            pagamento_desconto.valor AS desconto_valor
+                        FROM relatorio
+                        LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
+                        LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
+                        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
+                        WHERE relatorio.data_hora > (SELECT data_hora FROM relatorio WHERE id = ?)
+                           OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id > ?)
+                        ORDER BY relatorio.data_hora ASC, relatorio.id ASC
+                        """;
 
     List<Map<String, Object>> posteriores =
         jdbcTemplate.queryForList(sqlBuscar, relatorioId, relatorioId, relatorioId);
@@ -487,16 +454,8 @@ public class RelatorioRepository {
       Long id = ((Number) registro.get("id")).longValue();
       Number valor = (Number) registro.get("valor");
       Number tipoId = (Number) registro.get("tipo_id");
-      Number descontoPorcentagem = (Number) registro.get("desconto_porcentagem");
-      Number descontoValor = (Number) registro.get("desconto_valor");
-
-      // Calcula o valor com desconto
       Float valorOriginal = valor != null ? valor.floatValue() : 0F;
-      Float valorComDesconto =
-          calcularValorComDesconto(
-              valorOriginal,
-              descontoPorcentagem != null ? descontoPorcentagem.floatValue() : null,
-              descontoValor != null ? descontoValor.floatValue() : null);
+      Float valorComDesconto = calcularValorComDesconto(valorOriginal);
 
       if (tipoId != null && tipoId.longValue() == 1) {
         historicoAcumulado += valorComDesconto;
@@ -547,26 +506,26 @@ public class RelatorioRepository {
     String soma =
         entradas
             ? """
-              COALESCE(SUM(
-                CASE WHEN pagamento.valor > 0 THEN
-                  CASE
-                    WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN
-                      pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
-                    WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN
-                      pagamento.valor - pagamento_desconto.valor
-                    ELSE pagamento.valor
-                  END
-                ELSE 0
-                END
-              ), 0)
-              """
+                        COALESCE(SUM(
+                          CASE WHEN pagamento.valor > 0 THEN
+                            CASE
+                              WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN
+                                pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
+                              WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN
+                                pagamento.valor - pagamento_desconto.valor
+                              ELSE pagamento.valor
+                            END
+                          ELSE 0
+                          END
+                        ), 0)
+                        """
             : """
-              COALESCE(SUM(
-                CASE WHEN pagamento.valor < 0 THEN ABS(pagamento.valor)
-                ELSE 0
-                END
-              ), 0)
-              """;
+                        COALESCE(SUM(
+                          CASE WHEN pagamento.valor < 0 THEN ABS(pagamento.valor)
+                          ELSE 0
+                          END
+                        ), 0)
+                        """;
 
     String sql =
         """
@@ -651,10 +610,10 @@ public class RelatorioRepository {
 
     String sqlTipos =
         """
-        SELECT id, descricao
-        FROM tipo_pagamento
-        ORDER BY descricao
-        """;
+                        SELECT id, descricao
+                        FROM tipo_pagamento
+                        ORDER BY descricao
+                        """;
 
     Map<String, Relatorio.Extrato.Resumo> mapa = new LinkedHashMap<>();
 
@@ -676,9 +635,5 @@ public class RelatorioRepository {
 
     mapa.put("TOTAL", Relatorio.Extrato.Resumo.of(totalReceitas, totalDespesas));
     return mapa;
-  }
-
-  public Long getFuncionarioId() {
-    return pessoaRepository.getFuncionarioIdFromRequest();
   }
 }

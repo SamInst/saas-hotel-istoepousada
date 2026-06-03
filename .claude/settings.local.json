@@ -20,7 +20,14 @@
       "Bash(cmd.exe /c \"gradlew.bat compileJava\")",
       "Bash(cmd.exe:*)",
       "Bash(cmd *)",
-      "Bash(./gradlew compileJava --offline)"
+      "Bash(./gradlew compileJava --offline)",
+      "Bash(grep -E \"\\\\.java$\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sanhe\\\\Downloads\\\\istoepousada\\\\istoepousada\" -Recurse -Directory -Depth 2)",
+      "Bash(Select-Object FullName)",
+      "Bash(./gradlew compileJava --rerun-tasks)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(Head-Object *)"
     ]
   }
 }

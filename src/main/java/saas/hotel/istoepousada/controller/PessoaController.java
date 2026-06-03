@@ -44,6 +44,7 @@ public class PessoaController {
   }
 
   @PutMapping
+  @PublicEndpoint
   public Pessoa atualizar(@RequestBody Pessoa.Update pessoa) {
     return pessoaService.atualizarPessoa(pessoa);
   }

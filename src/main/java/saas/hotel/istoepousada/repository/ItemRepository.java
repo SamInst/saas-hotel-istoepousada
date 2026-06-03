@@ -8,30 +8,21 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.CategoriaItem;
 import saas.hotel.istoepousada.dto.Item;
-import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
 public class ItemRepository {
 
   private final JdbcTemplate jdbcTemplate;
-  private final PessoaRepository pessoaRepository;
-  private final PagamentoRepository pagamentoRepository;
-  private final RelatorioRepository relatorioRepository;
 
-  public ItemRepository(
-      JdbcTemplate jdbcTemplate,
-      PessoaRepository pessoaRepository,
-      PagamentoRepository pagamentoRepository,
-      RelatorioRepository relatorioRepository) {
+  public ItemRepository(JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
-    this.pessoaRepository = pessoaRepository;
-    this.pagamentoRepository = pagamentoRepository;
-    this.relatorioRepository = relatorioRepository;
   }
+
+  public record ConsumoParaCancelamento(
+      UUID pagamentoId, Long itemId, Long quartoId, Float quantidade) {}
 
   public Page<Item> buscar(Long id, String termo, Long categoriaId, Pageable pageable) {
 
@@ -127,77 +118,70 @@ public class ItemRepository {
     return page.getContent().getFirst();
   }
 
-  @Transactional
-  public void consumirItem(Item.Consumo.Request request) {
-    boolean despesaPessoal = Boolean.TRUE.equals(request.despesa_pessoal());
-    boolean temQuarto = request.quarto() != null;
+  public String buscarDescricaoItem(Long itemId) {
+    return jdbcTemplate.queryForObject(
+        "SELECT descricao FROM item WHERE id = ?", String.class, itemId);
+  }
 
-    UUID pagamentoId = null;
-    if (!despesaPessoal && request.pagamento() != null) {
-      Pagamento pagamento = pagamentoRepository.create(request.pagamento());
-      pagamentoId = pagamento.uuid();
-
-      String itemDescricao =
-          jdbcTemplate.queryForObject(
-              "SELECT descricao FROM item WHERE id = ?", String.class, request.item().id());
-
-      relatorioRepository.registrarRelatorioDeConsumo(
-          pagamento, getFuncionarioId(), "Consumo: " + itemDescricao);
-    }
-
+  public void inserirConsumo(
+      UUID pagamentoId,
+      Long itemId,
+      Long funcionarioId,
+      Integer quantidade,
+      boolean despesaPessoal,
+      Long quartoId) {
     jdbcTemplate.update(
         """
                 INSERT INTO consumo (fk_pagamento, fk_item, fk_funcionario, quantidade, despesa_pessoal, fk_quarto)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
         pagamentoId,
-        request.item().id(),
-        getFuncionarioId(),
-        request.quantidade(),
+        itemId,
+        funcionarioId,
+        quantidade,
         despesaPessoal,
-        request.quarto() != null ? request.quarto().id() : null);
+        quartoId);
+  }
 
-    if (temQuarto) {
-      Integer qtdQuarto = null;
-      try {
-        qtdQuarto =
-            jdbcTemplate.queryForObject(
-                """
-                        SELECT quantidade_atual FROM quarto_item
-                        WHERE fk_quarto = ? AND fk_item = ?
-                        """,
-                Integer.class,
-                request.quarto().id(),
-                request.item().id());
-      } catch (EmptyResultDataAccessException ignored) {
-      }
-
-      if (qtdQuarto != null && qtdQuarto >= request.quantidade()) {
-        jdbcTemplate.update(
-            """
-                        UPDATE quarto_item
-                        SET quantidade_atual = quantidade_atual - ?
-                        WHERE fk_quarto = ? AND fk_item = ?
-                        """,
-            request.quantidade(),
-            request.quarto().id(),
-            request.item().id());
-        return;
-      }
+  public Integer buscarQuantidadeQuartoItem(Long quartoId, Long itemId) {
+    try {
+      return jdbcTemplate.queryForObject(
+          """
+                  SELECT quantidade_atual FROM quarto_item
+                  WHERE fk_quarto = ? AND fk_item = ?
+                  """,
+          Integer.class,
+          quartoId,
+          itemId);
+    } catch (EmptyResultDataAccessException ignored) {
+      return null;
     }
+  }
 
+  public void descontarQuartoItem(Long quartoId, Long itemId, Integer quantidade) {
+    jdbcTemplate.update(
+        """
+                UPDATE quarto_item
+                SET quantidade_atual = quantidade_atual - ?
+                WHERE fk_quarto = ? AND fk_item = ?
+                """,
+        quantidade,
+        quartoId,
+        itemId);
+  }
+
+  public void descontarEstoquePorItem(Long itemId, Integer quantidade) {
     jdbcTemplate.update(
         """
                 UPDATE estoque
                 SET qtd_total_unidades = qtd_total_unidades - ?
                 WHERE fk_item = ?
                 """,
-        request.quantidade(),
-        request.item().id());
+        quantidade,
+        itemId);
   }
 
-  @Transactional
-  public void cancelarConsumo(Long consumoId) {
+  public ConsumoParaCancelamento buscarConsumoParaCancelamento(Long consumoId) {
     var row =
         jdbcTemplate.queryForMap(
             """
@@ -206,49 +190,37 @@ public class ItemRepository {
                 WHERE id = ?
                 """,
             consumoId);
+    return new ConsumoParaCancelamento(
+        (UUID) row.get("fk_pagamento"),
+        ((Number) row.get("fk_item")).longValue(),
+        row.get("fk_quarto") != null ? ((Number) row.get("fk_quarto")).longValue() : null,
+        ((Number) row.get("quantidade")).floatValue());
+  }
 
-    Float quantidade = ((Number) row.get("quantidade")).floatValue();
-    Long itemId = ((Number) row.get("fk_item")).longValue();
-    Long quartoId =
-        row.get("fk_quarto") != null ? ((Number) row.get("fk_quarto")).longValue() : null;
-    UUID pagamentoId = (UUID) row.get("fk_pagamento");
+  public int incrementarQuartoItem(Long quartoId, Long itemId, Float quantidade) {
+    return jdbcTemplate.update(
+        """
+                UPDATE quarto_item
+                SET quantidade_atual = quantidade_atual + ?
+                WHERE fk_quarto = ? AND fk_item = ?
+                """,
+        quantidade,
+        quartoId,
+        itemId);
+  }
 
-    if (quartoId != null) {
-      int updated =
-          jdbcTemplate.update(
-              """
-                    UPDATE quarto_item
-                    SET quantidade_atual = quantidade_atual + ?
-                    WHERE fk_quarto = ? AND fk_item = ?
-                    """,
-              quantidade,
-              quartoId,
-              itemId);
-      if (updated == 0) {
-        jdbcTemplate.update(
-            """
-                        UPDATE estoque
-                        SET qtd_total_unidades = qtd_total_unidades + ?
-                        WHERE fk_item = ?
-                        """,
-            quantidade,
-            itemId);
-      }
-    } else {
-      jdbcTemplate.update(
-          """
-                    UPDATE estoque
-                    SET qtd_total_unidades = qtd_total_unidades + ?
-                    WHERE fk_item = ?
-                    """,
-          quantidade,
-          itemId);
-    }
+  public void incrementarEstoquePorItem(Long itemId, Float quantidade) {
+    jdbcTemplate.update(
+        """
+                UPDATE estoque
+                SET qtd_total_unidades = qtd_total_unidades + ?
+                WHERE fk_item = ?
+                """,
+        quantidade,
+        itemId);
+  }
 
-    if (pagamentoId != null) {
-      pagamentoRepository.cancelarPagamento(pagamentoId);
-    }
-
+  public void marcarConsumoCancelado(Long consumoId) {
     jdbcTemplate.update("UPDATE consumo SET cancelado = true WHERE id = ?", consumoId);
   }
 
@@ -402,7 +374,11 @@ public class ItemRepository {
     return new Item.HistoricoEstoque.Estoque(categorias);
   }
 
-  @Transactional
+  public Boolean estoqueExisteParaItem(Long itemId) {
+    return jdbcTemplate.queryForObject(
+        "SELECT EXISTS(SELECT 1 FROM estoque WHERE fk_item = ?)", Boolean.class, itemId);
+  }
+
   public Item insert(Item.Request request) {
     var id =
         jdbcTemplate.queryForObject(
@@ -418,7 +394,6 @@ public class ItemRepository {
     return findById(id);
   }
 
-  @Transactional
   public Item update(Item.Update request) {
     int rows =
         jdbcTemplate.update(
@@ -482,8 +457,25 @@ public class ItemRepository {
         estoque.fornecedor());
   }
 
-  @Transactional
-  public void registrarHistoricoReposicao(Item.HistoricoEstoque.Request request) {
+  public void retirarDoEstoque(Long item_id, Integer quantidade) {
+    Long estoque_id =
+        jdbcTemplate.queryForObject(
+            "select id from estoque where fk_item = ?;", Long.class, item_id);
+    if (estoque_id == null) {
+      throw new NotFoundException("Estoque nao encontrado para o item: " + item_id);
+    }
+    jdbcTemplate.update(
+        """
+            update estoque
+            set qtd_total_unidades = qtd_total_unidades - ?
+            where id = ?
+            """,
+        quantidade,
+        estoque_id);
+  }
+
+  public void registrarHistoricoReposicao(
+      Item.HistoricoEstoque.Request request, Long funcionarioId) {
     Long estoqueId;
     try {
       estoqueId =
@@ -515,7 +507,7 @@ public class ItemRepository {
         request.quantidade_unidades(),
         request.valor_compra_unidade(),
         request.valor_venda_unidade(),
-        getFuncionarioId());
+        funcionarioId);
 
     jdbcTemplate.update(
         """
@@ -531,8 +523,7 @@ public class ItemRepository {
         estoqueId);
   }
 
-  @Transactional
-  public void atualizarHistoricoEstoque(Item.HistoricoEstoque.Update request) {
+  public void atualizarHistoricoEstoque(Item.HistoricoEstoque.Update request, Long funcionarioId) {
     String buscarSql =
         """
                         SELECT
@@ -560,7 +551,7 @@ public class ItemRepository {
                         WHERE id = ?
                         """,
         request.quantidade_unidades(),
-        getFuncionarioId(),
+        funcionarioId,
         request.id());
 
     int diferenca = request.quantidade_unidades() - quantidadeAnterior;
@@ -579,8 +570,7 @@ public class ItemRepository {
         estoqueId);
   }
 
-  @Transactional
-  public Long criarCategoria(CategoriaItem.Request request) {
+  public Long criarCategoria(CategoriaItem.Request request, Long funcionarioId) {
     return jdbcTemplate.queryForObject(
         """
                         INSERT INTO categoria_item (categoria, descricao, data_registro_categoria, fk_funcionario)
@@ -590,11 +580,10 @@ public class ItemRepository {
         Long.class,
         request.nome().trim(),
         request.descricao(),
-        getFuncionarioId());
+        funcionarioId);
   }
 
-  @Transactional
-  public void atualizarCategoria(CategoriaItem.Update categoria) {
+  public void atualizarCategoria(CategoriaItem.Update categoria, Long funcionarioId) {
     int rows =
         jdbcTemplate.update(
             """
@@ -604,7 +593,7 @@ public class ItemRepository {
                                 """,
             categoria.nome().trim(),
             categoria.descricao(),
-            getFuncionarioId(),
+            funcionarioId,
             categoria.id());
 
     if (rows == 0) {
@@ -652,9 +641,5 @@ public class ItemRepository {
     } catch (EmptyResultDataAccessException ex) {
       throw new NotFoundException("Categoria não encontrada para o id: " + id);
     }
-  }
-
-  private Long getFuncionarioId() {
-    return pessoaRepository.getFuncionarioIdFromRequest();
   }
 }

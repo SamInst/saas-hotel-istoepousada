@@ -12,11 +12,9 @@ public record Consumo(
     @NotNull Integer quantidade,
     @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro) {
   public record Request(
-      Funcionario.Id funcionario, Pagamento.Request pagamento, Item.Id item, Integer quantidade) {}
-
-  public record Update(
+      Long fk_hospedagem,
       @NotNull Long id,
-      @NotNull Funcionario.Id funcionario,
+      Pagamento.Request pagamento,
       @NotNull Item.Id item,
       @NotNull Integer quantidade) {}
 }

@@ -5,6 +5,7 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -381,6 +382,20 @@ public class PessoaRepository {
     }
   }
 
+  /** Busca apenas id + data_nascimento — mais leve que findById para cálculo de preço. */
+  public Map<Long, LocalDate> findDataNascimentoByIds(Set<Long> ids) {
+    if (ids == null || ids.isEmpty()) return Map.of();
+    String in = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+    Map<Long, LocalDate> result = new HashMap<>();
+    jdbcTemplate.query(
+        "SELECT id, data_nascimento FROM public.pessoa WHERE id IN (" + in + ")",
+        rs -> {
+          Date dataNasc = rs.getDate("data_nascimento");
+          if (dataNasc != null) result.put(rs.getLong("id"), dataNasc.toLocalDate());
+        });
+    return result;
+  }
+
   public Pessoa insert(Pessoa.Request pessoa) {
     var pessoa_id =
         jdbcTemplate.queryForObject(
@@ -652,5 +667,28 @@ public class PessoaRepository {
                     """,
         Boolean.class,
         placa);
+  }
+
+  public List<Pessoa.DadosPrincipais> buscarByHospedagemId(Long hospedagemId) {
+    String sql =
+        """
+        SELECT
+            p.id                AS pessoa_id,
+            p.nome              AS pessoa_nome,
+            p.data_nascimento   AS pessoa_data_nascimento,
+            p.cpf               AS pessoa_cpf,
+            p.email             AS pessoa_email,
+            p.telefone          AS pessoa_telefone,
+            p.status            AS pessoa_status,
+            hp.representante    AS pessoa_titular
+        FROM pessoa p
+        JOIN hospedagem_pessoa hp ON hp.pessoa_id = p.id
+        WHERE hp.hospedagem_id = ?
+        """;
+    try {
+      return jdbcTemplate.query(sql, Pessoa.DadosPrincipais.ROW_MAPPER, hospedagemId);
+    } catch (EmptyResultDataAccessException ex) {
+      return List.of();
+    }
   }
 }

@@ -13,7 +13,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import saas.hotel.istoepousada.dto.Categoria;
 import saas.hotel.istoepousada.dto.Funcionario;
 import saas.hotel.istoepousada.dto.Sazonalidade;
@@ -21,14 +20,11 @@ import saas.hotel.istoepousada.dto.enums.ModeloMenorIdade;
 import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 
 @Repository
-public class SazonabilidadeRepository {
-
+public class SazonalidadeRepository {
   private final JdbcTemplate jdbcTemplate;
-  private final PessoaRepository pessoaRepository;
 
-  public SazonabilidadeRepository(JdbcTemplate jdbcTemplate, PessoaRepository pessoaRepository) {
+  public SazonalidadeRepository(JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
-    this.pessoaRepository = pessoaRepository;
   }
 
   // ── Busca ─────────────────────────────────────────────────────────────────
@@ -100,8 +96,7 @@ public class SazonabilidadeRepository {
 
   // ── Insert ────────────────────────────────────────────────────────────────
 
-  @Transactional
-  public Sazonalidade insert(Sazonalidade.Request request) {
+  public Sazonalidade insert(Sazonalidade.Request request, Long funcionarioId) {
     java.sql.Array semanalArr = toSqlArray(request.semanal());
     java.sql.Array mensalArr = toSqlArray(request.mensal());
     java.sql.Array anualArr = toSqlArray(request.anual());
@@ -129,23 +124,23 @@ public class SazonabilidadeRepository {
             request.hora_checkout());
 
     if (request.fk_categorias() != null && !request.fk_categorias().isEmpty()) {
-      vincularCategorias(id, request.fk_categorias());
+      vincularCategorias(id, request.fk_categorias(), funcionarioId);
     }
 
     if (request.modelos_ocupacao() != null && !request.modelos_ocupacao().isEmpty()) {
-      salvarModelosOcupacao(id, request.modelos_ocupacao());
+      salvarModelosOcupacao(id, request.modelos_ocupacao(), funcionarioId);
     }
 
     if (request.modelos_fixo() != null && !request.modelos_fixo().isEmpty()) {
-      salvarModelosFixo(id, request.modelos_fixo());
+      salvarModelosFixo(id, request.modelos_fixo(), funcionarioId);
     }
 
     if (request.day_use() != null && !request.day_use().isEmpty()) {
-      salvarDayUse(id, request.day_use());
+      salvarDayUse(id, request.day_use(), funcionarioId);
     }
 
     if (request.menores_idade() != null && !request.menores_idade().isEmpty()) {
-      salvarMenoresIdade(id, request.menores_idade());
+      salvarMenoresIdade(id, request.menores_idade(), funcionarioId);
     }
 
     return findByIdOrThrow(id);
@@ -153,8 +148,7 @@ public class SazonabilidadeRepository {
 
   // ── Update ────────────────────────────────────────────────────────────────
 
-  @Transactional
-  public Sazonalidade update(Sazonalidade.Update request) {
+  public Sazonalidade update(Sazonalidade.Update request, Long funcionarioId) {
     findByIdOrThrow(request.id());
 
     java.sql.Array semanalArr = toSqlArray(request.semanal());
@@ -197,7 +191,7 @@ public class SazonabilidadeRepository {
       jdbcTemplate.update(
           "DELETE FROM public.categoria_sazonalidade WHERE fk_sazonalidade = ?", request.id());
       if (!request.fk_categorias().isEmpty()) {
-        vincularCategorias(request.id(), request.fk_categorias());
+        vincularCategorias(request.id(), request.fk_categorias(), funcionarioId);
       }
     }
 
@@ -207,13 +201,13 @@ public class SazonabilidadeRepository {
         || request.day_use() != null) {
       deletarModelosEDayUse(request.id());
       if (request.modelos_ocupacao() != null && !request.modelos_ocupacao().isEmpty()) {
-        salvarModelosOcupacao(request.id(), request.modelos_ocupacao());
+        salvarModelosOcupacao(request.id(), request.modelos_ocupacao(), funcionarioId);
       }
       if (request.modelos_fixo() != null && !request.modelos_fixo().isEmpty()) {
-        salvarModelosFixo(request.id(), request.modelos_fixo());
+        salvarModelosFixo(request.id(), request.modelos_fixo(), funcionarioId);
       }
       if (request.day_use() != null && !request.day_use().isEmpty()) {
-        salvarDayUse(request.id(), request.day_use());
+        salvarDayUse(request.id(), request.day_use(), funcionarioId);
       }
     }
 
@@ -221,7 +215,7 @@ public class SazonabilidadeRepository {
     if (request.menores_idade() != null) {
       deletarMenoresIdade(request.id());
       if (!request.menores_idade().isEmpty()) {
-        salvarMenoresIdade(request.id(), request.menores_idade());
+        salvarMenoresIdade(request.id(), request.menores_idade(), funcionarioId);
       }
     }
 
@@ -230,8 +224,7 @@ public class SazonabilidadeRepository {
 
   // ── Vínculo com categoria ─────────────────────────────────────────────────
 
-  @Transactional
-  public void vincular(Long fkSazonalidade, Long fkCategoria) {
+  public void vincular(Long fkSazonalidade, Long fkCategoria, Long funcionarioId) {
     boolean jaExiste =
         Boolean.TRUE.equals(
             jdbcTemplate.queryForObject(
@@ -251,7 +244,7 @@ public class SazonabilidadeRepository {
         """,
         fkSazonalidade,
         fkCategoria,
-        getFuncionarioId());
+        funcionarioId);
   }
 
   public void toggleAtivo(Long vinculoId, Boolean ativo) {
@@ -261,7 +254,6 @@ public class SazonabilidadeRepository {
     if (rows == 0) throw new NotFoundException("Vínculo não encontrado para o id: " + vinculoId);
   }
 
-  @Transactional
   public void removerVinculo(Long vinculoId) {
     int rows =
         jdbcTemplate.update("DELETE FROM public.categoria_sazonalidade WHERE id = ?", vinculoId);
@@ -432,8 +424,8 @@ public class SazonabilidadeRepository {
 
   // ── Modelos de Ocupação / Fixo / Day Use ─────────────────────────────────
 
-  private void salvarModelosOcupacao(Long sazonId, List<Categoria.ModeloOcupacao.Input> modelos) {
-    Long fkFunc = getFuncionarioId();
+  private void salvarModelosOcupacao(
+      Long sazonId, List<Categoria.ModeloOcupacao.Input> modelos, Long funcionarioId) {
     for (var mo : modelos) {
       jdbcTemplate.update(
           """
@@ -441,14 +433,14 @@ public class SazonabilidadeRepository {
           VALUES (null, ?, ?, now(), ?, ?)
           """,
           sazonId,
-          fkFunc,
+          funcionarioId,
           mo.quantidade(),
           mo.valor());
     }
   }
 
-  private void salvarModelosFixo(Long sazonId, List<Categoria.ModeloFixo.Input> modelos) {
-    Long fkFunc = getFuncionarioId();
+  private void salvarModelosFixo(
+      Long sazonId, List<Categoria.ModeloFixo.Input> modelos, Long funcionarioId) {
     for (var mf : modelos) {
       jdbcTemplate.update(
           """
@@ -456,13 +448,13 @@ public class SazonabilidadeRepository {
           VALUES (null, ?, ?, now(), ?)
           """,
           sazonId,
-          fkFunc,
+          funcionarioId,
           mf.valor());
     }
   }
 
-  private void salvarDayUse(Long sazonId, List<Categoria.DayUseOperacao.Input> dayUse) {
-    Long fkFunc = getFuncionarioId();
+  private void salvarDayUse(
+      Long sazonId, List<Categoria.DayUseOperacao.Input> dayUse, Long funcionarioId) {
     for (var duo : dayUse) {
       Long operacaoId =
           jdbcTemplate.queryForObject(
@@ -473,7 +465,7 @@ public class SazonabilidadeRepository {
               """,
               Long.class,
               sazonId,
-              fkFunc,
+              funcionarioId,
               duo.ativo());
 
       if (duo.padrao() != null) {
@@ -484,7 +476,7 @@ public class SazonabilidadeRepository {
             VALUES (?, null, ?, now(), ?, ?, ?)
             """,
             operacaoId,
-            fkFunc,
+            funcionarioId,
             p.preco_base(),
             p.hora_preco_base(),
             p.valor_hora_adicional());
@@ -501,7 +493,7 @@ public class SazonabilidadeRepository {
                   """,
                   Long.class,
                   operacaoId,
-                  fkFunc,
+                  funcionarioId,
                   oc.quantidade_pessoa());
 
           if (oc.quantidades() != null) {
@@ -512,7 +504,7 @@ public class SazonabilidadeRepository {
                   VALUES (?, ?, now(), ?, ?, ?)
                   """,
                   ocupacaoId,
-                  fkFunc,
+                  funcionarioId,
                   q.quantidade(),
                   q.valor(),
                   q.valor_hora_adicional_por_pessoa());
@@ -763,8 +755,8 @@ public class SazonabilidadeRepository {
 
   // ── Menor Idade ───────────────────────────────────────────────────────────
 
-  private void salvarMenoresIdade(Long sazonId, List<Categoria.MenorIdade.Input> menoresIdade) {
-    Long fkFunc = getFuncionarioId();
+  private void salvarMenoresIdade(
+      Long sazonId, List<Categoria.MenorIdade.Input> menoresIdade, Long funcionarioId) {
     for (var mi : menoresIdade) {
       Long menorId =
           jdbcTemplate.queryForObject(
@@ -774,10 +766,10 @@ public class SazonabilidadeRepository {
           RETURNING id
           """,
               Long.class,
-              fkFunc,
+              funcionarioId,
               sazonId,
               mi.idade_gratuidade());
-      salvarSubModeloMenorIdade(menorId, fkFunc, mi);
+      salvarSubModeloMenorIdade(menorId, funcionarioId, mi);
     }
   }
 
@@ -1046,8 +1038,7 @@ public class SazonabilidadeRepository {
     return null;
   }
 
-  private void vincularCategorias(Long sazonId, List<Long> categoriaIds) {
-    Long fkFunc = getFuncionarioId();
+  private void vincularCategorias(Long sazonId, List<Long> categoriaIds, Long funcionarioId) {
     for (Long catId : categoriaIds) {
       jdbcTemplate.update(
           """
@@ -1057,7 +1048,7 @@ public class SazonabilidadeRepository {
           """,
           sazonId,
           catId,
-          fkFunc);
+          funcionarioId);
     }
   }
 
@@ -1065,9 +1056,5 @@ public class SazonabilidadeRepository {
     if (list == null || list.isEmpty()) return null;
     return jdbcTemplate.execute(
         (java.sql.Connection con) -> con.createArrayOf("integer", list.toArray()));
-  }
-
-  private Long getFuncionarioId() {
-    return pessoaRepository.getFuncionarioIdFromRequest();
   }
 }

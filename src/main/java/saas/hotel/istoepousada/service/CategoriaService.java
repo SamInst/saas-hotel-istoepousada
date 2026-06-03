@@ -12,9 +12,11 @@ import saas.hotel.istoepousada.repository.CategoriaRepository;
 public class CategoriaService {
 
   private final CategoriaRepository categoriaRepository;
+  private final PessoaService pessoaService;
 
-  public CategoriaService(CategoriaRepository categoriaRepository) {
+  public CategoriaService(CategoriaRepository categoriaRepository, PessoaService pessoaService) {
     this.categoriaRepository = categoriaRepository;
+    this.pessoaService = pessoaService;
   }
 
   public Page<Categoria> buscar(Long id, String termo, Pageable pageable) {
@@ -32,7 +34,7 @@ public class CategoriaService {
   public Categoria criar(Categoria.Request request) {
     validar(request.nome());
     validarSubDados(request);
-    return categoriaRepository.insert(request);
+    return categoriaRepository.insert(request, getFuncionarioId());
   }
 
   @Transactional
@@ -40,7 +42,7 @@ public class CategoriaService {
     if (request.id() == null) throw new IllegalArgumentException("Id é obrigatório.");
     validar(request.nome());
     validarSubDados(request);
-    return categoriaRepository.update(request);
+    return categoriaRepository.update(request, getFuncionarioId());
   }
 
   private void validar(String nome) {
@@ -109,6 +111,10 @@ public class CategoriaService {
     }
   }
 
+  private Long getFuncionarioId() {
+    return pessoaService.getFuncionarioIdFromRequest();
+  }
+
   private void validarSubDados(Categoria.Update request) {
     // Reutiliza as mesmas validações via request virtual
     validarSubDados(
@@ -124,4 +130,25 @@ public class CategoriaService {
             request.fk_sazonalidades(),
             request.menores_idade()));
   }
+
+  //  public float calcularValorTotal(
+  //          Long categoriaId,
+  //          LocalDate dataEntrada,
+  //          int diarias,
+  //          int quantidadePessoas) {
+  //    if (categoriaId == null){
+  //      throw new NotFoundException("Categoria nao encontrada para o id: " + categoriaId);
+  //    }
+  //    if (dataEntrada == null){
+  //      throw new IllegalArgumentException("Data de checkin nao informada");
+  //    }
+  //    if (quantidadePessoas <= 0){
+  //      throw new IllegalArgumentException("Quantidade de pessoas deve ser maior que 0.");
+  //    }
+  //    if (diarias <= 0){
+  //      throw new IllegalArgumentException("Diarias deve ser maior que 0.");
+  //    }
+  //    return categoriaRepository.calcularValorTotal(categoriaId, dataEntrada, diarias,
+  // quantidadePessoas);
+  //  }
 }

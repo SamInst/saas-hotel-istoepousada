@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.jdbc.core.RowMapper;
 
 public record Item(@NotNull Long id, String descricao) {
@@ -70,6 +71,7 @@ public record Item(@NotNull Long id, String descricao) {
       @NotNull @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime data_hora_registro,
       Pagamento pagamento,
       @NotNull Item item,
+      Float valor,
       @NotNull Funcionario.Nome funcionario,
       @NotNull Float quantidade,
       Quarto.Descricao quarto,
@@ -77,13 +79,14 @@ public record Item(@NotNull Long id, String descricao) {
       Boolean cancelado) {
 
     public record Request(
+        Long id,
         Pagamento.Request pagamento,
         @NotNull Item.Id item,
-        @NotNull Float quantidade,
+        @NotNull Integer quantidade,
         Boolean despesa_pessoal,
         Quarto.Id quarto) {}
 
-    public record Update(@NotNull Long id, @NotNull Float quantidade) {}
+    public record Update(@NotNull @NotNull Float quantidade) {}
 
     public static final RowMapper<Consumo> ROW_MAPPER =
         (rs, rowNum) -> {
@@ -92,11 +95,64 @@ public record Item(@NotNull Long id, String descricao) {
               quartoId == null
                   ? null
                   : new Quarto.Descricao(quartoId, rs.getString("consumo_quarto_descricao"));
+
+          UUID pagamentoId = rs.getObject("consumo_pagamento_id", UUID.class);
+          Pagamento pagamento = null;
+          if (pagamentoId != null) {
+            Long tipoPagamentoId = rs.getObject("consumo_tipo_pagamento_id", Long.class);
+            Pagamento.TipoPagamento tipoPagamento =
+                tipoPagamentoId == null
+                    ? null
+                    : new Pagamento.TipoPagamento(
+                        tipoPagamentoId, rs.getString("consumo_tipo_pagamento_descricao"));
+
+            Long pagFuncId = rs.getObject("consumo_pagamento_funcionario_id", Long.class);
+            Funcionario.Nome pagFuncionario =
+                pagFuncId == null
+                    ? null
+                    : new Funcionario.Nome(
+                        pagFuncId, rs.getString("consumo_pagamento_funcionario_nome"));
+
+            UUID motivoId = rs.getObject("consumo_pagamento_motivo_id", UUID.class);
+            Pagamento.MotivoCancelamento motivo = null;
+            if (motivoId != null) {
+              Long motivoFuncId =
+                  rs.getObject("consumo_pagamento_motivo_funcionario_id", Long.class);
+              motivo =
+                  new Pagamento.MotivoCancelamento(
+                      motivoId,
+                      rs.getString("consumo_pagamento_motivo_cancelamento"),
+                      motivoFuncId == null
+                          ? null
+                          : new Funcionario.Nome(
+                              motivoFuncId,
+                              rs.getString("consumo_pagamento_motivo_funcionario_nome")),
+                      rs.getObject(
+                          "consumo_pagamento_motivo_data_hora_registro", LocalDateTime.class));
+            }
+
+            pagamento =
+                new Pagamento(
+                    pagamentoId,
+                    tipoPagamento,
+                    pagFuncionario,
+                    rs.getObject("consumo_pagamento_data_hora_registro", LocalDateTime.class),
+                    rs.getString("consumo_pagamento_nome_pagador"),
+                    rs.getString("consumo_pagamento_descricao"),
+                    rs.getObject("consumo_pagamento_valor", Float.class) == null
+                        ? 0F
+                        : rs.getObject("consumo_pagamento_valor", Float.class),
+                    rs.getBoolean("consumo_pagamento_cancelado"),
+                    rs.getString("consumo_pagamento_path_arquivo"),
+                    motivo);
+          }
+
           return new Consumo(
               rs.getLong("consumo_id"),
               rs.getObject("consumo_data_hora_registro", LocalDateTime.class),
-              Pagamento.ROW_MAPPER.mapRow(rs, rowNum),
+              pagamento,
               new Item(rs.getLong("consumo_item_id"), rs.getString("consumo_item_descricao")),
+              rs.getObject("consumo_item_valor_venda_unidade", Float.class),
               new Funcionario.Nome(
                   rs.getLong("consumo_funcionario_id"), rs.getString("consumo_funcionario_nome")),
               rs.getFloat("consumo_quantidade"),
