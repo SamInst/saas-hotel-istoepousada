@@ -173,7 +173,8 @@ public class HospedagemRepository {
                     hospedagem.valor_total                             AS hospedagem_valor_total,
                     hospedagem.observacao                              AS hospedagem_observacao,
                     hospedagem_funcionario.id                          AS hospedagem_funcionario_id,
-                    hospedagem_pessoa_funcionario.nome                 AS hospedagem_funcionario_nome
+                    hospedagem_pessoa_funcionario.nome                 AS hospedagem_funcionario_nome,
+                    (SELECT fk_grupo FROM public.hospedagem_grupo WHERE fk_hospedagem = hospedagem.id ORDER BY data_hora_registro LIMIT 1) AS hospedagem_grupo_id
                 FROM public.orcamento
                 JOIN public.funcionario orcamento_funcionario ON orcamento_funcionario.id = orcamento.fk_funcionario
                 JOIN public.pessoa orcamento_pessoa_funcionario ON orcamento_pessoa_funcionario.id = orcamento_funcionario.fk_pessoa
@@ -389,14 +390,24 @@ public class HospedagemRepository {
   }
 
   public void adicionarHospedagemPagamento(Long hospedagemId, List<UUID> pagamentosUUID) {
+    adicionarHospedagemPagamento(hospedagemId, pagamentosUUID, null);
+  }
+
+  /** Quando grupoId != null, o vínculo guarda o grupo ao qual o pagamento pertence. */
+  public void adicionarHospedagemPagamento(Long hospedagemId, List<UUID> pagamentosUUID, Long grupoId) {
     jdbcTemplate.batchUpdate(
         """
-                        INSERT INTO hospedagem_pagamento (fk_hospedagem, fk_pagamento)
-                        VALUES (?, ?)
+                        INSERT INTO hospedagem_pagamento (fk_hospedagem, fk_pagamento, fk_grupo)
+                        VALUES (?, ?, ?)
                         """,
         pagamentosUUID.stream()
-            .map(pagamentoUUID -> new Object[] {hospedagemId, pagamentoUUID})
+            .map(pagamentoUUID -> new Object[] {hospedagemId, pagamentoUUID, grupoId})
             .toList());
+  }
+
+  public List<Long> buscarHospedagemIdsPorGrupo(Long grupoId) {
+    return jdbcTemplate.queryForList(
+        "SELECT fk_hospedagem FROM hospedagem_grupo WHERE fk_grupo = ?", Long.class, grupoId);
   }
 
   public List<Long> filtrarPessoasDuplicadas(Long hospedagemId, List<Long> pessoasIds) {
