@@ -1,6 +1,7 @@
 package saas.hotel.istoepousada.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,11 @@ public class PagamentoService {
   @Transactional(readOnly = true)
   public List<Pagamento> buscarPorHospedagemId(Long id) {
     return pagamentoRepository.findByHospedagemId(id);
+  }
+
+  @Transactional(readOnly = true)
+  public Map<Long, List<Pagamento>> buscarPorHospedagemIds(List<Long> ids) {
+    return pagamentoRepository.findByHospedagemIds(ids);
   }
 
   @Transactional(readOnly = true)

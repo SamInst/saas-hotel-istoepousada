@@ -330,6 +330,10 @@ public class PessoaService {
     return pessoaRepository.buscarByHospedagemId(hospedagemId);
   }
 
+  public Map<Long, List<Pessoa.DadosPrincipais>> buscarByHospedagemIds(List<Long> ids) {
+    return pessoaRepository.buscarByHospedagemIds(ids);
+  }
+
   public Long getFuncionarioIdFromRequest() {
     return pessoaRepository.getFuncionarioIdFromRequest();
   }

@@ -624,6 +624,145 @@ public class HospedagemRepository {
         diaria.checkout());
   }
 
+  // ── Batch helpers (replace N+1 in buscar) ────────────────────────────────────
+
+  private String inClause(int size) {
+    return java.util.stream.IntStream.range(0, size).mapToObj(i -> "?").collect(Collectors.joining(", "));
+  }
+
+  public Map<Long, List<Hospedagem.Diaria>> listarDiariasBatch(List<Long> ids) {
+    if (ids.isEmpty()) return Map.of();
+    String sql = """
+        SELECT
+            diaria.fk_hospedagem              AS diaria_fk_hospedagem,
+            diaria.id                         AS diaria_id,
+            diaria.numero                     AS diaria_numero,
+            diaria.valor                      AS diaria_valor,
+            diaria.checkin                    AS diaria_checkin,
+            diaria.checkout                   AS diaria_checkout,
+            quarto.id                         AS diaria_quarto_id,
+            quarto.descricao                  AS diaria_quarto_descricao
+        FROM public.diaria
+        LEFT JOIN public.quarto quarto ON quarto.id = diaria.fk_quarto
+        WHERE diaria.fk_hospedagem IN (%s)
+        ORDER BY diaria.fk_hospedagem, diaria.numero
+        """.formatted(inClause(ids.size()));
+    Map<Long, List<Hospedagem.Diaria>> result = new LinkedHashMap<>();
+    jdbcTemplate.query(sql, rs -> {
+      Long hId = rs.getLong("diaria_fk_hospedagem");
+      Long quartoId = rs.getObject("diaria_quarto_id", Long.class);
+      result.computeIfAbsent(hId, k -> new ArrayList<>()).add(new Hospedagem.Diaria(
+          rs.getLong("diaria_id"),
+          rs.getInt("diaria_numero"),
+          quartoId == null ? null : new Quarto.Descricao(quartoId, rs.getString("diaria_quarto_descricao")),
+          rs.getObject("diaria_checkin", LocalDateTime.class),
+          rs.getObject("diaria_checkout", LocalDateTime.class),
+          rs.getFloat("diaria_valor"),
+          null));
+    }, ids.toArray());
+    return result;
+  }
+
+  public Map<Long, List<Item.Consumo>> buscarConsumosBatch(List<Long> ids) {
+    if (ids.isEmpty()) return Map.of();
+    String sql = """
+                    SELECT
+            hospedagem_consumo.fk_hospedagem                              AS consumo_fk_hospedagem,
+            consumo.id                                                    AS consumo_id,
+            consumo.data_hora_registro                                    AS consumo_data_hora_registro,
+            consumo.quantidade                                            AS consumo_quantidade,
+            consumo.despesa_pessoal                                       AS consumo_despesa_pessoal,
+            consumo.cancelado                                             AS consumo_cancelado,
+            item.id                                                       AS consumo_item_id,
+            item.descricao                                                AS consumo_item_descricao,
+            estoque.valor_venda_unidade                                   AS consumo_item_valor_venda_unidade,
+            consumo_funcionario.id                                        AS consumo_funcionario_id,
+            consumo_pessoa_funcionario.nome                               AS consumo_funcionario_nome,
+            consumo_quarto.id                                             AS consumo_quarto_id,
+            consumo_quarto.descricao                                      AS consumo_quarto_descricao,
+            consumo_pagamento.id                                          AS consumo_pagamento_id,
+            consumo_pagamento.data_hora_registro                          AS consumo_pagamento_data_hora_registro,
+            consumo_pagamento.nome_pagador                                AS consumo_pagamento_nome_pagador,
+            consumo_pagamento.descricao                                   AS consumo_pagamento_descricao,
+            consumo_pagamento.valor                                       AS consumo_pagamento_valor,
+            consumo_pagamento.cancelado                                   AS consumo_pagamento_cancelado,
+            consumo_pagamento.path_arquivo                                AS consumo_pagamento_path_arquivo,
+            consumo_pagamento_tipo_pagamento.id                           AS consumo_tipo_pagamento_id,
+            consumo_pagamento_tipo_pagamento.descricao                    AS consumo_tipo_pagamento_descricao,
+            consumo_funcionario_consumo_pagamento.id                      AS consumo_pagamento_funcionario_id,
+            consumo_pessoa_funcionario_consumo_pagamento.nome             AS consumo_pagamento_funcionario_nome,
+            consumo_pagamento_motivo_cancelamento.id                      AS consumo_pagamento_motivo_id,
+            consumo_pagamento_motivo_cancelamento.motivo_cancelamento     AS consumo_pagamento_motivo_cancelamento,
+            consumo_pagamento_motivo_cancelamento_funcionario.id          AS consumo_pagamento_motivo_funcionario_id,
+            consumo_pagamento_motivo_cancelamento_pessoa_funcionario.nome AS consumo_pagamento_motivo_funcionario_nome,
+            consumo_pagamento_motivo_cancelamento.data_hora_registro      AS consumo_pagamento_motivo_data_hora_registro
+        FROM public.hospedagem_consumo
+            JOIN public.consumo ON consumo.id = hospedagem_consumo.fk_consumo
+            JOIN public.item ON item.id = consumo.fk_item
+            LEFT JOIN public.funcionario consumo_funcionario ON consumo_funcionario.id = consumo.fk_funcionario
+            LEFT JOIN public.pessoa consumo_pessoa_funcionario ON consumo_pessoa_funcionario.id = consumo_funcionario.fk_pessoa
+            LEFT JOIN public.quarto consumo_quarto ON consumo_quarto.id = consumo.fk_quarto
+            LEFT JOIN public.pagamento consumo_pagamento ON consumo_pagamento.id = consumo.fk_pagamento
+            LEFT JOIN public.tipo_pagamento consumo_pagamento_tipo_pagamento ON consumo_pagamento_tipo_pagamento.id = consumo_pagamento.fk_tipo_pagamento
+            LEFT JOIN public.funcionario consumo_funcionario_consumo_pagamento ON consumo_funcionario_consumo_pagamento.id = consumo_pagamento.fk_funcionario
+            LEFT JOIN public.pessoa consumo_pessoa_funcionario_consumo_pagamento ON consumo_pessoa_funcionario_consumo_pagamento.id = consumo_funcionario_consumo_pagamento.fk_pessoa
+            LEFT JOIN LATERAL (
+                SELECT * FROM public.pagamento_motivo_cancelamento mc
+                WHERE mc.fk_pagamento = consumo_pagamento.id
+                ORDER BY mc.data_hora_registro DESC LIMIT 1
+            ) consumo_pagamento_motivo_cancelamento ON true
+            LEFT JOIN public.funcionario consumo_pagamento_motivo_cancelamento_funcionario ON consumo_pagamento_motivo_cancelamento_funcionario.id = consumo_pagamento_motivo_cancelamento.fk_funcionario
+            LEFT JOIN public.pessoa consumo_pagamento_motivo_cancelamento_pessoa_funcionario ON consumo_pagamento_motivo_cancelamento_pessoa_funcionario.id = consumo_pagamento_motivo_cancelamento_funcionario.fk_pessoa
+            LEFT JOIN estoque ON estoque.fk_item = item.id
+        WHERE hospedagem_consumo.fk_hospedagem IN (%s)
+        """.formatted(inClause(ids.size()));
+    Map<Long, List<Item.Consumo>> result = new LinkedHashMap<>();
+    jdbcTemplate.query(sql, rs -> {
+      Long hId = rs.getLong("consumo_fk_hospedagem");
+      Item.Consumo consumo = Item.Consumo.ROW_MAPPER.mapRow(rs, 0);
+      if (consumo != null) result.computeIfAbsent(hId, k -> new ArrayList<>()).add(consumo);
+    }, ids.toArray());
+    return result;
+  }
+
+  public Map<Long, List<Hospedagem.PessoaHospedagemOrcamento>> buscarPessoasOrcamentoBatch(List<Long> ids) {
+    if (ids.isEmpty()) return Map.of();
+    String sql = "SELECT * FROM orcamento_hospedagem_pessoa WHERE fk_hospedagem IN (" + inClause(ids.size()) + ")";
+    Map<Long, List<Hospedagem.PessoaHospedagemOrcamento>> result = new LinkedHashMap<>();
+    jdbcTemplate.query(sql, rs -> {
+      Long hId = rs.getLong("fk_hospedagem");
+      result.computeIfAbsent(hId, k -> new ArrayList<>()).add(Hospedagem.PessoaHospedagemOrcamento.MAPPER.mapRow(rs, 0));
+    }, ids.toArray());
+    return result;
+  }
+
+  public Map<Long, MotivoCancelamentoHospedagem> buscarMotivoCancelamentoBatch(List<Long> ids) {
+    if (ids.isEmpty()) return Map.of();
+    String sql = """
+        SELECT DISTINCT ON (hmc.fk_hospedagem)
+            hmc.fk_hospedagem,
+            hmc.id,
+            hmc.motivo_cancelamento,
+            hmc.data_hora_registro,
+            f.id   AS funcionario_id,
+            p.nome AS funcionario_nome
+        FROM hospedagem_motivo_cancelamento hmc
+        JOIN funcionario f ON f.id = hmc.fk_funcionario
+        JOIN public.pessoa p ON p.id = f.fk_pessoa
+        WHERE hmc.fk_hospedagem IN (%s)
+        ORDER BY hmc.fk_hospedagem, hmc.id DESC
+        """.formatted(inClause(ids.size()));
+    Map<Long, MotivoCancelamentoHospedagem> result = new HashMap<>();
+    jdbcTemplate.query(sql, rs -> {
+      result.put(rs.getLong("fk_hospedagem"), new MotivoCancelamentoHospedagem(
+          rs.getLong("id"),
+          rs.getString("motivo_cancelamento"),
+          new Funcionario.Nome(rs.getLong("funcionario_id"), rs.getString("funcionario_nome")),
+          rs.getTimestamp("data_hora_registro").toLocalDateTime()));
+    }, ids.toArray());
+    return result;
+  }
+
   public List<Hospedagem.Diaria> listarDiarias(Long hospedagemId) {
     return jdbcTemplate.query(
         """

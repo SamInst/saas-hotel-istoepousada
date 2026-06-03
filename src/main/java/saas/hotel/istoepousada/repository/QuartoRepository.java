@@ -53,6 +53,31 @@ public class QuartoRepository {
     return jdbcTemplate.query(SELECT_QUARTO_BASE + " ORDER BY quarto.id ASC", Quarto.ROW_MAPPER);
   }
 
+  public Map<Long, Quarto> buscarPorHospedagemIds(List<Long> ids) {
+    if (ids.isEmpty()) return Map.of();
+    String in = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+    String sql = """
+        SELECT
+            h.id                              AS hospedagem_id,
+            quarto.id                         AS quarto_id,
+            quarto.descricao                  AS quarto_descricao,
+            quarto.quantidade_pessoa          AS quarto_quantidade_pessoas,
+            quarto.status                     AS quarto_status,
+            quarto.quantidade_cama_casal      AS quarto_quantidade_cama_casal,
+            quarto.quantidade_cama_solteiro   AS quarto_quantidade_cama_solteiro,
+            quarto.quantidade_rede            AS quarto_quantidade_rede,
+            quarto.quantidade_beliche         AS quarto_quantidade_beliche
+        FROM hospedagem h
+        JOIN quarto quarto ON quarto.id = h.fk_quarto
+        WHERE h.id IN (%s)
+        """.formatted(in);
+    Map<Long, Quarto> result = new java.util.HashMap<>();
+    jdbcTemplate.query(sql, rs -> {
+      result.put(rs.getLong("hospedagem_id"), Quarto.ROW_MAPPER.mapRow(rs, 0));
+    }, ids.toArray());
+    return result;
+  }
+
   public Quarto buscarPorHospedagemId(Long hospedagemId) {
     try {
       return jdbcTemplate.queryForObject(
