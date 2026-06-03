@@ -280,18 +280,39 @@ public class HospedagemService {
     hospedagemRepository.adicionarHospedagemPagamento(hospedagemId, pagamentosUUID);
   }
 
-  @Transactional
-  public void adicionarPagamentoMultiplasHospedagens(List<Long> hospedagemIds, Pagamento.Request pagamento) {
+  public void adicionarHospedagemPagamento(Long hospedagemId, List<UUID> pagamentosUUID, Long grupoId) {
+    hospedagemRepository.adicionarHospedagemPagamento(hospedagemId, pagamentosUUID, grupoId);
+  }
+
+  private void validarCamposPagamentoUnico(Pagamento.Request pagamento) {
     if (pagamento.tipo_pagamento() == null)
       throw new IllegalArgumentException("Forma de pagamento não informada");
     if (pagamento.nome_pagador() == null)
       throw new IllegalArgumentException("Nome do pagador não informado");
     if (pagamento.valor() == null)
       throw new IllegalArgumentException("Valor do pagamento não informado");
+  }
+
+  @Transactional
+  public void adicionarPagamentoMultiplasHospedagens(List<Long> hospedagemIds, Pagamento.Request pagamento) {
+    validarCamposPagamentoUnico(pagamento);
     var newPagamento = pagamentoService.criar(pagamento);
     List<UUID> pagamentosUUID = List.of(newPagamento.uuid());
     hospedagemIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID));
     log.info("Pagamento {} adicionado às hospedagens {}", newPagamento.uuid(), hospedagemIds);
+  }
+
+  /** Cria um único pagamento e vincula a todas as hospedagens de um grupo, guardando o grupo. */
+  @Transactional
+  public void adicionarPagamentoGrupo(Long grupoId, Pagamento.Request pagamento) {
+    validarCamposPagamentoUnico(pagamento);
+    List<Long> hospedagemIds = hospedagemRepository.buscarHospedagemIdsPorGrupo(grupoId);
+    if (hospedagemIds.isEmpty())
+      throw new IllegalArgumentException("Grupo não encontrado ou sem reservas: " + grupoId);
+    var newPagamento = pagamentoService.criar(pagamento);
+    List<UUID> pagamentosUUID = List.of(newPagamento.uuid());
+    hospedagemIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoId));
+    log.info("Pagamento {} adicionado ao grupo {} (hospedagens {})", newPagamento.uuid(), grupoId, hospedagemIds);
   }
 
   public void adicionarPagamentos(Long hospedagemId, Hospedagem.Request request) {
@@ -583,13 +604,14 @@ public class HospedagemService {
     }
 
     // Phase 2 — link all reservations in a group when more than one was activated
+    Long grupoId = null;
     if (resolvedIds.size() > 1) {
-      Long grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
+      grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Grupo {} criado para as hospedagens {}", grupoId, resolvedIds);
     }
 
-    // Phase 3 — create one payment and link it to every reservation
+    // Phase 3 — create one payment and link it to every reservation (carrying the group when present)
     if (Boolean.TRUE.equals(pagamentoUnico)) {
       Hospedagem.Request firstWithPagamentos = requests.stream()
           .filter(r -> r.pagamentos() != null && !r.pagamentos().isEmpty())
@@ -603,7 +625,8 @@ public class HospedagemService {
           var newPagamento = pagamentoService.criar(pagamento);
           pagamentosUUID.add(newPagamento.uuid());
         });
-        resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID));
+        final Long grupoIdFinal = grupoId;
+        resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoIdFinal));
       }
     }
   }
