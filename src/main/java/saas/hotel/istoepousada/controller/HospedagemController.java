@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Hospedagem;
 import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.dto.MotivoCancelamentoHospedagem;
+import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.service.HospedagemService;
 
 @RestController
@@ -79,6 +80,14 @@ public class HospedagemController {
   public void adicionarPagamentos(
       @PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
     hospedagemService.adicionarPagamentos(hospedagemId, request);
+  }
+
+  record PagamentoMultiploRequest(List<Long> hospedagem_ids, Pagamento.Request pagamento) {}
+
+  @PostMapping("/pagamento-multiplo")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void adicionarPagamentoMultiplo(@RequestBody PagamentoMultiploRequest request) {
+    hospedagemService.adicionarPagamentoMultiplasHospedagens(request.hospedagem_ids(), request.pagamento());
   }
 
   // ── Consumo ──────────────────────────────────────────────────────────────────

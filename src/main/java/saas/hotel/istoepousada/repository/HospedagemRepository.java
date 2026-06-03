@@ -37,7 +37,8 @@ public class HospedagemRepository {
                         hospedagem.valor_total             AS hospedagem_valor_total,
                         hospedagem.observacao              AS hospedagem_observacao,
                         pessoa_funcionario.id              AS hospedagem_funcionario_id,
-                        pessoa_funcionario_hospedagem.nome AS hospedagem_funcionario_nome
+                        pessoa_funcionario_hospedagem.nome AS hospedagem_funcionario_nome,
+                        (SELECT fk_grupo FROM public.hospedagem_grupo WHERE fk_hospedagem = hospedagem.id ORDER BY data_hora_registro LIMIT 1) AS hospedagem_grupo_id
                     FROM public.hospedagem
                     LEFT JOIN public.funcionario pessoa_funcionario ON pessoa_funcionario.id = hospedagem.fk_funcionario
                     LEFT JOIN public.pessoa pessoa_funcionario_hospedagem ON pessoa_funcionario_hospedagem.id = pessoa_funcionario.fk_pessoa
@@ -241,7 +242,8 @@ public class HospedagemRepository {
                                         null,
                                         null,
                                         buscarPessoasHospedagemOrcamento(h.id()),
-                                        buscarMotivoCancelamento(h.id())))
+                                        buscarMotivoCancelamento(h.id()),
+                                        h.grupo_id()))
                             .toList();
                     return new Orcamento(
                         o.id(),
@@ -264,6 +266,28 @@ public class HospedagemRepository {
         (ps, hospedagemId) -> {
           ps.setLong(1, hospedagemId);
           ps.setLong(2, orcamentoId);
+        });
+  }
+
+  public Long criarGrupoReserva(Long funcionarioId) {
+    return jdbcTemplate.queryForObject(
+        """
+        INSERT INTO grupo_reserva (fk_funcionario, data_hora_registro)
+        VALUES (?, now())
+        RETURNING id;
+        """,
+        Long.class,
+        funcionarioId);
+  }
+
+  public void vincularHospedagensGrupo(List<Long> hospedagemIds, Long grupoId) {
+    jdbcTemplate.batchUpdate(
+        "INSERT INTO hospedagem_grupo (fk_hospedagem, fk_grupo) VALUES (?, ?) ON CONFLICT DO NOTHING",
+        hospedagemIds,
+        hospedagemIds.size(),
+        (ps, hospedagemId) -> {
+          ps.setLong(1, hospedagemId);
+          ps.setLong(2, grupoId);
         });
   }
 

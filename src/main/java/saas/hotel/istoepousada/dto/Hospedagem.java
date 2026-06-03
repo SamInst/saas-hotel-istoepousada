@@ -25,7 +25,8 @@ public record Hospedagem(
     List<Pagamento> pagamentos,
     List<Pessoa.DadosPrincipais> pessoas,
     List<Hospedagem.PessoaHospedagemOrcamento> pessoas_orcamento,
-    MotivoCancelamentoHospedagem motivo_cancelamento) {
+    MotivoCancelamentoHospedagem motivo_cancelamento,
+    Long grupo_id) {
 
   public record Request(
       Long hospedagem_id,
@@ -127,9 +128,9 @@ public record Hospedagem(
             null, // diarias
             null, // consumos
             null, // pagamentos
-            null, // orcamentos
-            null,
-            null // motivo_cancelamento
-            );
+            null, // pessoas
+            null, // pessoas_orcamento
+            null, // motivo_cancelamento
+            rs.getObject("hospedagem_grupo_id", Long.class));
       };
 }

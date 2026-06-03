@@ -280,6 +280,20 @@ public class HospedagemService {
     hospedagemRepository.adicionarHospedagemPagamento(hospedagemId, pagamentosUUID);
   }
 
+  @Transactional
+  public void adicionarPagamentoMultiplasHospedagens(List<Long> hospedagemIds, Pagamento.Request pagamento) {
+    if (pagamento.tipo_pagamento() == null)
+      throw new IllegalArgumentException("Forma de pagamento não informada");
+    if (pagamento.nome_pagador() == null)
+      throw new IllegalArgumentException("Nome do pagador não informado");
+    if (pagamento.valor() == null)
+      throw new IllegalArgumentException("Valor do pagamento não informado");
+    var newPagamento = pagamentoService.criar(pagamento);
+    List<UUID> pagamentosUUID = List.of(newPagamento.uuid());
+    hospedagemIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID));
+    log.info("Pagamento {} adicionado às hospedagens {}", newPagamento.uuid(), hospedagemIds);
+  }
+
   public void adicionarPagamentos(Long hospedagemId, Hospedagem.Request request) {
     if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
       List<UUID> pagamentosUUID = new ArrayList<>();
@@ -522,38 +536,74 @@ public class HospedagemService {
   }
 
   @Transactional
-  public void ativarReserva(Long hospedagemId, Hospedagem.Request request) {
-    validarCamposHospedagem(request, false);
+  public void ativarReserva(List<Hospedagem.Request> requests, Boolean pagamentoUnico) {
+    // Phase 1 — activate every reservation (no payment when pagamentoUnico=true)
+    List<Long> resolvedIds = new ArrayList<>();
 
-    final Long resolvedId;
-    final Hospedagem.Status statusAtual;
+    for (Hospedagem.Request request : requests) {
+      validarCamposHospedagem(request, false);
 
-    if (hospedagemId != null) {
-      Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
-      if (hospedagem.status().equals(Hospedagem.Status.RESERVA_ATIVA))
-        throw new IllegalArgumentException("Reserva já ativa para esse quarto e data.");
-      resolvedId = hospedagemId;
-      statusAtual = hospedagem.status();
-    } else {
-      resolvedId = hospedagemRepository.insertHospedagemId(request, getFuncionarioId());
-      statusAtual = request.status();
+      final Long resolvedId;
+      final Hospedagem.Status statusAtual;
+      Long hospedagemId = request.hospedagem_id();
+
+      if (hospedagemId != null) {
+        Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+        if (hospedagem.status().equals(Hospedagem.Status.RESERVA_ATIVA))
+          throw new IllegalArgumentException("Reserva já ativa para esse quarto e data.");
+        resolvedId = hospedagemId;
+        statusAtual = hospedagem.status();
+      } else {
+        resolvedId = hospedagemRepository.insertHospedagemId(request, getFuncionarioId());
+        statusAtual = request.status();
+      }
+      calcularDiarias(resolvedId, request);
+      validarTransicaoDeStatus(statusAtual, Hospedagem.Status.RESERVA_ATIVA);
+
+      if (request.pessoas() != null && !request.pessoas().isEmpty())
+        adicionarPessoas(resolvedId, request.pessoas());
+
+      if (!Boolean.TRUE.equals(pagamentoUnico)) {
+        if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
+          validarCamposPagamento(request);
+          adicionarPagamentos(resolvedId, request);
+        }
+      }
+
+      alterarStatus(resolvedId, Hospedagem.Status.RESERVA_ATIVA);
+
+      if (request.data_hora_checkin().toLocalDate().equals(LocalDate.now())) {
+        var statusQuarto = hospedagemRepository.statusQuarto(request.quarto_id());
+        if (!statusQuarto.equals(Quarto.Status.OCUPADO)) {
+          quartoRepository.updateStatus(request.quarto_id(), Quarto.Status.RESERVADO);
+        }
+      }
+
+      resolvedIds.add(resolvedId);
     }
-    calcularDiarias(resolvedId, request);
-    validarTransicaoDeStatus(statusAtual, Hospedagem.Status.RESERVA_ATIVA);
 
-    if (request.pessoas() != null && !request.pessoas().isEmpty())
-      adicionarPessoas(resolvedId, request.pessoas());
-
-    if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
-      validarCamposPagamento(request);
-      adicionarPagamentos(resolvedId, request);
+    // Phase 2 — link all reservations in a group when more than one was activated
+    if (resolvedIds.size() > 1) {
+      Long grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
+      hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
+      log.info("Grupo {} criado para as hospedagens {}", grupoId, resolvedIds);
     }
-    alterarStatus(resolvedId, Hospedagem.Status.RESERVA_ATIVA);
 
-    if (request.data_hora_checkin().toLocalDate().equals(LocalDate.now())) {
-      var statusQuarto = hospedagemRepository.statusQuarto(request.quarto_id());
-      if (!statusQuarto.equals(Quarto.Status.OCUPADO)) {
-        quartoRepository.updateStatus(request.quarto_id(), Quarto.Status.RESERVADO);
+    // Phase 3 — create one payment and link it to every reservation
+    if (Boolean.TRUE.equals(pagamentoUnico)) {
+      Hospedagem.Request firstWithPagamentos = requests.stream()
+          .filter(r -> r.pagamentos() != null && !r.pagamentos().isEmpty())
+          .findFirst()
+          .orElse(null);
+
+      if (firstWithPagamentos != null) {
+        validarCamposPagamento(firstWithPagamentos);
+        List<UUID> pagamentosUUID = new ArrayList<>();
+        firstWithPagamentos.pagamentos().forEach(pagamento -> {
+          var newPagamento = pagamentoService.criar(pagamento);
+          pagamentosUUID.add(newPagamento.uuid());
+        });
+        resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID));
       }
     }
   }
@@ -814,7 +864,8 @@ public class HospedagemService {
         pagamentos,
         pessoas,
         pessoasOrcamento,
-        motivo);
+        motivo,
+        hospedagem.grupo_id());
   }
 
   public Map<Long, Hospedagem> buscarAtivasPorQuartoNaData(LocalDate data) {

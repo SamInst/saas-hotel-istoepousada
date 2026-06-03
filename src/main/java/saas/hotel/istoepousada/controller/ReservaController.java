@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.controller;
 
+import java.util.List;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Hospedagem;
 import saas.hotel.istoepousada.dto.MotivoCancelamentoHospedagem;
@@ -22,8 +23,9 @@ public class ReservaController {
 
   @PutMapping("/ativar")
   public void ativar(
-      @RequestParam(required = false) Long hospedagemId, @RequestBody Hospedagem.Request request) {
-    hospedagemService.ativarReserva(hospedagemId, request);
+      @RequestParam(required = false) Boolean pagamentoUnico,
+      @RequestBody List<Hospedagem.Request> requests) {
+    hospedagemService.ativarReserva(requests, pagamentoUnico);
   }
 
   @PutMapping("/{hospedagemId}/cancelar")
