@@ -856,6 +856,16 @@ public class HospedagemService {
     return withDetailsBatch(base);
   }
 
+  /** Reservas de um quarto, paginadas. periodo: "anteriores" | "proximas" | null (mês/ano). */
+  public PageResult<Hospedagem> buscarPorQuarto(
+      Long quartoId, Integer mes, Integer ano, String periodo, int page, int size) {
+    long total = hospedagemRepository.contarPorQuarto(quartoId, mes, ano, periodo);
+    List<Hospedagem> base = hospedagemRepository.buscarPorQuarto(quartoId, mes, ano, periodo, page, size);
+    List<Hospedagem> content = base.isEmpty() ? List.of() : withDetailsBatch(base);
+    int totalPages = size > 0 ? (int) Math.ceil((double) total / size) : 0;
+    return new PageResult<>(content, page, size, total, totalPages);
+  }
+
   private List<Hospedagem> withDetailsBatch(List<Hospedagem> hospedagens) {
     List<Long> ids = hospedagens.stream().map(Hospedagem::id).toList();
 

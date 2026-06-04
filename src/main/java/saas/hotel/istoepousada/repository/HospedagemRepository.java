@@ -95,6 +95,50 @@ public class HospedagemRepository {
     return jdbcTemplate.query(sql.toString(), Hospedagem.MAPPER, params.toArray());
   }
 
+  // ── Reservas por quarto (paginado) ───────────────────────────────────────────
+  // periodo: "anteriores" (checkout já passou) | "proximas" (checkout futuro) | null (filtra por mês/ano)
+
+  private void appendQuartoFiltros(
+      StringBuilder sql, List<Object> params, Long quartoId, Integer mes, Integer ano, String periodo) {
+    sql.append(" WHERE hospedagem.fk_quarto = ?");
+    params.add(quartoId);
+    if ("anteriores".equalsIgnoreCase(periodo)) {
+      sql.append(" AND hospedagem.data_hora_checkout < now()");
+    } else if ("proximas".equalsIgnoreCase(periodo)) {
+      sql.append(" AND hospedagem.data_hora_checkout >= now()");
+    } else {
+      if (mes != null) {
+        sql.append(" AND EXTRACT(MONTH FROM hospedagem.data_hora_checkin) = ?");
+        params.add(mes);
+      }
+      if (ano != null) {
+        sql.append(" AND EXTRACT(YEAR FROM hospedagem.data_hora_checkin) = ?");
+        params.add(ano);
+      }
+    }
+  }
+
+  public long contarPorQuarto(Long quartoId, Integer mes, Integer ano, String periodo) {
+    StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM public.hospedagem");
+    List<Object> params = new ArrayList<>();
+    appendQuartoFiltros(sql, params, quartoId, mes, ano, periodo);
+    Long total = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
+    return total == null ? 0 : total;
+  }
+
+  public List<Hospedagem> buscarPorQuarto(
+      Long quartoId, Integer mes, Integer ano, String periodo, int page, int size) {
+    StringBuilder sql = new StringBuilder(SELECT_HOSPEDAGEM);
+    List<Object> params = new ArrayList<>();
+    appendQuartoFiltros(sql, params, quartoId, mes, ano, periodo);
+    // próximas: mais cedo primeiro; demais: mais recente primeiro
+    String ordem = "proximas".equalsIgnoreCase(periodo) ? "ASC" : "DESC";
+    sql.append(" ORDER BY hospedagem.data_hora_checkin ").append(ordem).append(" LIMIT ? OFFSET ?");
+    params.add(size);
+    params.add(page * size);
+    return jdbcTemplate.query(sql.toString(), Hospedagem.MAPPER, params.toArray());
+  }
+
   public Hospedagem buscarPorId(Long id) {
     try {
       return jdbcTemplate.queryForObject(

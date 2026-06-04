@@ -9,6 +9,7 @@ import saas.hotel.istoepousada.dto.Hospedagem;
 import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.dto.MotivoCancelamentoHospedagem;
 import saas.hotel.istoepousada.dto.Pagamento;
+import saas.hotel.istoepousada.dto.PageResult;
 import saas.hotel.istoepousada.service.HospedagemService;
 
 @RestController
@@ -36,6 +37,18 @@ public class HospedagemController {
   @GetMapping("/{hospedagemId}")
   public Hospedagem buscarPorId(@PathVariable Long hospedagemId) {
     return hospedagemService.buscarPorId(hospedagemId);
+  }
+
+  /** Reservas de um quarto, paginadas. periodo: "anteriores" | "proximas" | (vazio = mês/ano). */
+  @GetMapping("/quarto/{quartoId}")
+  public PageResult<Hospedagem> buscarPorQuarto(
+      @PathVariable Long quartoId,
+      @RequestParam(required = false) Integer mes,
+      @RequestParam(required = false) Integer ano,
+      @RequestParam(required = false) String periodo,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "8") int size) {
+    return hospedagemService.buscarPorQuarto(quartoId, mes, ano, periodo, page, size);
   }
 
   @PutMapping
