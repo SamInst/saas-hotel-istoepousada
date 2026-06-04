@@ -61,6 +61,14 @@ public class HospedagemController {
     hospedagemService.finalizarPernoite(hospedagemId);
   }
 
+  /** Altera apenas o status da hospedagem (validando a transição). */
+  @PutMapping("/{hospedagemId}/status")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void alterarStatus(
+      @PathVariable Long hospedagemId, @RequestParam Hospedagem.Status status) {
+    hospedagemService.alterarStatusComValidacao(hospedagemId, status);
+  }
+
   @PutMapping("/{hospedagemId}/finalizar-pendente")
   public void finalizarPendente(@PathVariable Long hospedagemId) {
     hospedagemService.finalizarPernoitePagamentoPendente(hospedagemId);
