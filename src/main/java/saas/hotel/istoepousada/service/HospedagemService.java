@@ -253,6 +253,14 @@ public class HospedagemService {
     log.info("Status da hospedagem: [{}] alterado para: [{}]", hospedagemId, status);
   }
 
+  /** Altera o status validando a transição a partir do status atual da hospedagem. */
+  @Transactional
+  public void alterarStatusComValidacao(Long hospedagemId, Hospedagem.Status novoStatus) {
+    Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+    validarTransicaoDeStatus(hospedagem.status(), novoStatus);
+    alterarStatus(hospedagemId, novoStatus);
+  }
+
   // ── Pessoas ──────────────────────────────────────────────────────────────────
   public List<Pessoa.DadosPrincipais> buscarPessoasHospedagem(Long hospedagemId){
     return  pessoaService.buscarByHospedagemId(hospedagemId);
