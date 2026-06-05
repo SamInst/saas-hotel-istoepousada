@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,12 +28,12 @@ public class HospedagemService {
   private final RelatorioService relatorioService;
 
   public HospedagemService(
-          HospedagemRepository hospedagemRepository,
-          PagamentoService pagamentoService,
-          PessoaService pessoaService,
-          CalcularPrecoService calcularPrecoService,
-          QuartoRepository quartoRepository,
-          RelatorioService relatorioService) {
+      HospedagemRepository hospedagemRepository,
+      PagamentoService pagamentoService,
+      PessoaService pessoaService,
+      CalcularPrecoService calcularPrecoService,
+      QuartoRepository quartoRepository,
+      RelatorioService relatorioService) {
     this.hospedagemRepository = hospedagemRepository;
     this.pagamentoService = pagamentoService;
     this.pessoaService = pessoaService;
@@ -48,42 +47,47 @@ public class HospedagemService {
   public List<Quarto.Disponibilidade> verificarDisponibilidadeQuartos(
       LocalDate dataEntrada, LocalDate dataSaida) {
 
-    LocalDateTime checkin  = dataEntrada.atStartOfDay();
+    LocalDateTime checkin = dataEntrada.atStartOfDay();
     LocalDateTime checkout = dataSaida.atStartOfDay();
 
     List<Quarto> quartos = quartoRepository.buscarTodos();
 
     return quartos.stream()
-        .map(quarto -> {
-          Quarto.Status statusEfetivo;
-          boolean disponivel;
-          try {
-            Quarto.Status statusFisico = quarto.status();
+        .map(
+            quarto -> {
+              Quarto.Status statusEfetivo;
+              boolean disponivel;
+              try {
+                Quarto.Status statusFisico = quarto.status();
 
-            if (statusFisico == Quarto.Status.OCUPADO
-                || statusFisico == Quarto.Status.MANUTENCAO
-                || statusFisico == Quarto.Status.LIMPEZA
-                || statusFisico == Quarto.Status.FORA_DE_SERVICO) {
-              statusEfetivo = statusFisico;
-              disponivel    = false;
-            } else {
-              boolean temConflito =
-                  hospedagemRepository.isQuartoDisponivel(quarto.id(), checkin, checkout, null);
-              if (temConflito) {
-                statusEfetivo = Quarto.Status.RESERVADO;
-                disponivel    = false;
-              } else {
-                statusEfetivo = Quarto.Status.DISPONIVEL;
-                disponivel    = true;
+                if (statusFisico == Quarto.Status.OCUPADO
+                    || statusFisico == Quarto.Status.MANUTENCAO
+                    || statusFisico == Quarto.Status.LIMPEZA
+                    || statusFisico == Quarto.Status.FORA_DE_SERVICO) {
+                  statusEfetivo = statusFisico;
+                  disponivel = false;
+                } else {
+                  boolean temConflito =
+                      hospedagemRepository.isQuartoDisponivel(quarto.id(), checkin, checkout, null);
+                  if (temConflito) {
+                    statusEfetivo = Quarto.Status.RESERVADO;
+                    disponivel = false;
+                  } else {
+                    statusEfetivo = Quarto.Status.DISPONIVEL;
+                    disponivel = true;
+                  }
+                }
+              } catch (Exception e) {
+                log.warn(
+                    "Erro ao verificar disponibilidade do quarto {}: {}",
+                    quarto.id(),
+                    e.getMessage());
+                statusEfetivo = quarto.status();
+                disponivel = false;
               }
-            }
-          } catch (Exception e) {
-            log.warn("Erro ao verificar disponibilidade do quarto {}: {}", quarto.id(), e.getMessage());
-            statusEfetivo = quarto.status();
-            disponivel    = false;
-          }
-          return new Quarto.Disponibilidade(quarto.id(), quarto.descricao(), statusEfetivo, disponivel);
-        })
+              return new Quarto.Disponibilidade(
+                  quarto.id(), quarto.descricao(), statusEfetivo, disponivel);
+            })
         .toList();
   }
 
@@ -99,12 +103,13 @@ public class HospedagemService {
       log.info("Quarto não disponivel: STATUS {}", Quarto.Status.OCUPADO);
       throw new IllegalStateException("Quarto não disponivel: STATUS " + Quarto.Status.OCUPADO);
     }
-    var temConflito = hospedagemRepository.isQuartoDisponivel(quartoId, checkin, checkout, hospedagemIdExcluido);
+    var temConflito =
+        hospedagemRepository.isQuartoDisponivel(quartoId, checkin, checkout, hospedagemIdExcluido);
     log.info("Conflito encontrado: {}", temConflito);
     if (temConflito) {
       log.info("Quarto não disponivel para as datas informadas [{}->{}]", checkin, checkout);
       throw new IllegalArgumentException(
-              "Quarto não disponivel nas datas informadas [" + checkin + "->" + checkout + "]");
+          "Quarto não disponivel nas datas informadas [" + checkin + "->" + checkout + "]");
     }
     return true;
   }
@@ -122,7 +127,9 @@ public class HospedagemService {
             .flatMap(d -> d.pessoas().stream())
             .collect(Collectors.toSet());
     Map<Long, LocalDate> dataNascimentoPorPessoa =
-        todasPessoasIds.isEmpty() ? Map.of() : pessoaService.findDataNascimentoByIds(todasPessoasIds);
+        todasPessoasIds.isEmpty()
+            ? Map.of()
+            : pessoaService.findDataNascimentoByIds(todasPessoasIds);
 
     Map<Long, LocalDateTime> minCheckinPorQuarto = new HashMap<>();
     Map<Long, LocalDateTime> maxCheckoutPorQuarto = new HashMap<>();
@@ -134,7 +141,8 @@ public class HospedagemService {
     }
     minCheckinPorQuarto.forEach(
         (quartoId, minCheckin) ->
-            isQuartoDisponivel(quartoId, minCheckin, maxCheckoutPorQuarto.get(quartoId), hospedagemId));
+            isQuartoDisponivel(
+                quartoId, minCheckin, maxCheckoutPorQuarto.get(quartoId), hospedagemId));
 
     Set<String> existentes = hospedagemRepository.buscarChavesDiariasExistentes(hospedagemId);
 
@@ -267,8 +275,8 @@ public class HospedagemService {
   }
 
   // ── Pessoas ──────────────────────────────────────────────────────────────────
-  public List<Pessoa.DadosPrincipais> buscarPessoasHospedagem(Long hospedagemId){
-    return  pessoaService.buscarByHospedagemId(hospedagemId);
+  public List<Pessoa.DadosPrincipais> buscarPessoasHospedagem(Long hospedagemId) {
+    return pessoaService.buscarByHospedagemId(hospedagemId);
   }
 
   public void removerPessoas(Long hospedagemId, List<Long> pessoasIds) {
@@ -293,7 +301,8 @@ public class HospedagemService {
     hospedagemRepository.adicionarHospedagemPagamento(hospedagemId, pagamentosUUID);
   }
 
-  public void adicionarHospedagemPagamento(Long hospedagemId, List<UUID> pagamentosUUID, Long grupoId) {
+  public void adicionarHospedagemPagamento(
+      Long hospedagemId, List<UUID> pagamentosUUID, Long grupoId) {
     hospedagemRepository.adicionarHospedagemPagamento(hospedagemId, pagamentosUUID, grupoId);
   }
 
@@ -307,15 +316,18 @@ public class HospedagemService {
   }
 
   @Transactional
-  public void adicionarPagamentoMultiplasHospedagens(List<Long> hospedagemIds, Pagamento.Request pagamento) {
+  public void adicionarPagamentoMultiplasHospedagens(
+      List<Long> hospedagemIds, Pagamento.Request pagamento) {
     validarCamposPagamentoUnico(pagamento);
     var newPagamento = pagamentoService.criar(pagamento);
     List<UUID> pagamentosUUID = List.of(newPagamento.uuid());
-    hospedagemIds.forEach(id -> {
-      var hospedagem = hospedagemRepository.buscarPorId(id);
-      adicionarHospedagemPagamento(id, pagamentosUUID);
-      adicionarRelatorioHospedagem(hospedagem.quarto().id(), newPagamento, pagamento.arquivo(), hospedagem.status());
-    });
+    hospedagemIds.forEach(
+        id -> {
+          var hospedagem = hospedagemRepository.buscarPorId(id);
+          adicionarHospedagemPagamento(id, pagamentosUUID);
+          adicionarRelatorioHospedagem(
+              hospedagem.quarto().id(), newPagamento, pagamento.arquivo(), hospedagem.status());
+        });
     log.info("Pagamento {} adicionado às hospedagens {}", newPagamento.uuid(), hospedagemIds);
   }
 
@@ -329,45 +341,68 @@ public class HospedagemService {
     var newPagamento = pagamentoService.criar(pagamento);
     List<UUID> pagamentosUUID = List.of(newPagamento.uuid());
     hospedagemIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoId));
-    log.info("Pagamento {} adicionado ao grupo {} (hospedagens {})", newPagamento.uuid(), grupoId, hospedagemIds);
+    log.info(
+        "Pagamento {} adicionado ao grupo {} (hospedagens {})",
+        newPagamento.uuid(),
+        grupoId,
+        hospedagemIds);
   }
 
   @Transactional
-  public void adicionarPagamentos(Long hospedagemId, Long quartoId, List<Pagamento.Request> requests, Hospedagem.Status status) {
+  public void adicionarPagamentos(
+      Long hospedagemId,
+      Long quartoId,
+      List<Pagamento.Request> requests,
+      Hospedagem.Status status) {
     if (requests != null && !requests.isEmpty()) {
       List<UUID> pagamentosUUID = new ArrayList<>();
-      requests
-          .forEach(
-              pagamento -> {
-                var newPagamento = pagamentoService.criar(pagamento);
-                pagamentosUUID.add(newPagamento.uuid());
-                adicionarRelatorioHospedagem(quartoId, newPagamento, pagamento.arquivo(), status);
-              });
+      requests.forEach(
+          pagamento -> {
+            var newPagamento = pagamentoService.criar(pagamento);
+            pagamentosUUID.add(newPagamento.uuid());
+            adicionarRelatorioHospedagem(quartoId, newPagamento, pagamento.arquivo(), status);
+          });
       adicionarHospedagemPagamento(hospedagemId, pagamentosUUID);
-
     }
   }
 
-  public void adicionarRelatorioHospedagem(Long quartoId, Pagamento pagamento, MultipartFile arquivo, Hospedagem.Status status) {
+  public void adicionarRelatorioHospedagem(
+      Long quartoId, Pagamento pagamento, MultipartFile arquivo, Hospedagem.Status status) {
     String relatorio = "";
     switch (status) {
-      case RESERVA_ATIVA -> relatorio = "Pagamento de Reserva ("+pagamento.nome_pagador()+") " + pagamento.descricao();
-      case PERNOITE_ATIVO -> relatorio = "[Quarto " + quartoId +"] | PERNOITE | "+pagamento.nome_pagador()+" | " + pagamento.descricao();
-      case DAY_USE_ATIVO -> relatorio = "[Quarto " + quartoId +"] | DAY USE | "+pagamento.nome_pagador()+" | " + pagamento.descricao();
+      case RESERVA_ATIVA ->
+          relatorio =
+              "Pagamento de Reserva (" + pagamento.nome_pagador() + ") " + pagamento.descricao();
+      case PERNOITE_ATIVO ->
+          relatorio =
+              "[Quarto "
+                  + quartoId
+                  + "] | PERNOITE | "
+                  + pagamento.nome_pagador()
+                  + " | "
+                  + pagamento.descricao();
+      case DAY_USE_ATIVO ->
+          relatorio =
+              "[Quarto "
+                  + quartoId
+                  + "] | DAY USE | "
+                  + pagamento.nome_pagador()
+                  + " | "
+                  + pagamento.descricao();
     }
 
-    Relatorio.Request relatorioRequest = new Relatorio.Request(
+    Relatorio.Request relatorioRequest =
+        new Relatorio.Request(
             relatorio,
             Relatorio.Registro.ENTRADA,
             false,
             new Pagamento.Request(
-                    new Pagamento.TipoPagamento.Id(pagamento.tipo_pagamento().id()),
-                    pagamento.nome_pagador(),
-                    relatorio,
-                    pagamento.valor(),
-                    arquivo),
-            new Quarto.Id(quartoId)
-    );
+                new Pagamento.TipoPagamento.Id(pagamento.tipo_pagamento().id()),
+                pagamento.nome_pagador(),
+                relatorio,
+                pagamento.valor(),
+                arquivo),
+            new Quarto.Id(quartoId));
     try {
       relatorioService.criar(relatorioRequest, arquivo);
     } catch (IOException e) {
@@ -635,7 +670,8 @@ public class HospedagemService {
       if (!Boolean.TRUE.equals(pagamentoUnico)) {
         if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
           validarCamposPagamento(request);
-          adicionarPagamentos(resolvedId, request.quarto_id(), request.pagamentos(), request.status());
+          adicionarPagamentos(
+              resolvedId, request.quarto_id(), request.pagamentos(), request.status());
         }
       }
 
@@ -659,21 +695,30 @@ public class HospedagemService {
       log.info("Grupo {} criado para as hospedagens {}", grupoId, resolvedIds);
     }
 
-    // Phase 3 — create one payment and link it to every reservation (carrying the group when present)
+    // Phase 3 — create one payment and link it to every reservation (carrying the group when
+    // present)
     if (Boolean.TRUE.equals(pagamentoUnico)) {
-      Hospedagem.Request firstWithPagamentos = requests.stream()
-          .filter(r -> r.pagamentos() != null && !r.pagamentos().isEmpty())
-          .findFirst()
-          .orElse(null);
+      Hospedagem.Request firstWithPagamentos =
+          requests.stream()
+              .filter(r -> r.pagamentos() != null && !r.pagamentos().isEmpty())
+              .findFirst()
+              .orElse(null);
 
       if (firstWithPagamentos != null) {
         validarCamposPagamento(firstWithPagamentos);
         List<UUID> pagamentosUUID = new ArrayList<>();
-        firstWithPagamentos.pagamentos().forEach(pagamento -> {
-          var newPagamento = pagamentoService.criar(pagamento);
-          pagamentosUUID.add(newPagamento.uuid());
-          adicionarRelatorioHospedagem(firstWithPagamentos.quarto_id(), newPagamento, pagamento.arquivo(), firstWithPagamentos.status());
-        });
+        firstWithPagamentos
+            .pagamentos()
+            .forEach(
+                pagamento -> {
+                  var newPagamento = pagamentoService.criar(pagamento);
+                  pagamentosUUID.add(newPagamento.uuid());
+                  adicionarRelatorioHospedagem(
+                      firstWithPagamentos.quarto_id(),
+                      newPagamento,
+                      pagamento.arquivo(),
+                      firstWithPagamentos.status());
+                });
         final Long grupoIdFinal = grupoId;
         resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoIdFinal));
       }
@@ -825,8 +870,7 @@ public class HospedagemService {
 
   @Transactional
   public Hospedagem editarReserva(Long hospedagemId, Hospedagem.Request request) {
-    if (hospedagemId == null)
-      throw new IllegalArgumentException("Id da hospedagem é obrigatório.");
+    if (hospedagemId == null) throw new IllegalArgumentException("Id da hospedagem é obrigatório.");
 
     Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
 
@@ -836,25 +880,30 @@ public class HospedagemService {
           "Status " + hospedagem.status() + " não permite edição da reserva.");
     }
 
-    if (request.data_hora_checkin() != null && request.data_hora_checkout() != null
+    if (request.data_hora_checkin() != null
+        && request.data_hora_checkout() != null
         && !request.data_hora_checkin().isBefore(request.data_hora_checkout())) {
       throw new IllegalArgumentException("A data de checkin deve ser anterior à data de checkout.");
     }
 
-    boolean alterouPeriodo = request.quarto_id() != null
-        || request.data_hora_checkin() != null
-        || request.data_hora_checkout() != null;
+    boolean alterouPeriodo =
+        request.quarto_id() != null
+            || request.data_hora_checkin() != null
+            || request.data_hora_checkout() != null;
 
     if (alterouPeriodo) {
-      Long quartoIdFinal = request.quarto_id() != null
-          ? request.quarto_id()
-          : hospedagemRepository.buscarQuartoId(hospedagemId);
-      LocalDateTime checkinFinal = request.data_hora_checkin() != null
-          ? request.data_hora_checkin()
-          : hospedagem.data_hora_checkin();
-      LocalDateTime checkoutFinal = request.data_hora_checkout() != null
-          ? request.data_hora_checkout()
-          : hospedagem.data_hora_checkout();
+      Long quartoIdFinal =
+          request.quarto_id() != null
+              ? request.quarto_id()
+              : hospedagemRepository.buscarQuartoId(hospedagemId);
+      LocalDateTime checkinFinal =
+          request.data_hora_checkin() != null
+              ? request.data_hora_checkin()
+              : hospedagem.data_hora_checkin();
+      LocalDateTime checkoutFinal =
+          request.data_hora_checkout() != null
+              ? request.data_hora_checkout()
+              : hospedagem.data_hora_checkout();
 
       isQuartoDisponivel(quartoIdFinal, checkinFinal, checkoutFinal, hospedagemId);
 
@@ -881,7 +930,8 @@ public class HospedagemService {
       }
     }
 
-    return withDetails(hospedagemRepository.editarReserva(hospedagemId, request, getFuncionarioId()));
+    return withDetails(
+        hospedagemRepository.editarReserva(hospedagemId, request, getFuncionarioId()));
   }
 
   // ── Consultas ────────────────────────────────────────────────────────────────
@@ -901,7 +951,8 @@ public class HospedagemService {
   public PageResult<Hospedagem> buscarPorQuarto(
       Long quartoId, Integer mes, Integer ano, String periodo, int page, int size) {
     long total = hospedagemRepository.contarPorQuarto(quartoId, mes, ano, periodo);
-    List<Hospedagem> base = hospedagemRepository.buscarPorQuarto(quartoId, mes, ano, periodo, page, size);
+    List<Hospedagem> base =
+        hospedagemRepository.buscarPorQuarto(quartoId, mes, ano, periodo, page, size);
     List<Hospedagem> content = base.isEmpty() ? List.of() : withDetailsBatch(base);
     int totalPages = size > 0 ? (int) Math.ceil((double) total / size) : 0;
     return new PageResult<>(content, page, size, total, totalPages);
@@ -910,34 +961,39 @@ public class HospedagemService {
   private List<Hospedagem> withDetailsBatch(List<Hospedagem> hospedagens) {
     List<Long> ids = hospedagens.stream().map(Hospedagem::id).toList();
 
-    Map<Long, List<Hospedagem.Diaria>>                    diariasMap    = hospedagemRepository.listarDiariasBatch(ids);
-    Map<Long, List<Item.Consumo>>                         consumosMap   = hospedagemRepository.buscarConsumosBatch(ids);
-    Map<Long, List<Pagamento>>                            pagamentosMap = pagamentoService.buscarPorHospedagemIds(ids);
-    Map<Long, Quarto>                                     quartosMap    = quartoRepository.buscarPorHospedagemIds(ids);
-    Map<Long, List<Pessoa.DadosPrincipais>>               pessoasMap    = pessoaService.buscarByHospedagemIds(ids);
-    Map<Long, List<Hospedagem.PessoaHospedagemOrcamento>> pessoasOrcMap = hospedagemRepository.buscarPessoasOrcamentoBatch(ids);
-    Map<Long, MotivoCancelamentoHospedagem>               motivosMap    = hospedagemRepository.buscarMotivoCancelamentoBatch(ids);
+    Map<Long, List<Hospedagem.Diaria>> diariasMap = hospedagemRepository.listarDiariasBatch(ids);
+    Map<Long, List<Item.Consumo>> consumosMap = hospedagemRepository.buscarConsumosBatch(ids);
+    Map<Long, List<Pagamento>> pagamentosMap = pagamentoService.buscarPorHospedagemIds(ids);
+    Map<Long, Quarto> quartosMap = quartoRepository.buscarPorHospedagemIds(ids);
+    Map<Long, List<Pessoa.DadosPrincipais>> pessoasMap = pessoaService.buscarByHospedagemIds(ids);
+    Map<Long, List<Hospedagem.PessoaHospedagemOrcamento>> pessoasOrcMap =
+        hospedagemRepository.buscarPessoasOrcamentoBatch(ids);
+    Map<Long, MotivoCancelamentoHospedagem> motivosMap =
+        hospedagemRepository.buscarMotivoCancelamentoBatch(ids);
 
-    return hospedagens.stream().map(h -> new Hospedagem(
-        h.id(),
-        h.funcionario(),
-        quartosMap.get(h.id()),
-        h.data_hora_registro(),
-        h.data_hora_checkin(),
-        h.data_hora_checkout(),
-        h.status(),
-        h.valor_total(),
-        h.quantidade_diarias(),
-        h.numero_diaria_atual(),
-        h.observacao(),
-        diariasMap.getOrDefault(h.id(), List.of()),
-        consumosMap.getOrDefault(h.id(), List.of()),
-        pagamentosMap.getOrDefault(h.id(), List.of()),
-        pessoasMap.getOrDefault(h.id(), List.of()),
-        pessoasOrcMap.getOrDefault(h.id(), List.of()),
-        motivosMap.get(h.id()),
-        h.grupo_id()
-    )).toList();
+    return hospedagens.stream()
+        .map(
+            h ->
+                new Hospedagem(
+                    h.id(),
+                    h.funcionario(),
+                    quartosMap.get(h.id()),
+                    h.data_hora_registro(),
+                    h.data_hora_checkin(),
+                    h.data_hora_checkout(),
+                    h.status(),
+                    h.valor_total(),
+                    h.quantidade_diarias(),
+                    h.numero_diaria_atual(),
+                    h.observacao(),
+                    diariasMap.getOrDefault(h.id(), List.of()),
+                    consumosMap.getOrDefault(h.id(), List.of()),
+                    pagamentosMap.getOrDefault(h.id(), List.of()),
+                    pessoasMap.getOrDefault(h.id(), List.of()),
+                    pessoasOrcMap.getOrDefault(h.id(), List.of()),
+                    motivosMap.get(h.id()),
+                    h.grupo_id()))
+        .toList();
   }
 
   public Hospedagem buscarPorId(Long id) {

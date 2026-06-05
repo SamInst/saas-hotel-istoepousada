@@ -111,7 +111,8 @@ public class HospedagemController {
   @PostMapping("/pagamento-multiplo")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void adicionarPagamentoMultiplo(@RequestBody PagamentoMultiploRequest request) {
-    hospedagemService.adicionarPagamentoMultiplasHospedagens(request.hospedagem_ids(), request.pagamento());
+    hospedagemService.adicionarPagamentoMultiplasHospedagens(
+        request.hospedagem_ids(), request.pagamento());
   }
 
   // ── Consumo ──────────────────────────────────────────────────────────────────
@@ -138,8 +139,7 @@ public class HospedagemController {
 
   @DeleteMapping("/{hospedagemId}/pessoas")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void removerPessoas(
-      @PathVariable Long hospedagemId, @RequestBody List<Long> pessoasIds) {
+  public void removerPessoas(@PathVariable Long hospedagemId, @RequestBody List<Long> pessoasIds) {
     hospedagemService.removerPessoas(hospedagemId, pessoasIds);
   }
 

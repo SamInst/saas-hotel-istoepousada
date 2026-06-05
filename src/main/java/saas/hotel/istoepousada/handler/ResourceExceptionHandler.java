@@ -1,23 +1,23 @@
-//package saas.hotel.istoepousada.handler;
+// package saas.hotel.istoepousada.handler;
 //
-//import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
+// import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 //
-//import jakarta.servlet.http.HttpServletRequest;
-//import java.time.Instant;
-//import java.util.Objects;
-//import org.springframework.core.annotation.Order;
-//import org.springframework.dao.DataIntegrityViolationException;
-//import org.springframework.http.HttpStatus;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.jdbc.BadSqlGrammarException;
-//import org.springframework.web.HttpMediaTypeNotSupportedException;
-//import org.springframework.web.bind.annotation.ControllerAdvice;
-//import org.springframework.web.bind.annotation.ExceptionHandler;
-//import saas.hotel.istoepousada.handler.exceptions.*;
+// import jakarta.servlet.http.HttpServletRequest;
+// import java.time.Instant;
+// import java.util.Objects;
+// import org.springframework.core.annotation.Order;
+// import org.springframework.dao.DataIntegrityViolationException;
+// import org.springframework.http.HttpStatus;
+// import org.springframework.http.ResponseEntity;
+// import org.springframework.jdbc.BadSqlGrammarException;
+// import org.springframework.web.HttpMediaTypeNotSupportedException;
+// import org.springframework.web.bind.annotation.ControllerAdvice;
+// import org.springframework.web.bind.annotation.ExceptionHandler;
+// import saas.hotel.istoepousada.handler.exceptions.*;
 //
-//@ControllerAdvice
-//@Order(HIGHEST_PRECEDENCE)
-//public class ResourceExceptionHandler {
+// @ControllerAdvice
+// @Order(HIGHEST_PRECEDENCE)
+// public class ResourceExceptionHandler {
 //  static final String INTERNAL_SERVER_ERROR = "Erro interno no servidor";
 //  static final String BAD_SQL_GRAMAR = "SQL COM ERRO DE SINTAXE.";
 //  static final String SQL_VIOLATION = "SQL COM ERRO DE VIOLACAO.";
@@ -204,6 +204,7 @@
 //  @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
 //  public ResponseEntity<String> handleMediaTypeNotSupportedException(
 //      HttpMediaTypeNotSupportedException ex) {
-//    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("Unsupported Media Type");
+//    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("Unsupported Media
+// Type");
 //  }
-//}
+// }

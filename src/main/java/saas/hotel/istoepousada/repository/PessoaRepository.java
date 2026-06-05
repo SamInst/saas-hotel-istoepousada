@@ -695,7 +695,8 @@ public class PessoaRepository {
   public Map<Long, List<Pessoa.DadosPrincipais>> buscarByHospedagemIds(List<Long> ids) {
     if (ids.isEmpty()) return Map.of();
     String in = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
-    String sql = """
+    String sql =
+        """
         SELECT
             hp.hospedagem_id    AS pessoa_hospedagem_id,
             p.id                AS pessoa_id,
@@ -709,13 +710,18 @@ public class PessoaRepository {
         FROM pessoa p
         JOIN hospedagem_pessoa hp ON hp.pessoa_id = p.id
         WHERE hp.hospedagem_id IN (%s)
-        """.formatted(in);
+        """
+            .formatted(in);
     Map<Long, List<Pessoa.DadosPrincipais>> result = new java.util.LinkedHashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      Long hId = rs.getLong("pessoa_hospedagem_id");
-      result.computeIfAbsent(hId, k -> new java.util.ArrayList<>())
-            .add(Pessoa.DadosPrincipais.ROW_MAPPER.mapRow(rs, 0));
-    }, ids.toArray());
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          Long hId = rs.getLong("pessoa_hospedagem_id");
+          result
+              .computeIfAbsent(hId, k -> new java.util.ArrayList<>())
+              .add(Pessoa.DadosPrincipais.ROW_MAPPER.mapRow(rs, 0));
+        },
+        ids.toArray());
     return result;
   }
 }

@@ -2,11 +2,11 @@ package saas.hotel.istoepousada.repository;
 
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowCallbackHandler;
@@ -56,7 +56,8 @@ public class QuartoRepository {
   public Map<Long, Quarto> buscarPorHospedagemIds(List<Long> ids) {
     if (ids.isEmpty()) return Map.of();
     String in = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
-    String sql = """
+    String sql =
+        """
         SELECT
             h.id                              AS hospedagem_id,
             quarto.id                         AS quarto_id,
@@ -70,11 +71,15 @@ public class QuartoRepository {
         FROM hospedagem h
         JOIN quarto quarto ON quarto.id = h.fk_quarto
         WHERE h.id IN (%s)
-        """.formatted(in);
+        """
+            .formatted(in);
     Map<Long, Quarto> result = new java.util.HashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      result.put(rs.getLong("hospedagem_id"), Quarto.ROW_MAPPER.mapRow(rs, 0));
-    }, ids.toArray());
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          result.put(rs.getLong("hospedagem_id"), Quarto.ROW_MAPPER.mapRow(rs, 0));
+        },
+        ids.toArray());
     return result;
   }
 
