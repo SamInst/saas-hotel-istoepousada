@@ -12,15 +12,20 @@ import saas.hotel.istoepousada.repository.PagamentoRepository;
 public class PagamentoService {
   private final PagamentoRepository pagamentoRepository;
   private final PessoaService pessoaService;
+  private final RelatorioService relatorioService;
 
-  public PagamentoService(PagamentoRepository pagamentoRepository, PessoaService pessoaService) {
+  public PagamentoService(
+      PagamentoRepository pagamentoRepository,
+      PessoaService pessoaService,
+      RelatorioService relatorioService) {
     this.pagamentoRepository = pagamentoRepository;
     this.pessoaService = pessoaService;
+    this.relatorioService = relatorioService;
   }
 
   @Transactional
   public Pagamento criar(Pagamento.Request req) {
-    return pagamentoRepository.create(req, getFuncionarioId());
+      return pagamentoRepository.create(req, getFuncionarioId());
   }
 
   @Transactional(readOnly = true)

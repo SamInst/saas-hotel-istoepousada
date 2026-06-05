@@ -99,8 +99,11 @@ public class HospedagemController {
 
   @PostMapping("/{hospedagemId}/pagamentos")
   public void adicionarPagamentos(
-      @PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
-    hospedagemService.adicionarPagamentos(hospedagemId, request);
+      @PathVariable Long hospedagemId,
+      @RequestParam(required = false) Long quartoId,
+      @RequestBody Hospedagem.Request request,
+      @RequestParam(required = false) Hospedagem.Status status) {
+    hospedagemService.adicionarPagamentos(hospedagemId, quartoId, request.pagamentos(), status);
   }
 
   record PagamentoMultiploRequest(List<Long> hospedagem_ids, Pagamento.Request pagamento) {}
