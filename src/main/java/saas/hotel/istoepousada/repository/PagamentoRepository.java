@@ -107,7 +107,8 @@ public class PagamentoRepository {
   public Map<Long, List<Pagamento>> findByHospedagemIds(List<Long> ids) {
     if (ids.isEmpty()) return Map.of();
     String in = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
-    String sql = """
+    String sql =
+        """
         SELECT
           hp.fk_hospedagem     AS pagamento_fk_hospedagem,
           p.id                 AS pagamento_id,
@@ -153,13 +154,17 @@ public class PagamentoRepository {
         LEFT JOIN pessoa mcp ON mcp.id = mcf.fk_pessoa
         WHERE hp.fk_hospedagem IN (%s)
         ORDER BY hp.fk_hospedagem, p.data_hora_registro DESC
-        """.formatted(in);
+        """
+            .formatted(in);
     Map<Long, List<Pagamento>> result = new java.util.LinkedHashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      Long hId = rs.getLong("pagamento_fk_hospedagem");
-      Pagamento p = Pagamento.ROW_MAPPER.mapRow(rs, 0);
-      if (p != null) result.computeIfAbsent(hId, k -> new java.util.ArrayList<>()).add(p);
-    }, ids.toArray());
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          Long hId = rs.getLong("pagamento_fk_hospedagem");
+          Pagamento p = Pagamento.ROW_MAPPER.mapRow(rs, 0);
+          if (p != null) result.computeIfAbsent(hId, k -> new java.util.ArrayList<>()).add(p);
+        },
+        ids.toArray());
     return result;
   }
 

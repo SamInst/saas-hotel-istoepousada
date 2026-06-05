@@ -25,7 +25,7 @@ public class PagamentoService {
 
   @Transactional
   public Pagamento criar(Pagamento.Request req) {
-      return pagamentoRepository.create(req, getFuncionarioId());
+    return pagamentoRepository.create(req, getFuncionarioId());
   }
 
   @Transactional(readOnly = true)

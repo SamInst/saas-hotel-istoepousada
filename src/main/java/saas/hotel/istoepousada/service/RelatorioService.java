@@ -58,15 +58,15 @@ public class RelatorioService {
   }
 
   /**
-   * Registra um relatório (lançamento financeiro) para um pagamento JÁ criado.
-   * Usado para gerar um relatório automaticamente sempre que um pagamento é adicionado.
+   * Registra um relatório (lançamento financeiro) para um pagamento JÁ criado. Usado para gerar um
+   * relatório automaticamente sempre que um pagamento é adicionado.
    */
-//  @Transactional
-//  public void registrarPagamento(Pagamento pagamento) {
-//    if (pagamento == null) return;
-//    relatorioRepository.registrarRelatorio(pagamento, getFuncionarioId());
-//    log.info("Relatório gerado para o pagamento {}", pagamento.uuid());
-//  }
+  //  @Transactional
+  //  public void registrarPagamento(Pagamento pagamento) {
+  //    if (pagamento == null) return;
+  //    relatorioRepository.registrarRelatorio(pagamento, getFuncionarioId());
+  //    log.info("Relatório gerado para o pagamento {}", pagamento.uuid());
+  //  }
 
   @Transactional
   public Relatorio criar(Relatorio.Request relatorio, MultipartFile arquivo) throws IOException {

@@ -262,8 +262,7 @@ public class RelatorioRepository {
     return new Relatorio.Extrato(pagamentos, new PageImpl<>(diarias, pageable, totalDias));
   }
 
-  public void registrarRelatorio(
-      Pagamento pagamento, Long funcionarioId) {
+  public void registrarRelatorio(Pagamento pagamento, Long funcionarioId) {
     Long tipoPagamentoId =
         pagamento.tipo_pagamento() != null ? pagamento.tipo_pagamento().id() : null;
     Float valorHistoricoDinheiro =
@@ -281,22 +280,24 @@ public class RelatorioRepository {
   }
 
   public void registrarRelatorio(
-          Relatorio.Request request, Long funcionarioId, UUID pagamentoUuid) {
+      Relatorio.Request request, Long funcionarioId, UUID pagamentoUuid) {
     Long tipoPagamentoId =
-            request.pagamento().tipo_pagamento() != null ? request.pagamento().tipo_pagamento().id() : null;
+        request.pagamento().tipo_pagamento() != null
+            ? request.pagamento().tipo_pagamento().id()
+            : null;
 
     Float valorHistoricoDinheiro =
-            calcularNovoHistoricoDinheiro(request.pagamento().valor(), tipoPagamentoId);
+        calcularNovoHistoricoDinheiro(request.pagamento().valor(), tipoPagamentoId);
 
     jdbcTemplate.update(
-            """
+        """
                             INSERT INTO relatorio (data_hora, relatorio, fk_funcionario, quarto_id, valor_historico_dinheiro, despesa_pessoal, fk_pagamento)
                             VALUES (now(), ?, ?, null, ?, false, ?)
                             """,
-            request.relatorio(),
-            funcionarioId,
-            valorHistoricoDinheiro,
-            pagamentoUuid);
+        request.relatorio(),
+        funcionarioId,
+        valorHistoricoDinheiro,
+        pagamentoUuid);
   }
 
   public Relatorio insert(Relatorio.Request request, Pagamento pagamento, Long funcionarioId) {

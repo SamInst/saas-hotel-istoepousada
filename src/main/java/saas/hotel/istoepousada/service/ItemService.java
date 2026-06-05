@@ -156,17 +156,18 @@ public class ItemService {
       String itemDescricao = itemRepository.buscarDescricaoItem(request.item().id());
 
       relatorioRepository.registrarRelatorio(
-              new Pagamento(
-                      pagamento.uuid(),
-                      pagamento.tipo_pagamento(),
-                      pagamento.funcionario(),
-                      LocalDateTime.now(),
-                      pagamento.nome_pagador(),
-                      itemDescricao,
-                      pagamento.valor(),
-                      pagamento.cancelado(),
-                      pagamento.path_arquivo(), pagamento.motivo_cancelamento()
-              ), getFuncionarioId());
+          new Pagamento(
+              pagamento.uuid(),
+              pagamento.tipo_pagamento(),
+              pagamento.funcionario(),
+              LocalDateTime.now(),
+              pagamento.nome_pagador(),
+              itemDescricao,
+              pagamento.valor(),
+              pagamento.cancelado(),
+              pagamento.path_arquivo(),
+              pagamento.motivo_cancelamento()),
+          getFuncionarioId());
     }
 
     itemRepository.inserirConsumo(

@@ -96,10 +96,16 @@ public class HospedagemRepository {
   }
 
   // ── Reservas por quarto (paginado) ───────────────────────────────────────────
-  // periodo: "anteriores" (checkout já passou) | "proximas" (checkout futuro) | null (filtra por mês/ano)
+  // periodo: "anteriores" (checkout já passou) | "proximas" (checkout futuro) | null (filtra por
+  // mês/ano)
 
   private void appendQuartoFiltros(
-      StringBuilder sql, List<Object> params, Long quartoId, Integer mes, Integer ano, String periodo) {
+      StringBuilder sql,
+      List<Object> params,
+      Long quartoId,
+      Integer mes,
+      Integer ano,
+      String periodo) {
     sql.append(" WHERE hospedagem.fk_quarto = ?");
     params.add(quartoId);
     if ("anteriores".equalsIgnoreCase(periodo)) {
@@ -340,7 +346,9 @@ public class HospedagemRepository {
     return buscarPorId(insertHospedagemId(request, funcionarioId));
   }
 
-  /** Insere hospedagem e retorna apenas o ID gerado — evita o SELECT extra quando não necessário. */
+  /**
+   * Insere hospedagem e retorna apenas o ID gerado — evita o SELECT extra quando não necessário.
+   */
   public Long insertHospedagemId(Hospedagem.Request request, Long funcionarioId) {
     return jdbcTemplate.queryForObject(
         """
@@ -385,7 +393,8 @@ public class HospedagemRepository {
   }
 
   /** Edição de reserva — inclui fk_quarto além dos campos de editarHospedagem. */
-  public Hospedagem editarReserva(Long hospedagemId, Hospedagem.Request request, Long funcionarioId) {
+  public Hospedagem editarReserva(
+      Long hospedagemId, Hospedagem.Request request, Long funcionarioId) {
     jdbcTemplate.update(
         """
                         UPDATE hospedagem
@@ -438,7 +447,8 @@ public class HospedagemRepository {
   }
 
   /** Quando grupoId != null, o vínculo guarda o grupo ao qual o pagamento pertence. */
-  public void adicionarHospedagemPagamento(Long hospedagemId, List<UUID> pagamentosUUID, Long grupoId) {
+  public void adicionarHospedagemPagamento(
+      Long hospedagemId, List<UUID> pagamentosUUID, Long grupoId) {
     jdbcTemplate.batchUpdate(
         """
                         INSERT INTO hospedagem_pagamento (fk_hospedagem, fk_pagamento, fk_grupo)
@@ -643,8 +653,8 @@ public class HospedagemRepository {
   }
 
   /**
-   * Retorna chaves "quartoId_checkin_checkout" de todas as diárias já cadastradas para a
-   * hospedagem — permite verificação em lote no serviço, sem N queries individuais.
+   * Retorna chaves "quartoId_checkin_checkout" de todas as diárias já cadastradas para a hospedagem
+   * — permite verificação em lote no serviço, sem N queries individuais.
    */
   public Set<String> buscarChavesDiariasExistentes(Long hospedagemId) {
     List<String> chaves =
@@ -682,12 +692,15 @@ public class HospedagemRepository {
   // ── Batch helpers (replace N+1 in buscar) ────────────────────────────────────
 
   private String inClause(int size) {
-    return java.util.stream.IntStream.range(0, size).mapToObj(i -> "?").collect(Collectors.joining(", "));
+    return java.util.stream.IntStream.range(0, size)
+        .mapToObj(i -> "?")
+        .collect(Collectors.joining(", "));
   }
 
   public Map<Long, List<Hospedagem.Diaria>> listarDiariasBatch(List<Long> ids) {
     if (ids.isEmpty()) return Map.of();
-    String sql = """
+    String sql =
+        """
         SELECT
             diaria.fk_hospedagem              AS diaria_fk_hospedagem,
             diaria.id                         AS diaria_id,
@@ -701,26 +714,36 @@ public class HospedagemRepository {
         LEFT JOIN public.quarto quarto ON quarto.id = diaria.fk_quarto
         WHERE diaria.fk_hospedagem IN (%s)
         ORDER BY diaria.fk_hospedagem, diaria.numero
-        """.formatted(inClause(ids.size()));
+        """
+            .formatted(inClause(ids.size()));
     Map<Long, List<Hospedagem.Diaria>> result = new LinkedHashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      Long hId = rs.getLong("diaria_fk_hospedagem");
-      Long quartoId = rs.getObject("diaria_quarto_id", Long.class);
-      result.computeIfAbsent(hId, k -> new ArrayList<>()).add(new Hospedagem.Diaria(
-          rs.getLong("diaria_id"),
-          rs.getInt("diaria_numero"),
-          quartoId == null ? null : new Quarto.Descricao(quartoId, rs.getString("diaria_quarto_descricao")),
-          rs.getObject("diaria_checkin", LocalDateTime.class),
-          rs.getObject("diaria_checkout", LocalDateTime.class),
-          rs.getFloat("diaria_valor"),
-          null));
-    }, ids.toArray());
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          Long hId = rs.getLong("diaria_fk_hospedagem");
+          Long quartoId = rs.getObject("diaria_quarto_id", Long.class);
+          result
+              .computeIfAbsent(hId, k -> new ArrayList<>())
+              .add(
+                  new Hospedagem.Diaria(
+                      rs.getLong("diaria_id"),
+                      rs.getInt("diaria_numero"),
+                      quartoId == null
+                          ? null
+                          : new Quarto.Descricao(quartoId, rs.getString("diaria_quarto_descricao")),
+                      rs.getObject("diaria_checkin", LocalDateTime.class),
+                      rs.getObject("diaria_checkout", LocalDateTime.class),
+                      rs.getFloat("diaria_valor"),
+                      null));
+        },
+        ids.toArray());
     return result;
   }
 
   public Map<Long, List<Item.Consumo>> buscarConsumosBatch(List<Long> ids) {
     if (ids.isEmpty()) return Map.of();
-    String sql = """
+    String sql =
+        """
                     SELECT
             hospedagem_consumo.fk_hospedagem                              AS consumo_fk_hospedagem,
             consumo.id                                                    AS consumo_id,
@@ -770,30 +793,44 @@ public class HospedagemRepository {
             LEFT JOIN public.pessoa consumo_pagamento_motivo_cancelamento_pessoa_funcionario ON consumo_pagamento_motivo_cancelamento_pessoa_funcionario.id = consumo_pagamento_motivo_cancelamento_funcionario.fk_pessoa
             LEFT JOIN estoque ON estoque.fk_item = item.id
         WHERE hospedagem_consumo.fk_hospedagem IN (%s)
-        """.formatted(inClause(ids.size()));
+        """
+            .formatted(inClause(ids.size()));
     Map<Long, List<Item.Consumo>> result = new LinkedHashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      Long hId = rs.getLong("consumo_fk_hospedagem");
-      Item.Consumo consumo = Item.Consumo.ROW_MAPPER.mapRow(rs, 0);
-      if (consumo != null) result.computeIfAbsent(hId, k -> new ArrayList<>()).add(consumo);
-    }, ids.toArray());
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          Long hId = rs.getLong("consumo_fk_hospedagem");
+          Item.Consumo consumo = Item.Consumo.ROW_MAPPER.mapRow(rs, 0);
+          if (consumo != null) result.computeIfAbsent(hId, k -> new ArrayList<>()).add(consumo);
+        },
+        ids.toArray());
     return result;
   }
 
-  public Map<Long, List<Hospedagem.PessoaHospedagemOrcamento>> buscarPessoasOrcamentoBatch(List<Long> ids) {
+  public Map<Long, List<Hospedagem.PessoaHospedagemOrcamento>> buscarPessoasOrcamentoBatch(
+      List<Long> ids) {
     if (ids.isEmpty()) return Map.of();
-    String sql = "SELECT * FROM orcamento_hospedagem_pessoa WHERE fk_hospedagem IN (" + inClause(ids.size()) + ")";
+    String sql =
+        "SELECT * FROM orcamento_hospedagem_pessoa WHERE fk_hospedagem IN ("
+            + inClause(ids.size())
+            + ")";
     Map<Long, List<Hospedagem.PessoaHospedagemOrcamento>> result = new LinkedHashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      Long hId = rs.getLong("fk_hospedagem");
-      result.computeIfAbsent(hId, k -> new ArrayList<>()).add(Hospedagem.PessoaHospedagemOrcamento.MAPPER.mapRow(rs, 0));
-    }, ids.toArray());
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          Long hId = rs.getLong("fk_hospedagem");
+          result
+              .computeIfAbsent(hId, k -> new ArrayList<>())
+              .add(Hospedagem.PessoaHospedagemOrcamento.MAPPER.mapRow(rs, 0));
+        },
+        ids.toArray());
     return result;
   }
 
   public Map<Long, MotivoCancelamentoHospedagem> buscarMotivoCancelamentoBatch(List<Long> ids) {
     if (ids.isEmpty()) return Map.of();
-    String sql = """
+    String sql =
+        """
         SELECT DISTINCT ON (hmc.fk_hospedagem)
             hmc.fk_hospedagem,
             hmc.id,
@@ -806,15 +843,22 @@ public class HospedagemRepository {
         JOIN public.pessoa p ON p.id = f.fk_pessoa
         WHERE hmc.fk_hospedagem IN (%s)
         ORDER BY hmc.fk_hospedagem, hmc.id DESC
-        """.formatted(inClause(ids.size()));
+        """
+            .formatted(inClause(ids.size()));
     Map<Long, MotivoCancelamentoHospedagem> result = new HashMap<>();
-    jdbcTemplate.query(sql, rs -> {
-      result.put(rs.getLong("fk_hospedagem"), new MotivoCancelamentoHospedagem(
-          rs.getLong("id"),
-          rs.getString("motivo_cancelamento"),
-          new Funcionario.Nome(rs.getLong("funcionario_id"), rs.getString("funcionario_nome")),
-          rs.getTimestamp("data_hora_registro").toLocalDateTime()));
-    }, ids.toArray());
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          result.put(
+              rs.getLong("fk_hospedagem"),
+              new MotivoCancelamentoHospedagem(
+                  rs.getLong("id"),
+                  rs.getString("motivo_cancelamento"),
+                  new Funcionario.Nome(
+                      rs.getLong("funcionario_id"), rs.getString("funcionario_nome")),
+                  rs.getTimestamp("data_hora_registro").toLocalDateTime()));
+        },
+        ids.toArray());
     return result;
   }
 
@@ -854,10 +898,11 @@ public class HospedagemRepository {
         "SELECT status FROM public.quarto WHERE id = ?", Quarto.Status.class, quartoId);
   }
 
-    public Boolean isQuartoDisponivel(
-            Long quartoId, LocalDateTime checkin, LocalDateTime checkout, Long hospedagemIdExcluido) {
+  public Boolean isQuartoDisponivel(
+      Long quartoId, LocalDateTime checkin, LocalDateTime checkout, Long hospedagemIdExcluido) {
 
-        String sql = """
+    String sql =
+        """
       SELECT COUNT(*) > 0
       FROM hospedagem
       WHERE hospedagem.fk_quarto = ?
@@ -887,29 +932,39 @@ public class HospedagemRepository {
           )
         )
       """
-                + (hospedagemIdExcluido != null ? " AND hospedagem.id != ?" : "");
+            + (hospedagemIdExcluido != null ? " AND hospedagem.id != ?" : "");
 
-        boolean conflito;
-        if (hospedagemIdExcluido != null) {
-            conflito = jdbcTemplate.queryForObject(
-                    sql, Boolean.class,
-                    quartoId,                          // fk_quarto
-                    checkout, checkin,                 // bloco ORCAMENTO
-                    quartoId, checkout, checkin,       // bloco EXISTS
-                    hospedagemIdExcluido               // exclusão
-            );
-        } else {
-            conflito = jdbcTemplate.queryForObject(
-                    sql, Boolean.class,
-                    quartoId,                          // fk_quarto
-                    checkout, checkin,                 // bloco ORCAMENTO
-                    quartoId, checkout, checkin        // bloco EXISTS
-            );
-        }
-
-        log.info("Conflito encontrado: {}", conflito);
-        return conflito;
+    boolean conflito;
+    if (hospedagemIdExcluido != null) {
+      conflito =
+          jdbcTemplate.queryForObject(
+              sql,
+              Boolean.class,
+              quartoId, // fk_quarto
+              checkout,
+              checkin, // bloco ORCAMENTO
+              quartoId,
+              checkout,
+              checkin, // bloco EXISTS
+              hospedagemIdExcluido // exclusão
+              );
+    } else {
+      conflito =
+          jdbcTemplate.queryForObject(
+              sql,
+              Boolean.class,
+              quartoId, // fk_quarto
+              checkout,
+              checkin, // bloco ORCAMENTO
+              quartoId,
+              checkout,
+              checkin // bloco EXISTS
+              );
     }
+
+    log.info("Conflito encontrado: {}", conflito);
+    return conflito;
+  }
 
   public void adicionarMotivoCancelamento(
       MotivoCancelamentoHospedagem.Request request, Long funcionarioId) {
