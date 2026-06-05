@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -153,8 +154,19 @@ public class ItemService {
       Pagamento pagamento = pagamentoRepository.create(request.pagamento(), getFuncionarioId());
       pagamentoId = pagamento.uuid();
       String itemDescricao = itemRepository.buscarDescricaoItem(request.item().id());
-      relatorioRepository.registrarRelatorioDeConsumo(
-          pagamento, getFuncionarioId(), "Consumo: " + itemDescricao);
+
+      relatorioRepository.registrarRelatorio(
+              new Pagamento(
+                      pagamento.uuid(),
+                      pagamento.tipo_pagamento(),
+                      pagamento.funcionario(),
+                      LocalDateTime.now(),
+                      pagamento.nome_pagador(),
+                      itemDescricao,
+                      pagamento.valor(),
+                      pagamento.cancelado(),
+                      pagamento.path_arquivo(), pagamento.motivo_cancelamento()
+              ), getFuncionarioId());
     }
 
     itemRepository.inserirConsumo(

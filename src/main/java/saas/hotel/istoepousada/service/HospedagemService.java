@@ -1,5 +1,6 @@
 package saas.hotel.istoepousada.service;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
@@ -12,6 +13,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import saas.hotel.istoepousada.dto.*;
 import saas.hotel.istoepousada.repository.HospedagemRepository;
 import saas.hotel.istoepousada.repository.QuartoRepository;
@@ -24,18 +26,21 @@ public class HospedagemService {
   private final PessoaService pessoaService;
   private final CalcularPrecoService calcularPrecoService;
   private final QuartoRepository quartoRepository;
+  private final RelatorioService relatorioService;
 
   public HospedagemService(
-      HospedagemRepository hospedagemRepository,
-      PagamentoService pagamentoService,
-      PessoaService pessoaService,
-      CalcularPrecoService calcularPrecoService,
-      QuartoRepository quartoRepository) {
+          HospedagemRepository hospedagemRepository,
+          PagamentoService pagamentoService,
+          PessoaService pessoaService,
+          CalcularPrecoService calcularPrecoService,
+          QuartoRepository quartoRepository,
+          RelatorioService relatorioService) {
     this.hospedagemRepository = hospedagemRepository;
     this.pagamentoService = pagamentoService;
     this.pessoaService = pessoaService;
     this.calcularPrecoService = calcularPrecoService;
     this.quartoRepository = quartoRepository;
+    this.relatorioService = relatorioService;
   }
 
   // ── Quarto / Disponibilidade ─────────────────────────────────────────────────
@@ -306,7 +311,11 @@ public class HospedagemService {
     validarCamposPagamentoUnico(pagamento);
     var newPagamento = pagamentoService.criar(pagamento);
     List<UUID> pagamentosUUID = List.of(newPagamento.uuid());
-    hospedagemIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID));
+    hospedagemIds.forEach(id -> {
+      var hospedagem = hospedagemRepository.buscarPorId(id);
+      adicionarHospedagemPagamento(id, pagamentosUUID);
+      adicionarRelatorioHospedagem(hospedagem.quarto().id(), newPagamento, pagamento.arquivo(), hospedagem.status());
+    });
     log.info("Pagamento {} adicionado às hospedagens {}", newPagamento.uuid(), hospedagemIds);
   }
 
@@ -323,18 +332,48 @@ public class HospedagemService {
     log.info("Pagamento {} adicionado ao grupo {} (hospedagens {})", newPagamento.uuid(), grupoId, hospedagemIds);
   }
 
-  public void adicionarPagamentos(Long hospedagemId, Hospedagem.Request request) {
-    if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
+  @Transactional
+  public void adicionarPagamentos(Long hospedagemId, Long quartoId, List<Pagamento.Request> requests, Hospedagem.Status status) {
+    if (requests != null && !requests.isEmpty()) {
       List<UUID> pagamentosUUID = new ArrayList<>();
-      request
-          .pagamentos()
+      requests
           .forEach(
               pagamento -> {
                 var newPagamento = pagamentoService.criar(pagamento);
                 pagamentosUUID.add(newPagamento.uuid());
+                adicionarRelatorioHospedagem(quartoId, newPagamento, pagamento.arquivo(), status);
               });
       adicionarHospedagemPagamento(hospedagemId, pagamentosUUID);
+
     }
+  }
+
+  public void adicionarRelatorioHospedagem(Long quartoId, Pagamento pagamento, MultipartFile arquivo, Hospedagem.Status status) {
+    String relatorio = "";
+    switch (status) {
+      case RESERVA_ATIVA -> relatorio = "Pagamento de Reserva ("+pagamento.nome_pagador()+") " + pagamento.descricao();
+      case PERNOITE_ATIVO -> relatorio = "[Quarto " + quartoId +"] | PERNOITE | "+pagamento.nome_pagador()+" | " + pagamento.descricao();
+      case DAY_USE_ATIVO -> relatorio = "[Quarto " + quartoId +"] | DAY USE | "+pagamento.nome_pagador()+" | " + pagamento.descricao();
+    }
+
+    Relatorio.Request relatorioRequest = new Relatorio.Request(
+            relatorio,
+            Relatorio.Registro.ENTRADA,
+            false,
+            new Pagamento.Request(
+                    new Pagamento.TipoPagamento.Id(pagamento.tipo_pagamento().id()),
+                    pagamento.nome_pagador(),
+                    relatorio,
+                    pagamento.valor(),
+                    arquivo),
+            new Quarto.Id(quartoId)
+    );
+    try {
+      relatorioService.criar(relatorioRequest, arquivo);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    log.info("Adicionado Relatorio: [{}]", relatorioRequest);
   }
 
   // ── Cancelamento ─────────────────────────────────────────────────────────────
@@ -577,6 +616,7 @@ public class HospedagemService {
       Long hospedagemId = request.hospedagem_id();
 
       if (hospedagemId != null) {
+        System.out.println("Hospedagem com id: " + hospedagemId + " foi encontrada. ");
         Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
         if (hospedagem.status().equals(Hospedagem.Status.RESERVA_ATIVA))
           throw new IllegalArgumentException("Reserva já ativa para esse quarto e data.");
@@ -595,7 +635,7 @@ public class HospedagemService {
       if (!Boolean.TRUE.equals(pagamentoUnico)) {
         if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
           validarCamposPagamento(request);
-          adicionarPagamentos(resolvedId, request);
+          adicionarPagamentos(resolvedId, request.quarto_id(), request.pagamentos(), request.status());
         }
       }
 
@@ -632,6 +672,7 @@ public class HospedagemService {
         firstWithPagamentos.pagamentos().forEach(pagamento -> {
           var newPagamento = pagamentoService.criar(pagamento);
           pagamentosUUID.add(newPagamento.uuid());
+          adicionarRelatorioHospedagem(firstWithPagamentos.quarto_id(), newPagamento, pagamento.arquivo(), firstWithPagamentos.status());
         });
         final Long grupoIdFinal = grupoId;
         resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoIdFinal));
@@ -674,7 +715,7 @@ public class HospedagemService {
                 request.pessoas()));
     adicionarDiarias(hospedagemId, diarias);
     adicionarPessoas(hospedagemId, request.pessoas());
-    adicionarPagamentos(hospedagemId, request);
+    adicionarPagamentos(hospedagemId, request.quarto_id(), request.pagamentos(), request.status());
     alterarStatus(hospedagemId, Hospedagem.Status.PERNOITE_ATIVO);
   }
 
@@ -740,7 +781,7 @@ public class HospedagemService {
     validarCamposPagamento(request);
     if (request.pessoas() != null && !request.pessoas().isEmpty())
       adicionarPessoas(hospedagemId, request.pessoas());
-    adicionarPagamentos(hospedagemId, request);
+    adicionarPagamentos(hospedagemId, request.quarto_id(), request.pagamentos(), request.status());
     alterarStatus(hospedagemId, Hospedagem.Status.DAY_USE_ATIVO);
   }
 
