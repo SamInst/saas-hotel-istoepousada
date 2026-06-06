@@ -915,7 +915,6 @@ public class HospedagemRepository {
           OR
           (
             hospedagem.status IN (
-              'RESERVA_SOLICITADA',
               'RESERVA_ATIVA',
               'PERNOITE_ATIVO',
               'DAY_USE_SOLICITADO',
@@ -964,6 +963,62 @@ public class HospedagemRepository {
 
     log.info("Conflito encontrado: {}", conflito);
     return conflito;
+  }
+
+  public record DisponibilidadeQuartoRow(
+      Long quartoId, String descricao, Quarto.Status statusFisico, boolean conflito) {}
+
+  public List<DisponibilidadeQuartoRow> verificarDisponibilidadeLote(
+      LocalDateTime checkin, LocalDateTime checkout) {
+    String sql =
+        """
+        SELECT
+          q.id        AS quarto_id,
+          q.descricao AS quarto_descricao,
+          q.status    AS quarto_status,
+          EXISTS (
+            SELECT 1
+            FROM hospedagem h
+            WHERE h.fk_quarto = q.id
+              AND (
+                (
+                  h.status = 'ORCAMENTO'
+                  AND h.data_hora_checkin::date  < ?::date
+                  AND h.data_hora_checkout::date > ?::date
+                )
+                OR
+                (
+                  h.status IN (
+                    'RESERVA_ATIVA',
+                    'PERNOITE_ATIVO',
+                    'DAY_USE_ATIVO'
+                  )
+                  AND EXISTS (
+                    SELECT 1
+                    FROM diaria d
+                    WHERE d.fk_hospedagem = h.id
+                      AND d.fk_quarto = q.id
+                      AND d.checkin::date  < ?::date
+                      AND d.checkout::date > ?::date
+                  )
+                )
+              )
+          ) AS conflito
+        FROM public.quarto q
+        ORDER BY q.id
+        """;
+    return jdbcTemplate.query(
+        sql,
+        (rs, rowNum) ->
+            new DisponibilidadeQuartoRow(
+                rs.getLong("quarto_id"),
+                rs.getString("quarto_descricao"),
+                Quarto.Status.valueOf(rs.getString("quarto_status")),
+                rs.getBoolean("conflito")),
+        checkout,
+        checkin, // bloco ORCAMENTO (checkin < checkout, checkout > checkin)
+        checkout,
+        checkin); // bloco diaria
   }
 
   public void adicionarMotivoCancelamento(
