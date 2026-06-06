@@ -50,43 +50,36 @@ public class HospedagemService {
     LocalDateTime checkin = dataEntrada.atStartOfDay();
     LocalDateTime checkout = dataSaida.atStartOfDay();
 
-    List<Quarto> quartos = quartoRepository.buscarTodos();
-
-    return quartos.stream()
+    // Uma única query resolve o conflito por datas de todos os quartos (evita N+1).
+    return hospedagemRepository.verificarDisponibilidadeLote(checkin, checkout).stream()
         .map(
-            quarto -> {
+            row -> {
+              Quarto.Status statusFisico = row.statusFisico();
               Quarto.Status statusEfetivo;
               boolean disponivel;
-              try {
-                Quarto.Status statusFisico = quarto.status();
 
-                if (statusFisico == Quarto.Status.OCUPADO
-                    || statusFisico == Quarto.Status.MANUTENCAO
-                    || statusFisico == Quarto.Status.LIMPEZA
-                    || statusFisico == Quarto.Status.FORA_DE_SERVICO) {
-                  statusEfetivo = statusFisico;
-                  disponivel = false;
-                } else {
-                  boolean temConflito =
-                      hospedagemRepository.isQuartoDisponivel(quarto.id(), checkin, checkout, null);
-                  if (temConflito) {
-                    statusEfetivo = Quarto.Status.RESERVADO;
-                    disponivel = false;
-                  } else {
-                    statusEfetivo = Quarto.Status.DISPONIVEL;
-                    disponivel = true;
-                  }
-                }
-              } catch (Exception e) {
-                log.warn(
-                    "Erro ao verificar disponibilidade do quarto {}: {}",
-                    quarto.id(),
-                    e.getMessage());
-                statusEfetivo = quarto.status();
+              // Apenas estados físicos independentes de data bloqueiam o intervalo inteiro.
+              // OCUPADO é a ocupação atual do quarto: ela já está representada pelas
+              // reservas/diárias, então é resolvida pela verificação de conflito por datas (senão
+              // um
+              // quarto ocupado hoje apareceria indisponível para datas futuras livres, divergindo
+              // do
+              // calendário).
+              if (statusFisico == Quarto.Status.MANUTENCAO
+                  || statusFisico == Quarto.Status.LIMPEZA
+                  || statusFisico == Quarto.Status.FORA_DE_SERVICO) {
+                statusEfetivo = statusFisico;
                 disponivel = false;
+              } else if (row.conflito()) {
+                statusEfetivo = Quarto.Status.RESERVADO;
+                disponivel = false;
+              } else {
+                statusEfetivo = Quarto.Status.DISPONIVEL;
+                disponivel = true;
               }
+
               return new Quarto.Disponibilidade(
-                  quarto.id(), quarto.descricao(), statusEfetivo, disponivel);
+                  row.quartoId(), row.descricao(), statusEfetivo, disponivel);
             })
         .toList();
   }
