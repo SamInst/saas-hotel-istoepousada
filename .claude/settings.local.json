@@ -28,7 +28,19 @@
       "PowerShell(Get-NetTCPConnection *)",
       "PowerShell(New-Item *)",
       "PowerShell(Head-Object *)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Read(//c/Users/sanhe/IdeaProjects/meu-hotel-project/**)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\)\")",
+      "Bash(npx esbuild *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Read(//mnt/c/Users/sanhe/Downloads/istoepousada/istoepousada/src/main/java/saas/hotel/istoepousada/**)",
+      "Bash(sed -n '1,80p' Pagamento.java)",
+      "Bash(git -C \"C:/Users/sanhe/Downloads/istoepousada/istoepousada\" status --short)",
+      "Bash(git -C \"C:/Users/sanhe/IdeaProjects/meu-hotel-project\" status --short)",
+      "Bash(git -C \"C:/Users/sanhe/Downloads/istoepousada/istoepousada\" branch --show-current)",
+      "Bash(git -C \"C:/Users/sanhe/IdeaProjects/meu-hotel-project\" branch --show-current)"
     ]
   }
 }

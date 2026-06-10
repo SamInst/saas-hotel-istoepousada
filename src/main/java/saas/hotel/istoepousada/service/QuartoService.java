@@ -80,7 +80,8 @@ public class QuartoService {
     Map<Long, List<Quarto.ItemQuarto>> itensPorQuarto =
         quartoRepository.buscarItensPorQuartos(quartoIds);
 
-    Map<Long, Hospedagem> hospedagemPorQuarto = hospedagemService.buscarAtivasPorQuartoNaData(data);
+    Map<Long, Hospedagem> hospedagemPorQuarto =
+        hospedagemService.buscarAtivasComDetalhesPorQuartoNaData(data);
 
     Map<Long, List<Recepcao.QuartoData.Categoria.Quartos>> quartosPorCat = new LinkedHashMap<>();
     Map<Long, String[]> catNames = new LinkedHashMap<>();

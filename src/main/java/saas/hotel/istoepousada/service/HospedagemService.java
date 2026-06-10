@@ -1036,6 +1036,31 @@ public class HospedagemService {
     return hospedagemRepository.buscarAtivasPorQuartoNaData(data);
   }
 
+  /**
+   * Igual a {@link #buscarAtivasPorQuartoNaData}, porém com a hospedagem completa (diárias,
+   * consumos, pagamentos, pessoas, pessoas de orçamento e motivo de cancelamento). Usa
+   * {@link #withDetailsBatch} para evitar N+1.
+   */
+  public Map<Long, Hospedagem> buscarAtivasComDetalhesPorQuartoNaData(LocalDate data) {
+    Map<Long, Hospedagem> base = hospedagemRepository.buscarAtivasPorQuartoNaData(data);
+    if (base.isEmpty()) return Map.of();
+
+    // Enriquece hospedagens distintas (uma hospedagem pode, em tese, mapear mais de um quarto).
+    List<Hospedagem> distintas =
+        base.values().stream()
+            .collect(Collectors.toMap(Hospedagem::id, h -> h, (a, b) -> a))
+            .values()
+            .stream()
+            .toList();
+    Map<Long, Hospedagem> porId =
+        withDetailsBatch(distintas).stream()
+            .collect(Collectors.toMap(Hospedagem::id, h -> h));
+
+    Map<Long, Hospedagem> result = new LinkedHashMap<>();
+    base.forEach((quartoId, h) -> result.put(quartoId, porId.getOrDefault(h.id(), h)));
+    return result;
+  }
+
   public boolean temReservaAtivaParaQuartoHoje(Long quartoId) {
     return hospedagemRepository.temReservaAtivaParaQuartoHoje(quartoId);
   }
