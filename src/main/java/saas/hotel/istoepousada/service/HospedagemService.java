@@ -573,6 +573,7 @@ public class HospedagemService {
                       hospedagem.valor_total(),
                       hospedagem.pessoas_orcamento(),
                       null,
+                      null,
                       null);
               Hospedagem newHospedagem =
                   hospedagemRepository.insertHospedagem(insertRequest, getFuncionarioId());
@@ -655,6 +656,7 @@ public class HospedagemService {
         statusAtual = request.status();
       }
       calcularDiarias(resolvedId, request);
+      aplicarNovoPrecoCriacao(resolvedId, request.novo_preco());
       validarTransicaoDeStatus(statusAtual, Hospedagem.Status.RESERVA_ATIVA);
 
       if (request.pessoas() != null && !request.pessoas().isEmpty())
@@ -808,6 +810,7 @@ public class HospedagemService {
             request.valor_total(),
             null,
             null,
+            null,
             null);
     return hospedagemRepository.insertHospedagem(insertRequest, getFuncionarioId());
   }
@@ -859,6 +862,40 @@ public class HospedagemService {
   public Hospedagem editarHospedagem(Hospedagem.Request request) {
     hospedagemRepository.buscarPorId(request.hospedagem_id());
     return withDetails(hospedagemRepository.editarHospedagem(request));
+  }
+
+  /**
+   * Aplica um ajuste manual de preço ("Gerenciar Preços") a uma hospedagem. O cálculo é feito no
+   * front-end; aqui apenas persistimos: o snapshot do ajuste (com o funcionário responsável), o
+   * {@code valor_total} resultante e, no modo "valor por diária", os novos valores das diárias.
+   */
+  @Transactional
+  public Hospedagem gerenciarPreco(Long hospedagemId, HospedagemNovoPreco.Request request) {
+    hospedagemRepository.buscarPorId(hospedagemId);
+
+    hospedagemRepository.atualizarValoresDiarias(request.diarias());
+    hospedagemRepository.salvarNovoPreco(hospedagemId, request, getFuncionarioId());
+    if (request.valor_total() != null) {
+      hospedagemRepository.atualizarValorTotal(hospedagemId, request.valor_total());
+    }
+
+    return buscarPorId(hospedagemId);
+  }
+
+  /**
+   * Aplica o ajuste manual de preço no momento da criação da reserva. As diárias já foram criadas
+   * por {@code calcularDiarias}; no modo "valor por diária" aplicamos o delta (com sinal) sobre
+   * elas. O cálculo do total é feito no front-end e chega em {@code novo_preco.valor_total}.
+   */
+  private void aplicarNovoPrecoCriacao(Long hospedagemId, HospedagemNovoPreco.Request novoPreco) {
+    if (novoPreco == null) return;
+    if (novoPreco.valor_diaria() != null) {
+      hospedagemRepository.sobrescreverValorDiarias(hospedagemId, novoPreco.valor_diaria());
+    }
+    hospedagemRepository.salvarNovoPreco(hospedagemId, novoPreco, getFuncionarioId());
+    if (novoPreco.valor_total() != null) {
+      hospedagemRepository.atualizarValorTotal(hospedagemId, novoPreco.valor_total());
+    }
   }
 
   @Transactional
@@ -917,6 +954,7 @@ public class HospedagemService {
                   0.0,
                   null,
                   null,
+                  null,
                   null);
           calcularDiarias(hospedagemId, reqDiarias);
         }
@@ -963,6 +1001,7 @@ public class HospedagemService {
         hospedagemRepository.buscarPessoasOrcamentoBatch(ids);
     Map<Long, MotivoCancelamentoHospedagem> motivosMap =
         hospedagemRepository.buscarMotivoCancelamentoBatch(ids);
+    Map<Long, HospedagemNovoPreco> novoPrecoMap = hospedagemRepository.buscarNovoPrecoBatch(ids);
 
     return hospedagens.stream()
         .map(
@@ -985,7 +1024,8 @@ public class HospedagemService {
                     pessoasMap.getOrDefault(h.id(), List.of()),
                     pessoasOrcMap.getOrDefault(h.id(), List.of()),
                     motivosMap.get(h.id()),
-                    h.grupo_id()))
+                    h.grupo_id(),
+                    novoPrecoMap.get(h.id())))
         .toList();
   }
 
@@ -1029,7 +1069,8 @@ public class HospedagemService {
         pessoas,
         pessoasOrcamento,
         motivo,
-        hospedagem.grupo_id());
+        hospedagem.grupo_id(),
+        hospedagemRepository.buscarNovoPreco(hospedagem.id()));
   }
 
   public Map<Long, Hospedagem> buscarAtivasPorQuartoNaData(LocalDate data) {

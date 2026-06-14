@@ -6,6 +6,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Hospedagem;
+import saas.hotel.istoepousada.dto.HospedagemNovoPreco;
 import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.dto.MotivoCancelamentoHospedagem;
 import saas.hotel.istoepousada.dto.Pagamento;
@@ -113,6 +114,14 @@ public class HospedagemController {
   public void adicionarPagamentoMultiplo(@RequestBody PagamentoMultiploRequest request) {
     hospedagemService.adicionarPagamentoMultiplasHospedagens(
         request.hospedagem_ids(), request.pagamento());
+  }
+
+  // ── Gerenciar Preços (ajuste manual) ──────────────────────────────────────────
+
+  @PostMapping("/{hospedagemId}/preco")
+  public Hospedagem gerenciarPreco(
+      @PathVariable Long hospedagemId, @RequestBody HospedagemNovoPreco.Request request) {
+    return hospedagemService.gerenciarPreco(hospedagemId, request);
   }
 
   // ── Consumo ──────────────────────────────────────────────────────────────────
