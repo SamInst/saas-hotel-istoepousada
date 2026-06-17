@@ -110,54 +110,65 @@ public class RelatorioRepository {
                         LEFT JOIN pessoa pessoa_funcionario ON pessoa_funcionario.id = relatorio.fk_funcionario
                         """;
 
-    StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
-    List<Object> params = new ArrayList<>();
+    // whereTotais usa SOMENTE os filtros explicitamente informados pelo caller.
+    // Sem o range de data padrão (último dia), para que os totais do dashboard
+    // (receita/despesa/lucro/saldo) reflitam todo o banco quando nenhum filtro é
+    // aplicado, e passem a refletir a busca quando algum filtro é aplicado.
+    StringBuilder whereTotais = new StringBuilder(" WHERE 1 = 1 ");
+    List<Object> paramsTotais = new ArrayList<>();
 
     if (id != null) {
-      where.append(" AND relatorio.id = ? ");
-      params.add(id);
+      whereTotais.append(" AND relatorio.id = ? ");
+      paramsTotais.add(id);
     }
     if (data_inicio != null) {
-      where.append(" AND relatorio.data_hora >= ? ");
-      params.add(Timestamp.valueOf(data_inicio.atStartOfDay()));
-    } else if (id == null) {
-      where.append(" AND relatorio.data_hora >= ? ");
-      params.add(Timestamp.valueOf(LocalDate.now().minusDays(1).atStartOfDay()));
+      whereTotais.append(" AND relatorio.data_hora >= ? ");
+      paramsTotais.add(Timestamp.valueOf(data_inicio.atStartOfDay()));
     }
     if (data_fim != null) {
-      where.append(" AND relatorio.data_hora < ? ");
-      params.add(Timestamp.valueOf(data_fim.plusDays(1).atStartOfDay()));
-    } else if (id == null) {
-      where.append(" AND relatorio.data_hora < ? ");
-      params.add(Timestamp.valueOf(LocalDate.now().plusDays(1).atStartOfDay()));
+      whereTotais.append(" AND relatorio.data_hora < ? ");
+      paramsTotais.add(Timestamp.valueOf(data_fim.plusDays(1).atStartOfDay()));
     }
     if (funcionario_id != null) {
-      where.append(" AND relatorio.fk_funcionario = ? ");
-      params.add(funcionario_id);
+      whereTotais.append(" AND relatorio.fk_funcionario = ? ");
+      paramsTotais.add(funcionario_id);
     }
     if (quarto_id != null) {
-      where.append(" AND relatorio.quarto_id = ? ");
-      params.add(quarto_id);
+      whereTotais.append(" AND relatorio.quarto_id = ? ");
+      paramsTotais.add(quarto_id);
     }
     if (tipo_pagamento_id != null) {
-      where.append(" AND tipo_pagamento.id = ? ");
-      params.add(tipo_pagamento_id);
+      whereTotais.append(" AND tipo_pagamento.id = ? ");
+      paramsTotais.add(tipo_pagamento_id);
     }
     if (despesa_pessoal != null) {
-      where.append(" AND relatorio.despesa_pessoal = ? ");
-      params.add(despesa_pessoal);
+      whereTotais.append(" AND relatorio.despesa_pessoal = ? ");
+      paramsTotais.add(despesa_pessoal);
     }
-
     if (registro != null) {
       if (registro == Relatorio.Registro.ENTRADA) {
-        where.append(" AND pagamento.valor > 0 ");
+        whereTotais.append(" AND pagamento.valor > 0 ");
       } else if (registro == Relatorio.Registro.SAIDA) {
-        where.append(" AND pagamento.valor < 0 ");
+        whereTotais.append(" AND pagamento.valor < 0 ");
       }
     }
 
+    // where = filtros explícitos + range de data padrão (último dia) para a
+    // listagem/paginação por dia, mantendo o comportamento atual da tabela.
+    StringBuilder where = new StringBuilder(whereTotais);
+    List<Object> params = new ArrayList<>(paramsTotais);
+
+    if (data_inicio == null && id == null) {
+      where.append(" AND relatorio.data_hora >= ? ");
+      params.add(Timestamp.valueOf(LocalDate.now().minusDays(1).atStartOfDay()));
+    }
+    if (data_fim == null && id == null) {
+      where.append(" AND relatorio.data_hora < ? ");
+      params.add(Timestamp.valueOf(LocalDate.now().plusDays(1).atStartOfDay()));
+    }
+
     Map<String, Relatorio.Extrato.Resumo> pagamentos =
-        buscarTotaisPorTipoPagamento(where.toString(), params);
+        buscarTotaisPorTipoPagamento(whereTotais.toString(), paramsTotais);
 
     long totalDias;
     try {
