@@ -1182,13 +1182,34 @@ public class HospedagemRepository {
                             'RESERVA_ATIVA', 'RESERVA_SOLICITADA',
                             'DAY_USE_ATIVO', 'DAY_USE_SOLICITADO'
                         )
-                          AND d.checkin::date <= ?
-                          AND d.checkout::date > ?
-                        ORDER BY d.fk_quarto, h.data_hora_checkin DESC
+                          AND (
+                                -- (1) Pernoite ativo: sempre visível, independente da data de checkout,
+                                --     até mudar para um status final.
+                                h.status::hospedagem_status = 'PERNOITE_ATIVO'
+                                -- estadia cujo período contém a data de referência (hoje)
+                             OR (d.checkin::date <= ? AND d.checkout::date > ?)
+                                -- (2) Reserva ativa já iniciada (mesmo após o checkout): hóspede ainda
+                                --     não hospedado — permite hospedar mais tarde.
+                             OR (h.status::hospedagem_status = 'RESERVA_ATIVA' AND d.checkin::date <= ?)
+                              )
+                        ORDER BY
+                            d.fk_quarto,
+                            CASE
+                              WHEN h.status::hospedagem_status = 'PERNOITE_ATIVO'  THEN 0
+                              WHEN (d.checkin::date <= ? AND d.checkout::date > ?) THEN 1
+                              WHEN h.status::hospedagem_status = 'RESERVA_ATIVA'   THEN 2
+                              ELSE 3
+                            END,
+                            ABS(d.checkin::date - ?::date),
+                            h.data_hora_checkin DESC
                         """,
         rs -> {
           quartoParaHospedagem.put(rs.getLong("quarto_id"), rs.getLong("hospedagem_id"));
         },
+        data,
+        data,
+        data,
+        data,
         data,
         data);
 

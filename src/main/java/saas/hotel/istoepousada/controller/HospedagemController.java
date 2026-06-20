@@ -59,6 +59,18 @@ public class HospedagemController {
 
   // ── Ciclo de vida ────────────────────────────────────────────────────────────
 
+  /**
+   * Cria um (ou vários) pernoite(s) diretamente, sem passar por reserva. Mesmo corpo do ativar de
+   * reserva, porém cada item já chega com {@code status = PERNOITE_ATIVO}.
+   */
+  @PostMapping("/pernoite")
+  @ResponseStatus(HttpStatus.CREATED)
+  public void criarPernoite(
+      @RequestParam(required = false) Boolean pagamentoUnico,
+      @RequestBody List<Hospedagem.Request> requests) {
+    hospedagemService.criarPernoiteDireto(requests, pagamentoUnico);
+  }
+
   @PutMapping("/{hospedagemId}/ativar")
   public void ativar(@PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
     hospedagemService.ativarPernoite(hospedagemId, request);

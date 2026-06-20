@@ -262,9 +262,13 @@ public class HospedagemService {
   /** Altera o status validando a transição a partir do status atual da hospedagem. */
   @Transactional
   public void alterarStatusComValidacao(Long hospedagemId, Hospedagem.Status novoStatus) {
-    Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+    Hospedagem hospedagem = buscarPorId(hospedagemId);
+    System.out.println(hospedagem);
     validarTransicaoDeStatus(hospedagem.status(), novoStatus);
     alterarStatus(hospedagemId, novoStatus);
+    if (novoStatus == Hospedagem.Status.PERNOITE_ATIVO) {
+      quartoRepository.updateStatus(hospedagem.quarto().id(), Quarto.Status.OCUPADO);
+    }
   }
 
   // ── Pessoas ──────────────────────────────────────────────────────────────────
@@ -720,9 +724,95 @@ public class HospedagemService {
     }
   }
 
+  /**
+   * Cria um (ou vários) pernoite(s) diretamente, sem passar por reserva. Espelha {@link
+   * #ativarReserva}, mas o status alvo é {@link Hospedagem.Status#PERNOITE_ATIVO} e o quarto passa a
+   * OCUPADO. As requisições já chegam com {@code status = PERNOITE_ATIVO}.
+   */
+  @Transactional
+  public void criarPernoiteDireto(List<Hospedagem.Request> requests, Boolean pagamentoUnico) {
+    // Phase 1 — create every overnight (no payment when pagamentoUnico=true)
+    List<Long> resolvedIds = new ArrayList<>();
+
+    for (Hospedagem.Request request : requests) {
+      validarCamposHospedagem(request, false);
+
+      final Long resolvedId;
+      final Hospedagem.Status statusAtual;
+      Long hospedagemId = request.hospedagem_id();
+
+      if (hospedagemId != null) {
+        Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+        if (hospedagem.status().equals(Hospedagem.Status.PERNOITE_ATIVO))
+          throw new IllegalArgumentException("Pernoite já ativo para esse quarto e data.");
+        resolvedId = hospedagemId;
+        statusAtual = hospedagem.status();
+      } else {
+        resolvedId = hospedagemRepository.insertHospedagemId(request, getFuncionarioId());
+        statusAtual = request.status();
+      }
+      calcularDiarias(resolvedId, request);
+      aplicarNovoPrecoCriacao(resolvedId, request.novo_preco());
+      validarTransicaoDeStatus(statusAtual, Hospedagem.Status.PERNOITE_ATIVO);
+
+      if (request.pessoas() != null && !request.pessoas().isEmpty())
+        adicionarPessoas(resolvedId, request.pessoas());
+
+      if (!Boolean.TRUE.equals(pagamentoUnico)) {
+        if (request.pagamentos() != null && !request.pagamentos().isEmpty()) {
+          validarCamposPagamento(request);
+          adicionarPagamentos(
+              resolvedId, request.quarto_id(), request.pagamentos(), request.status());
+        }
+      }
+
+      alterarStatus(resolvedId, Hospedagem.Status.PERNOITE_ATIVO);
+
+      quartoRepository.updateStatus(request.quarto_id(), Quarto.Status.OCUPADO);
+
+      resolvedIds.add(resolvedId);
+    }
+
+    // Phase 2 — link all overnights in a group when more than one was created
+    Long grupoId = null;
+    if (resolvedIds.size() > 1) {
+      grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
+      hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
+      log.info("Grupo {} criado para os pernoites {}", grupoId, resolvedIds);
+    }
+
+    // Phase 3 — create one payment and link it to every overnight (carrying the group when present)
+    if (Boolean.TRUE.equals(pagamentoUnico)) {
+      Hospedagem.Request firstWithPagamentos =
+          requests.stream()
+              .filter(r -> r.pagamentos() != null && !r.pagamentos().isEmpty())
+              .findFirst()
+              .orElse(null);
+
+      if (firstWithPagamentos != null) {
+        validarCamposPagamento(firstWithPagamentos);
+        List<UUID> pagamentosUUID = new ArrayList<>();
+        firstWithPagamentos
+            .pagamentos()
+            .forEach(
+                pagamento -> {
+                  var newPagamento = pagamentoService.criar(pagamento);
+                  pagamentosUUID.add(newPagamento.uuid());
+                  adicionarRelatorioHospedagem(
+                      firstWithPagamentos.quarto_id(),
+                      newPagamento,
+                      pagamento.arquivo(),
+                      firstWithPagamentos.status());
+                });
+        final Long grupoIdFinal = grupoId;
+        resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoIdFinal));
+      }
+    }
+  }
+
   @Transactional
   public void cancelarReserva(Long hospedagemId, MotivoCancelamentoHospedagem.Request motivo) {
-    Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+    Hospedagem hospedagem = buscarPorId(hospedagemId);
     validarTransicaoDeStatus(hospedagem.status(), Hospedagem.Status.RESERVA_CANCELADA);
     adicionarMotivoCancelamento(motivo);
     alterarStatus(hospedagemId, Hospedagem.Status.RESERVA_CANCELADA);
@@ -761,10 +851,11 @@ public class HospedagemService {
 
   @Transactional
   public void cancelarPernoite(Long hospedagemId, MotivoCancelamentoHospedagem.Request motivo) {
-    Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+    Hospedagem hospedagem = buscarPorId(hospedagemId);
     validarTransicaoDeStatus(hospedagem.status(), Hospedagem.Status.PERNOITE_CANCELADO);
     adicionarMotivoCancelamento(motivo);
     alterarStatus(hospedagemId, Hospedagem.Status.PERNOITE_CANCELADO);
+    quartoRepository.updateStatus(hospedagem.quarto().id(), Quarto.Status.DISPONIVEL);
   }
 
   @Transactional
