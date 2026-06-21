@@ -51,14 +51,6 @@ public class RelatorioRepository {
                         tipo_pagamento.id                          AS tipo_pagamento_id,
                         tipo_pagamento.descricao                   AS tipo_pagamento_descricao,
 
-                        pagamento_desconto.id                      AS pagamento_desconto_id,
-                        pagamento_desconto.porcentagem             AS pagamento_desconto_porcentagem,
-                        pagamento_desconto.valor                   AS pagamento_desconto_valor,
-                        pagamento_desconto.data_hora_registro      AS pagamento_desconto_data_hora_registro,
-
-                        funcionario_pagamento_desconto.id          AS pagamento_desconto_funcionario_id,
-                        pessoa_funcionario_pagamento_desconto.nome AS pagamento_desconto_funcionario_nome,
-
                         mc.id                                      AS pagamento_motivo_id,
                         mc.motivo_cancelamento                     AS pagamento_motivo_cancelamento,
                         mc.data_hora_registro                      AS pagamento_motivo_data_hora_registro,
@@ -74,10 +66,6 @@ public class RelatorioRepository {
 
                     LEFT JOIN funcionario funcionario_pagamento ON funcionario_pagamento.id = pagamento.fk_funcionario
                     LEFT JOIN pessoa pessoa_funcionario_pagamento ON pessoa_funcionario_pagamento.id = funcionario_pagamento.fk_pessoa
-
-                    LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
-                    LEFT JOIN funcionario funcionario_pagamento_desconto ON funcionario_pagamento_desconto.id = pagamento_desconto.fk_funcionario
-                    LEFT JOIN pessoa pessoa_funcionario_pagamento_desconto ON pessoa_funcionario_pagamento_desconto.id = funcionario_pagamento_desconto.fk_pessoa
 
                     LEFT JOIN LATERAL (
                         SELECT * FROM public.pagamento_motivo_cancelamento
@@ -110,54 +98,65 @@ public class RelatorioRepository {
                         LEFT JOIN pessoa pessoa_funcionario ON pessoa_funcionario.id = relatorio.fk_funcionario
                         """;
 
-    StringBuilder where = new StringBuilder(" WHERE 1 = 1 ");
-    List<Object> params = new ArrayList<>();
+    // whereTotais usa SOMENTE os filtros explicitamente informados pelo caller.
+    // Sem o range de data padrão (último dia), para que os totais do dashboard
+    // (receita/despesa/lucro/saldo) reflitam todo o banco quando nenhum filtro é
+    // aplicado, e passem a refletir a busca quando algum filtro é aplicado.
+    StringBuilder whereTotais = new StringBuilder(" WHERE 1 = 1 ");
+    List<Object> paramsTotais = new ArrayList<>();
 
     if (id != null) {
-      where.append(" AND relatorio.id = ? ");
-      params.add(id);
+      whereTotais.append(" AND relatorio.id = ? ");
+      paramsTotais.add(id);
     }
     if (data_inicio != null) {
-      where.append(" AND relatorio.data_hora >= ? ");
-      params.add(Timestamp.valueOf(data_inicio.atStartOfDay()));
-    } else if (id == null) {
-      where.append(" AND relatorio.data_hora >= ? ");
-      params.add(Timestamp.valueOf(LocalDate.now().minusDays(1).atStartOfDay()));
+      whereTotais.append(" AND relatorio.data_hora >= ? ");
+      paramsTotais.add(Timestamp.valueOf(data_inicio.atStartOfDay()));
     }
     if (data_fim != null) {
-      where.append(" AND relatorio.data_hora < ? ");
-      params.add(Timestamp.valueOf(data_fim.plusDays(1).atStartOfDay()));
-    } else if (id == null) {
-      where.append(" AND relatorio.data_hora < ? ");
-      params.add(Timestamp.valueOf(LocalDate.now().plusDays(1).atStartOfDay()));
+      whereTotais.append(" AND relatorio.data_hora < ? ");
+      paramsTotais.add(Timestamp.valueOf(data_fim.plusDays(1).atStartOfDay()));
     }
     if (funcionario_id != null) {
-      where.append(" AND relatorio.fk_funcionario = ? ");
-      params.add(funcionario_id);
+      whereTotais.append(" AND relatorio.fk_funcionario = ? ");
+      paramsTotais.add(funcionario_id);
     }
     if (quarto_id != null) {
-      where.append(" AND relatorio.quarto_id = ? ");
-      params.add(quarto_id);
+      whereTotais.append(" AND relatorio.quarto_id = ? ");
+      paramsTotais.add(quarto_id);
     }
     if (tipo_pagamento_id != null) {
-      where.append(" AND tipo_pagamento.id = ? ");
-      params.add(tipo_pagamento_id);
+      whereTotais.append(" AND tipo_pagamento.id = ? ");
+      paramsTotais.add(tipo_pagamento_id);
     }
     if (despesa_pessoal != null) {
-      where.append(" AND relatorio.despesa_pessoal = ? ");
-      params.add(despesa_pessoal);
+      whereTotais.append(" AND relatorio.despesa_pessoal = ? ");
+      paramsTotais.add(despesa_pessoal);
     }
-
     if (registro != null) {
       if (registro == Relatorio.Registro.ENTRADA) {
-        where.append(" AND pagamento.valor > 0 ");
+        whereTotais.append(" AND pagamento.valor > 0 ");
       } else if (registro == Relatorio.Registro.SAIDA) {
-        where.append(" AND pagamento.valor < 0 ");
+        whereTotais.append(" AND pagamento.valor < 0 ");
       }
     }
 
+    // where = filtros explícitos + range de data padrão (último dia) para a
+    // listagem/paginação por dia, mantendo o comportamento atual da tabela.
+    StringBuilder where = new StringBuilder(whereTotais);
+    List<Object> params = new ArrayList<>(paramsTotais);
+
+    if (data_inicio == null && id == null) {
+      where.append(" AND relatorio.data_hora >= ? ");
+      params.add(Timestamp.valueOf(LocalDate.now().minusDays(1).atStartOfDay()));
+    }
+    if (data_fim == null && id == null) {
+      where.append(" AND relatorio.data_hora < ? ");
+      params.add(Timestamp.valueOf(LocalDate.now().plusDays(1).atStartOfDay()));
+    }
+
     Map<String, Relatorio.Extrato.Resumo> pagamentos =
-        buscarTotaisPorTipoPagamento(where.toString(), params);
+        buscarTotaisPorTipoPagamento(whereTotais.toString(), paramsTotais);
 
     long totalDias;
     try {
@@ -453,16 +452,14 @@ public class RelatorioRepository {
                          SELECT
                             relatorio.id,
                             COALESCE(pagamento.valor, 0) AS valor,
-                            tipo_pagamento.id AS tipo_id,
-                            pagamento_desconto.porcentagem AS desconto_porcentagem,
-                            pagamento_desconto.valor AS desconto_valor
+                            tipo_pagamento.id AS tipo_id
                         FROM relatorio
                         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
                         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-                        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
+
                         WHERE relatorio.data_hora > (SELECT data_hora FROM relatorio WHERE id = ?)
                            OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id > ?)
-                        ORDER BY relatorio.data_hora ASC, relatorio.id ASC
+                        ORDER BY relatorio.data_hora, relatorio.id
                         """;
 
     List<Map<String, Object>> posteriores =
@@ -527,14 +524,7 @@ public class RelatorioRepository {
         entradas
             ? """
                         COALESCE(SUM(
-                          CASE WHEN pagamento.valor > 0 THEN
-                            CASE
-                              WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN
-                                pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
-                              WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN
-                                pagamento.valor - pagamento_desconto.valor
-                              ELSE pagamento.valor
-                            END
+                          CASE WHEN pagamento.valor > 0 THEN pagamento.valor
                           ELSE 0
                           END
                         ), 0)
@@ -558,7 +548,6 @@ public class RelatorioRepository {
                         FROM relatorio
                         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
                         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-                        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
                         WHERE 1 = 1
                         """
             + where.replaceFirst(" WHERE 1 = 1 ", "")
@@ -590,14 +579,7 @@ public class RelatorioRepository {
                           tipo_pagamento.id        AS tipo_id,
                           tipo_pagamento.descricao AS descricao,
                           COALESCE(SUM(
-                            CASE WHEN pagamento.valor > 0 THEN
-                              CASE
-                                WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN
-                                  pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
-                                WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN
-                                  pagamento.valor - pagamento_desconto.valor
-                                ELSE pagamento.valor
-                              END
+                            CASE WHEN pagamento.valor > 0 THEN pagamento.valor
                             ELSE 0
                             END
                           ), 0) AS receitas,
@@ -609,7 +591,6 @@ public class RelatorioRepository {
                         FROM relatorio
                         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
                         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-                        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
                         """
             + where
             + """

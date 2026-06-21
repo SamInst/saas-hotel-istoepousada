@@ -106,7 +106,9 @@ public class QuartoRepository {
       int beliche,
       long categoriaId,
       String categoriaNome,
-      String categoriaDescricao) {}
+      String categoriaDescricao,
+      java.time.LocalTime categoriaHoraCheckin,
+      java.time.LocalTime categoriaHoraCheckout) {}
 
   public Page<Quarto> buscar(Long id, String termo, Quarto.Status status, Pageable pageable) {
     String baseFrom = " FROM public.quarto quarto ";
@@ -519,7 +521,9 @@ public class QuartoRepository {
                           q.quantidade_beliche       AS quarto_quantidade_beliche,
                           c.id                       AS categoria_id,
                           c.nome                     AS categoria_nome,
-                          c.descricao                AS categoria_descricao
+                          c.descricao                AS categoria_descricao,
+                          c.hora_checkin             AS categoria_hora_checkin,
+                          c.hora_checkout            AS categoria_hora_checkout
                         FROM public.quarto q
                         JOIN public.quarto_categoria qc ON qc.fk_quarto = q.id AND qc.ativo = true
                         JOIN public.categoria c ON c.id = qc.fk_categoria
@@ -537,7 +541,9 @@ public class QuartoRepository {
                 rs.getInt("quarto_quantidade_beliche"),
                 rs.getLong("categoria_id"),
                 rs.getString("categoria_nome"),
-                rs.getString("categoria_descricao")));
+                rs.getString("categoria_descricao"),
+                rs.getObject("categoria_hora_checkin", java.time.LocalTime.class),
+                rs.getObject("categoria_hora_checkout", java.time.LocalTime.class)));
   }
 
   public Map<Long, Quarto.QuartoManutencao> buscarManutencaoAtivaPorQuarto() {

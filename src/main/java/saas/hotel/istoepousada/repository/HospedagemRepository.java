@@ -294,7 +294,8 @@ public class HospedagemRepository {
                                         null,
                                         buscarPessoasHospedagemOrcamento(h.id()),
                                         buscarMotivoCancelamento(h.id()),
-                                        h.grupo_id()))
+                                        h.grupo_id(),
+                                        null))
                             .toList();
                     return new Orcamento(
                         o.id(),
@@ -636,8 +637,8 @@ public class HospedagemRepository {
     AtomicInteger index = new AtomicInteger(0);
     jdbcTemplate.batchUpdate(
         """
-                        INSERT INTO diaria (fk_hospedagem, fk_quarto, numero, checkin, checkout, valor)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO diaria (fk_hospedagem, fk_quarto, numero, checkin, checkout, valor, meia_diaria)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                         """,
         diarias,
         diarias.size(),
@@ -649,6 +650,113 @@ public class HospedagemRepository {
           ps.setObject(4, diaria.checkin());
           ps.setObject(5, diaria.checkout());
           ps.setDouble(6, valores.get(i));
+          ps.setBoolean(7, Boolean.TRUE.equals(diaria.meia_diaria()));
+        });
+  }
+
+  // ── Novo preço (ajuste manual "Gerenciar Preços") ───────────────────────────
+
+  private static final String SELECT_NOVO_PRECO =
+      """
+      SELECT
+          novo_preco.id                  AS novo_preco_id,
+          novo_preco.fk_hospedagem       AS novo_preco_fk_hospedagem,
+          novo_preco.quantidade_diarias  AS novo_preco_quantidade_diarias,
+          novo_preco.quantidade_pessoas  AS novo_preco_quantidade_pessoas,
+          novo_preco.valor_diaria        AS novo_preco_valor_diaria,
+          novo_preco.porcentagem         AS novo_preco_porcentagem,
+          novo_preco.valor_desconto      AS novo_preco_valor_desconto,
+          funcionario.id                 AS novo_preco_funcionario_id,
+          pessoa_funcionario.nome        AS novo_preco_funcionario_nome
+      FROM public.hospedagem_novo_preco novo_preco
+      LEFT JOIN public.funcionario funcionario ON funcionario.id = novo_preco.fk_funcionario
+      LEFT JOIN public.pessoa pessoa_funcionario ON pessoa_funcionario.id = funcionario.fk_pessoa
+      """;
+
+  public HospedagemNovoPreco buscarNovoPreco(Long hospedagemId) {
+    List<HospedagemNovoPreco> result =
+        jdbcTemplate.query(
+            SELECT_NOVO_PRECO
+                + " WHERE novo_preco.fk_hospedagem = ? ORDER BY novo_preco.data_hora_registro DESC, novo_preco.id DESC LIMIT 1",
+            HospedagemNovoPreco.MAPPER,
+            hospedagemId);
+    return result.isEmpty() ? null : result.getFirst();
+  }
+
+  public Map<Long, HospedagemNovoPreco> buscarNovoPrecoBatch(List<Long> ids) {
+    if (ids.isEmpty()) return Map.of();
+    String sql =
+        SELECT_NOVO_PRECO
+            + " WHERE novo_preco.fk_hospedagem IN ("
+            + inClause(ids.size())
+            + ") ORDER BY novo_preco.fk_hospedagem, novo_preco.data_hora_registro DESC, novo_preco.id DESC";
+    Map<Long, HospedagemNovoPreco> result = new LinkedHashMap<>();
+    jdbcTemplate.query(
+        sql,
+        rs -> {
+          Long hId = rs.getLong("novo_preco_fk_hospedagem");
+          // ORDER BY garante que o primeiro de cada hospedagem é o mais recente.
+          if (!result.containsKey(hId)) {
+            result.put(hId, HospedagemNovoPreco.MAPPER.mapRow(rs, 0));
+          }
+        },
+        ids.toArray());
+    return result;
+  }
+
+  /** Substitui o ajuste vigente da hospedagem (um ativo por hospedagem). */
+  public void salvarNovoPreco(
+      Long hospedagemId, HospedagemNovoPreco.Request request, Long funcionarioId) {
+    jdbcTemplate.update(
+        "DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
+    jdbcTemplate.update(
+        """
+        INSERT INTO hospedagem_novo_preco
+            (fk_hospedagem, quantidade_diarias, quantidade_pessoas, valor_diaria,
+             porcentagem, valor_desconto, fk_funcionario, data_hora_registro)
+        VALUES (?, ?, ?, ?, ?, ?, ?, now())
+        """,
+        hospedagemId,
+        request.quantidade_diarias(),
+        request.quantidade_pessoas(),
+        request.valor_diaria(),
+        request.porcentagem(),
+        request.valor_desconto(),
+        funcionarioId);
+  }
+
+  public void atualizarValorTotal(Long hospedagemId, Double valorTotal) {
+    jdbcTemplate.update(
+        "UPDATE hospedagem SET valor_total = ? WHERE id = ?", valorTotal, hospedagemId);
+  }
+
+  /** Atualiza o período (checkin/checkout) da hospedagem — usado ao recalcular as diárias. */
+  public void atualizarPeriodo(
+      Long hospedagemId, LocalDateTime checkin, LocalDateTime checkout) {
+    jdbcTemplate.update(
+        "UPDATE hospedagem SET data_hora_checkin = ?, data_hora_checkout = ? WHERE id = ?",
+        checkin,
+        checkout,
+        hospedagemId);
+  }
+
+  /** Modo "valor por diária" na criação: sobrescreve o valor de todas as diárias da hospedagem. */
+  public void sobrescreverValorDiarias(Long hospedagemId, Double valor) {
+    if (valor == null) return;
+    jdbcTemplate.update(
+        "UPDATE diaria SET valor = ? WHERE fk_hospedagem = ?", valor, hospedagemId);
+  }
+
+  /** Modo "valor por diária": sobrescreve o valor das diárias existentes (qtd inalterada). */
+  public void atualizarValoresDiarias(List<HospedagemNovoPreco.DiariaValor> diarias) {
+    if (diarias == null || diarias.isEmpty()) return;
+    jdbcTemplate.batchUpdate(
+        "UPDATE diaria SET valor = ? WHERE id = ?",
+        diarias,
+        diarias.size(),
+        (ps, d) -> {
+          ps.setObject(1, d.valor());
+          ps.setLong(2, d.id());
         });
   }
 
@@ -706,6 +814,7 @@ public class HospedagemRepository {
             diaria.id                         AS diaria_id,
             diaria.numero                     AS diaria_numero,
             diaria.valor                      AS diaria_valor,
+            diaria.meia_diaria                AS diaria_meia_diaria,
             diaria.checkin                    AS diaria_checkin,
             diaria.checkout                   AS diaria_checkout,
             quarto.id                         AS diaria_quarto_id,
@@ -734,6 +843,7 @@ public class HospedagemRepository {
                       rs.getObject("diaria_checkin", LocalDateTime.class),
                       rs.getObject("diaria_checkout", LocalDateTime.class),
                       rs.getFloat("diaria_valor"),
+                      rs.getObject("diaria_meia_diaria", Boolean.class),
                       null));
         },
         ids.toArray());
@@ -869,6 +979,7 @@ public class HospedagemRepository {
                              diaria.id                          AS diaria_id,
                              diaria.numero                      AS diaria_numero,
                              diaria.valor                       AS diaria_valor,
+                             diaria.meia_diaria                 AS diaria_meia_diaria,
                              diaria.checkin                     AS diaria_checkin,
                              diaria.checkout                    AS diaria_checkout,
                              quarto.id                          AS diaria_quarto_id,
@@ -888,6 +999,7 @@ public class HospedagemRepository {
               rs.getObject("diaria_checkin", LocalDateTime.class),
               rs.getObject("diaria_checkout", LocalDateTime.class),
               rs.getFloat("diaria_valor"),
+              rs.getObject("diaria_meia_diaria", Boolean.class),
               null);
         },
         hospedagemId);
@@ -1081,17 +1193,38 @@ public class HospedagemRepository {
                         FROM public.diaria d
                         JOIN public.hospedagem h ON h.id = d.fk_hospedagem
                         WHERE h.status::hospedagem_status IN (
-                            'PERNOITE_ATIVO', 'PERNOITE_FINALIZADO_PAGAMENTO_PENDENTE',
+                            'PERNOITE_ATIVO',
                             'RESERVA_ATIVA', 'RESERVA_SOLICITADA',
                             'DAY_USE_ATIVO', 'DAY_USE_SOLICITADO'
                         )
-                          AND d.checkin::date <= ?
-                          AND d.checkout::date > ?
-                        ORDER BY d.fk_quarto, h.data_hora_checkin DESC
+                          AND (
+                                -- (1) Pernoite ativo: sempre visível, independente da data de checkout,
+                                --     até mudar para um status final.
+                                h.status::hospedagem_status = 'PERNOITE_ATIVO'
+                                -- estadia cujo período contém a data de referência (hoje)
+                             OR (d.checkin::date <= ? AND d.checkout::date > ?)
+                                -- (2) Reserva ativa já iniciada (mesmo após o checkout): hóspede ainda
+                                --     não hospedado — permite hospedar mais tarde.
+                             OR (h.status::hospedagem_status = 'RESERVA_ATIVA' AND d.checkin::date <= ?)
+                              )
+                        ORDER BY
+                            d.fk_quarto,
+                            CASE
+                              WHEN h.status::hospedagem_status = 'PERNOITE_ATIVO'  THEN 0
+                              WHEN (d.checkin::date <= ? AND d.checkout::date > ?) THEN 1
+                              WHEN h.status::hospedagem_status = 'RESERVA_ATIVA'   THEN 2
+                              ELSE 3
+                            END,
+                            ABS(d.checkin::date - ?::date),
+                            h.data_hora_checkin DESC
                         """,
         rs -> {
           quartoParaHospedagem.put(rs.getLong("quarto_id"), rs.getLong("hospedagem_id"));
         },
+        data,
+        data,
+        data,
+        data,
         data,
         data);
 

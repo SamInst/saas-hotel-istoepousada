@@ -40,7 +40,18 @@
       "Bash(git -C \"C:/Users/sanhe/Downloads/istoepousada/istoepousada\" status --short)",
       "Bash(git -C \"C:/Users/sanhe/IdeaProjects/meu-hotel-project\" status --short)",
       "Bash(git -C \"C:/Users/sanhe/Downloads/istoepousada/istoepousada\" branch --show-current)",
-      "Bash(git -C \"C:/Users/sanhe/IdeaProjects/meu-hotel-project\" branch --show-current)"
+      "Bash(git -C \"C:/Users/sanhe/IdeaProjects/meu-hotel-project\" branch --show-current)",
+      "Bash(npx eslint *)",
+      "Bash(node -e \"const fs=require\\('fs'\\);const p=JSON.parse\\(fs.readFileSync\\('package.json'\\)\\);console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\)\")",
+      "Bash(grep -nE \"^\\\\.\\(ovPeriodDark|ovDatesRow|ovDateCell|ovDateLabel|ovDateValue|ovDateTime|ovDateArrow|ovNightsCell|ovNightsNum|ovNightsLabel|ovFinCard|ovFinRow|ovFinItem|ovFinLabel|ovFinValue|ovFinPending|ovFinPaid|ovFinProgress|ovFinBar|ovFinBarFill|ovBodyPad|ovPriceInline|ovDiariasCard|ovDiariasList|ovPriceCardRow|ovDiariaDesc|ovDiariaNum|ovDiariaDate|ovPriceConsumoTotal|detailTabs|detailTab|detailTabActive|detailTabBody\\)[ ,{]\" src/pages/recepcao/recepcao.module.css)",
+      "Bash(perl -0pi -e 's/<RoomCard key=\\\\{room\\\\.id\\\\} room=\\\\{room\\\\} \\\\/>/<RoomCard key={room.id} room={room} selectMode={pagModoAtivo} selected={!!room.servico?.id \\\\&\\\\& selectedOvernights.has\\(room.servico.id\\)} onToggle={toggleOvernight} \\\\/>/g' src/pages/recepcao/RecepcaoPage.jsx)",
+      "PowerShell(cd \"C:\\\\Users\\\\sanhe\\\\Downloads\\\\informativos-istoe-pousada\"; Select-String -Path dist\\\\index.html -Pattern 'Fraunces|brand-mark|entry__num' -List | Select-Object -First 3 | ForEach-Object { $_.Line.Substring\\(0,[Math]::Min\\(80,$_.Line.Length\\)\\) })",
+      "PowerShell(.\\\\gradlew.bat compileJava -q 2>&1 | Select-Object -Last 40)",
+      "Bash(grep -vE '\\\\.\\(png|jpg|jpeg|svg|ico|woff2?|ttf\\)$')",
+      "Bash(./mvnw -q -o compile)",
+      "Bash(./mvnw -q compile)",
+      "Bash(awk '/^\\\\.bar \\\\{/,/^\\\\}/' src/pages/calendar/BookingCalendar.module.css)"
     ]
-  }
+  },
+  "prefersReducedMotion": true
 }

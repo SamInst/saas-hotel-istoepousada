@@ -249,13 +249,7 @@ public class ItemRepository {
                   tp.id                   AS tipo_pagamento_id,
                   tp.descricao            AS tipo_pagamento_descricao,
                   fp.id                   AS pagamento_funcionario_id,
-                  pp.nome                 AS pagamento_funcionario_nome,
-                  d.id                    AS pagamento_desconto_id,
-                  d.fk_funcionario        AS pagamento_desconto_funcionario_id,
-                  dpd.nome                AS pagamento_desconto_funcionario_nome,
-                  d.porcentagem           AS pagamento_desconto_porcentagem,
-                  d.valor                 AS pagamento_desconto_valor,
-                  d.data_hora_registro    AS pagamento_desconto_data_hora_registro
+                  pp.nome                 AS pagamento_funcionario_nome
                 FROM consumo c
                 JOIN item i ON i.id = c.fk_item
                 JOIN funcionario fc ON fc.id = c.fk_funcionario
@@ -265,15 +259,7 @@ public class ItemRepository {
                 LEFT JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
                 LEFT JOIN funcionario fp ON fp.id = p.fk_funcionario
                 LEFT JOIN pessoa pp ON pp.id = fp.fk_pessoa
-                LEFT JOIN LATERAL (
-                  SELECT *
-                  FROM pagamento_desconto d
-                  WHERE d.fk_pagamento = p.id
-                  ORDER BY d.data_hora_registro DESC
-                  LIMIT 1
-                ) d ON true
-                LEFT JOIN funcionario df ON df.id = d.fk_funcionario
-                LEFT JOIN pessoa dpd ON dpd.id = df.fk_pessoa
+            
                 ORDER BY c.data_hora_registro DESC
                 LIMIT ? OFFSET ?
                 """;

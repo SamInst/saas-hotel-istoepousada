@@ -6,6 +6,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import saas.hotel.istoepousada.dto.Hospedagem;
+import saas.hotel.istoepousada.dto.HospedagemNovoPreco;
 import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.dto.MotivoCancelamentoHospedagem;
 import saas.hotel.istoepousada.dto.Pagamento;
@@ -39,6 +40,12 @@ public class HospedagemController {
     return hospedagemService.buscarPorId(hospedagemId);
   }
 
+  /** Totais consolidados de um grupo (todas as hospedagens do grupo). */
+  @GetMapping("/grupo/{grupoId}/resumo")
+  public HospedagemService.GrupoResumo resumoGrupo(@PathVariable Long grupoId) {
+    return hospedagemService.buscarResumoGrupo(grupoId);
+  }
+
   /** Reservas de um quarto, paginadas. periodo: "anteriores" | "proximas" | (vazio = mês/ano). */
   @GetMapping("/quarto/{quartoId}")
   public PageResult<Hospedagem> buscarPorQuarto(
@@ -57,6 +64,14 @@ public class HospedagemController {
   }
 
   // ── Ciclo de vida ────────────────────────────────────────────────────────────
+
+  @PostMapping("/pernoite")
+  @ResponseStatus(HttpStatus.CREATED)
+  public void criarPernoite(
+      @RequestParam(required = false) Boolean pagamentoUnico,
+      @RequestBody List<Hospedagem.Request> requests) {
+    hospedagemService.criarPernoiteDireto(requests, pagamentoUnico);
+  }
 
   @PutMapping("/{hospedagemId}/ativar")
   public void ativar(@PathVariable Long hospedagemId, @RequestBody Hospedagem.Request request) {
@@ -95,6 +110,16 @@ public class HospedagemController {
     hospedagemService.adicionarDiarias(hospedagemId, diarias);
   }
 
+  /**
+   * Substitui todas as diárias da hospedagem ("Gerenciar Diárias"). Cada diária pode ter seu próprio
+   * quarto e pessoas; os preços e o total são recalculados.
+   */
+  @PutMapping("/{hospedagemId}/diarias")
+  public Hospedagem atualizarDiarias(
+      @PathVariable Long hospedagemId, @RequestBody List<Hospedagem.Diaria.Request> diarias) {
+    return hospedagemService.atualizarDiarias(hospedagemId, diarias);
+  }
+
   // ── Pagamentos ───────────────────────────────────────────────────────────────
 
   @PostMapping("/{hospedagemId}/pagamentos")
@@ -113,6 +138,14 @@ public class HospedagemController {
   public void adicionarPagamentoMultiplo(@RequestBody PagamentoMultiploRequest request) {
     hospedagemService.adicionarPagamentoMultiplasHospedagens(
         request.hospedagem_ids(), request.pagamento());
+  }
+
+  // ── Gerenciar Preços (ajuste manual) ──────────────────────────────────────────
+
+  @PostMapping("/{hospedagemId}/preco")
+  public Hospedagem gerenciarPreco(
+      @PathVariable Long hospedagemId, @RequestBody HospedagemNovoPreco.Request request) {
+    return hospedagemService.gerenciarPreco(hospedagemId, request);
   }
 
   // ── Consumo ──────────────────────────────────────────────────────────────────

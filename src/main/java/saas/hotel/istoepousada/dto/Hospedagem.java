@@ -26,7 +26,8 @@ public record Hospedagem(
     List<Pessoa.DadosPrincipais> pessoas,
     List<Hospedagem.PessoaHospedagemOrcamento> pessoas_orcamento,
     MotivoCancelamentoHospedagem motivo_cancelamento,
-    Long grupo_id) {
+    Long grupo_id,
+    HospedagemNovoPreco novo_preco) {
 
   public record Request(
       Long hospedagem_id,
@@ -40,7 +41,9 @@ public record Hospedagem(
       @NotNull Double valor_total,
       List<Hospedagem.PessoaHospedagemOrcamento.Request> pessoas_orcamento,
       List<Consumo.Request> consumos,
-      MotivoCancelamentoHospedagem.Request motivo_cancelamento) {}
+      MotivoCancelamentoHospedagem.Request motivo_cancelamento,
+      /* ajuste manual de preço aplicado na criação ("Gerenciar Preços"); opcional */
+      HospedagemNovoPreco.Request novo_preco) {}
 
   public record Diaria(
       @NotNull Long id,
@@ -49,12 +52,14 @@ public record Hospedagem(
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") @NotNull LocalDateTime checkin,
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") @NotNull LocalDateTime checkout,
       @NotNull Float valor,
+      Boolean meia_diaria,
       List<Pessoa.DadosPrincipais> pessoas) {
 
     public record Request(
         @NotNull Long quarto_id,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime checkin,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime checkout,
+        Boolean meia_diaria,
         List<Long> pessoas) {}
 
     public record Update(
@@ -131,6 +136,7 @@ public record Hospedagem(
             null, // pessoas
             null, // pessoas_orcamento
             null, // motivo_cancelamento
-            rs.getObject("hospedagem_grupo_id", Long.class));
+            rs.getObject("hospedagem_grupo_id", Long.class),
+            null); // novo_preco
       };
 }

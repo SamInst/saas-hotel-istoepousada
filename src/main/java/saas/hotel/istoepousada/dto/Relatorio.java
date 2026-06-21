@@ -70,25 +70,11 @@ public record Relatorio(
           Float valorPagamento = rs.getObject("pagamento_valor", Float.class);
           Float valorOriginal = valorPagamento == null ? 0F : valorPagamento;
 
-          // Calcula o valor com desconto
-          Integer descontoPorcentagem =
-              rs.getObject("pagamento_desconto_porcentagem", Integer.class);
-          Float descontoValor = rs.getObject("pagamento_desconto_valor", Float.class);
-
-          Float valorFinal = valorOriginal;
-          if (valorOriginal > 0) { // desconto só se aplica a valores positivos (entradas)
-            if (descontoPorcentagem != null && descontoPorcentagem > 0) {
-              valorFinal = valorOriginal - (valorOriginal * descontoPorcentagem / 100);
-            } else if (descontoValor != null && descontoValor > 0) {
-              valorFinal = valorOriginal - descontoValor;
-            }
-          }
-
           return new Relatorio(
               rs.getLong("relatorio_id"),
               rs.getObject("relatorio_data_hora", LocalDateTime.class),
               rs.getString("relatorio_descricao"),
-              valorFinal,
+              valorOriginal,
               Funcionario.Nome.ROW_MAPPER_RELATORIO.mapRow(rs, row_num),
               Pagamento.ROW_MAPPER.mapRow(rs, row_num),
               quarto,

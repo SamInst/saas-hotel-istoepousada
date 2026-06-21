@@ -48,7 +48,6 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
       ServerHttpResponse response,
       WebSocketHandler wsHandler,
       Exception exception) {
-    // nada a fazer
   }
 
   private String extractToken(ServerHttpRequest request) {

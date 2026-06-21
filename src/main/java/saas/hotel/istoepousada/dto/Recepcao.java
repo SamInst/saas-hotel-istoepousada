@@ -2,6 +2,7 @@ package saas.hotel.istoepousada.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public record Recepcao(List<QuartoData> datas) {
@@ -9,7 +10,13 @@ public record Recepcao(List<QuartoData> datas) {
       @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data,
       Integer quantidade_total_pessoas_hospedadas,
       List<Categoria> categorias) {
-    public record Categoria(Long id, String nome, String descricao, List<Quartos> quartos) {
+    public record Categoria(
+        Long id,
+        String nome,
+        String descricao,
+        @JsonFormat(pattern = "HH:mm") LocalTime checkin,
+        @JsonFormat(pattern = "HH:mm") LocalTime checkout,
+        List<Quartos> quartos) {
       public record Quartos(Quarto quarto, Hospedagem hospedagem) {}
     }
   }
