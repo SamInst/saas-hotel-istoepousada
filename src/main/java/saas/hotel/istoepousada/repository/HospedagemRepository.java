@@ -637,8 +637,8 @@ public class HospedagemRepository {
     AtomicInteger index = new AtomicInteger(0);
     jdbcTemplate.batchUpdate(
         """
-                        INSERT INTO diaria (fk_hospedagem, fk_quarto, numero, checkin, checkout, valor)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO diaria (fk_hospedagem, fk_quarto, numero, checkin, checkout, valor, meia_diaria)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                         """,
         diarias,
         diarias.size(),
@@ -650,6 +650,7 @@ public class HospedagemRepository {
           ps.setObject(4, diaria.checkin());
           ps.setObject(5, diaria.checkout());
           ps.setDouble(6, valores.get(i));
+          ps.setBoolean(7, Boolean.TRUE.equals(diaria.meia_diaria()));
         });
   }
 
@@ -729,6 +730,16 @@ public class HospedagemRepository {
         "UPDATE hospedagem SET valor_total = ? WHERE id = ?", valorTotal, hospedagemId);
   }
 
+  /** Atualiza o período (checkin/checkout) da hospedagem — usado ao recalcular as diárias. */
+  public void atualizarPeriodo(
+      Long hospedagemId, LocalDateTime checkin, LocalDateTime checkout) {
+    jdbcTemplate.update(
+        "UPDATE hospedagem SET data_hora_checkin = ?, data_hora_checkout = ? WHERE id = ?",
+        checkin,
+        checkout,
+        hospedagemId);
+  }
+
   /** Modo "valor por diária" na criação: sobrescreve o valor de todas as diárias da hospedagem. */
   public void sobrescreverValorDiarias(Long hospedagemId, Double valor) {
     if (valor == null) return;
@@ -803,6 +814,7 @@ public class HospedagemRepository {
             diaria.id                         AS diaria_id,
             diaria.numero                     AS diaria_numero,
             diaria.valor                      AS diaria_valor,
+            diaria.meia_diaria                AS diaria_meia_diaria,
             diaria.checkin                    AS diaria_checkin,
             diaria.checkout                   AS diaria_checkout,
             quarto.id                         AS diaria_quarto_id,
@@ -831,6 +843,7 @@ public class HospedagemRepository {
                       rs.getObject("diaria_checkin", LocalDateTime.class),
                       rs.getObject("diaria_checkout", LocalDateTime.class),
                       rs.getFloat("diaria_valor"),
+                      rs.getObject("diaria_meia_diaria", Boolean.class),
                       null));
         },
         ids.toArray());
@@ -966,6 +979,7 @@ public class HospedagemRepository {
                              diaria.id                          AS diaria_id,
                              diaria.numero                      AS diaria_numero,
                              diaria.valor                       AS diaria_valor,
+                             diaria.meia_diaria                 AS diaria_meia_diaria,
                              diaria.checkin                     AS diaria_checkin,
                              diaria.checkout                    AS diaria_checkout,
                              quarto.id                          AS diaria_quarto_id,
@@ -985,6 +999,7 @@ public class HospedagemRepository {
               rs.getObject("diaria_checkin", LocalDateTime.class),
               rs.getObject("diaria_checkout", LocalDateTime.class),
               rs.getFloat("diaria_valor"),
+              rs.getObject("diaria_meia_diaria", Boolean.class),
               null);
         },
         hospedagemId);

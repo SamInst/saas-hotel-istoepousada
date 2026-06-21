@@ -59,10 +59,6 @@ public class HospedagemController {
 
   // ── Ciclo de vida ────────────────────────────────────────────────────────────
 
-  /**
-   * Cria um (ou vários) pernoite(s) diretamente, sem passar por reserva. Mesmo corpo do ativar de
-   * reserva, porém cada item já chega com {@code status = PERNOITE_ATIVO}.
-   */
   @PostMapping("/pernoite")
   @ResponseStatus(HttpStatus.CREATED)
   public void criarPernoite(
@@ -106,6 +102,16 @@ public class HospedagemController {
   public void adicionarDiarias(
       @PathVariable Long hospedagemId, @RequestBody List<Hospedagem.Diaria.Request> diarias) {
     hospedagemService.adicionarDiarias(hospedagemId, diarias);
+  }
+
+  /**
+   * Substitui todas as diárias da hospedagem ("Gerenciar Diárias"). Cada diária pode ter seu próprio
+   * quarto e pessoas; os preços e o total são recalculados.
+   */
+  @PutMapping("/{hospedagemId}/diarias")
+  public Hospedagem atualizarDiarias(
+      @PathVariable Long hospedagemId, @RequestBody List<Hospedagem.Diaria.Request> diarias) {
+    return hospedagemService.atualizarDiarias(hospedagemId, diarias);
   }
 
   // ── Pagamentos ───────────────────────────────────────────────────────────────

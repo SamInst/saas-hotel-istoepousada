@@ -52,12 +52,14 @@ public record Hospedagem(
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") @NotNull LocalDateTime checkin,
       @JsonFormat(pattern = "dd/MM/yyyy HH:mm") @NotNull LocalDateTime checkout,
       @NotNull Float valor,
+      Boolean meia_diaria,
       List<Pessoa.DadosPrincipais> pessoas) {
 
     public record Request(
         @NotNull Long quarto_id,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime checkin,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm") LocalDateTime checkout,
+        Boolean meia_diaria,
         List<Long> pessoas) {}
 
     public record Update(

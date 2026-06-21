@@ -91,11 +91,6 @@ public class HospedagemService {
         quartoId,
         checkin.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
         checkout.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
-    var statusAtual = hospedagemRepository.statusQuarto(quartoId);
-    if (statusAtual == Quarto.Status.OCUPADO) {
-      log.info("Quarto não disponivel: STATUS {}", Quarto.Status.OCUPADO);
-      throw new IllegalStateException("Quarto não disponivel: STATUS " + Quarto.Status.OCUPADO);
-    }
     var temConflito =
         hospedagemRepository.isQuartoDisponivel(quartoId, checkin, checkout, hospedagemIdExcluido);
     log.info("Conflito encontrado: {}", temConflito);
@@ -119,6 +114,7 @@ public class HospedagemService {
             .filter(d -> d.pessoas() != null)
             .flatMap(d -> d.pessoas().stream())
             .collect(Collectors.toSet());
+
     Map<Long, LocalDate> dataNascimentoPorPessoa =
         todasPessoasIds.isEmpty()
             ? Map.of()
@@ -170,23 +166,151 @@ public class HospedagemService {
                       .filter(Objects::nonNull)
                       .toList();
 
+          // Meia diária: cobra 1 diária cheia (checkin → checkin+1) e divide por 2 no resultado.
+          boolean meia = Boolean.TRUE.equals(diaria.meia_diaria());
+          LocalDate dataEntrada = diaria.checkin().toLocalDate();
+          LocalDate dataSaida = meia ? dataEntrada.plusDays(1) : diaria.checkout().toLocalDate();
           calcularPrecoRequests.add(
               new CalcularPreco.Request(
-                  diaria.quarto_id(),
-                  diaria.checkin().toLocalDate(),
-                  diaria.checkout().toLocalDate(),
-                  datasNascimento,
-                  null,
-                  null));
+                  diaria.quarto_id(), dataEntrada, dataSaida, datasNascimento, null, null));
           diariasNaoCadastradas.add(diaria);
         });
 
     if (diariasNaoCadastradas.isEmpty()) return;
 
     var resultadoCalculo = calcularPrecoService.calcularPreco(calcularPrecoRequests);
-    List<Double> valores =
-        resultadoCalculo.stream().map(CalcularPreco.Resultado::valor_total).toList();
+    List<Double> valores = new ArrayList<>(resultadoCalculo.size());
+    for (int i = 0; i < diariasNaoCadastradas.size(); i++) {
+      Double pc = resultadoCalculo.get(i).valor_total();
+      double v = pc == null ? 0.0 : pc;
+      if (Boolean.TRUE.equals(diariasNaoCadastradas.get(i).meia_diaria())) v = v / 2.0;
+      valores.add(v);
+    }
     hospedagemRepository.adicionarDiarias(hospedagemId, diariasNaoCadastradas, valores);
+  }
+
+  /**
+   * Substitui por completo as diárias da hospedagem ("Gerenciar Diárias"). Cada diária pode ter o
+   * seu próprio quarto e o seu próprio conjunto de pessoas (usado no cálculo de preço por idade). O
+   * preço de cada diária é recalculado e o {@code valor_total} da hospedagem passa a ser a soma das
+   * diárias. Remove as diárias antigas via {@link HospedagemRepository#deletarDiarias}.
+   */
+  @Transactional
+  public Hospedagem atualizarDiarias(
+      Long hospedagemId, List<Hospedagem.Diaria.Request> diarias) {
+    hospedagemRepository.buscarPorId(hospedagemId);
+    if (diarias == null || diarias.isEmpty())
+      throw new IllegalArgumentException("Informe ao menos uma diária.");
+    diarias.forEach(
+        d -> {
+          if (d.quarto_id() == null)
+            throw new IllegalArgumentException("Diária sem quarto informado.");
+          if (d.checkin() == null || d.checkout() == null)
+            throw new IllegalArgumentException("Diária sem data de checkin/checkout.");
+          if (!d.checkin().isBefore(d.checkout()) && !d.meia_diaria())
+            throw new IllegalArgumentException(
+                "O checkin da diária deve ser anterior ao checkout.");
+        });
+
+    // Valida conflitos de data por quarto, ignorando a própria hospedagem (mover diárias entre
+    // quartos da própria hospedagem é permitido). Não bloqueia pelo status físico OCUPADO porque o
+    // quarto atual já está ocupado por esta hospedagem.
+    Map<Long, LocalDateTime> minCheckinPorQuarto = new HashMap<>();
+    Map<Long, LocalDateTime> maxCheckoutPorQuarto = new HashMap<>();
+    for (var d : diarias) {
+      minCheckinPorQuarto.merge(d.quarto_id(), d.checkin(), (a, b) -> a.isBefore(b) ? a : b);
+      maxCheckoutPorQuarto.merge(d.quarto_id(), d.checkout(), (a, b) -> a.isAfter(b) ? a : b);
+    }
+    minCheckinPorQuarto.forEach(
+        (quartoId, minCheckin) -> {
+          boolean conflito =
+              hospedagemRepository.isQuartoDisponivel(
+                  quartoId, minCheckin, maxCheckoutPorQuarto.get(quartoId), hospedagemId);
+          if (conflito)
+            throw new IllegalArgumentException(
+                "Quarto " + quartoId + " indisponível nas datas informadas.");
+        });
+
+    // Calcula o preço de cada diária (considerando as pessoas/idades de cada uma).
+    Set<Long> todasPessoasIds =
+        diarias.stream()
+            .filter(d -> d.pessoas() != null)
+            .flatMap(d -> d.pessoas().stream())
+            .collect(Collectors.toSet());
+    Map<Long, LocalDate> dataNascimentoPorPessoa =
+        todasPessoasIds.isEmpty()
+            ? Map.of()
+            : pessoaService.findDataNascimentoByIds(todasPessoasIds);
+
+    List<CalcularPreco.Request> calcularPrecoRequests = new ArrayList<>();
+    for (var d : diarias) {
+      List<LocalDate> datasNascimento =
+          d.pessoas() == null
+              ? List.of()
+              : d.pessoas().stream()
+                  .map(dataNascimentoPorPessoa::get)
+                  .filter(Objects::nonNull)
+                  .toList();
+      // Meia diária: checkin/checkout caem no mesmo dia → o cálculo retorna 1 diária; usamos a
+      // data de entrada + 1 para garantir o preço de uma diária cheia e depois dividimos por 2.
+      boolean meia = Boolean.TRUE.equals(d.meia_diaria());
+      LocalDate dataEntrada = d.checkin().toLocalDate();
+      LocalDate dataSaida = meia ? dataEntrada.plusDays(1) : d.checkout().toLocalDate();
+      calcularPrecoRequests.add(
+          new CalcularPreco.Request(
+              d.quarto_id(), dataEntrada, dataSaida, datasNascimento, null, null));
+    }
+    List<Double> precosCheios =
+        calcularPrecoService.calcularPreco(calcularPrecoRequests).stream()
+            .map(CalcularPreco.Resultado::valor_total)
+            .toList();
+    List<Double> valores = new ArrayList<>(precosCheios.size());
+    for (int i = 0; i < diarias.size(); i++) {
+      boolean meia = Boolean.TRUE.equals(diarias.get(i).meia_diaria());
+      double cheio = precosCheios.get(i) == null ? 0.0 : precosCheios.get(i);
+      double v = meia ? cheio / 2.0 : cheio;
+      log.info(
+          "Diária {} do quarto {}: meia_diaria={}, valor_cheio={}, valor_final={}",
+          i + 1,
+          diarias.get(i).quarto_id(),
+          meia,
+          cheio,
+          v);
+      valores.add(v);
+    }
+
+    // Substitui as diárias e recalcula o total da hospedagem.
+    hospedagemRepository.deletarDiarias(hospedagemId);
+    hospedagemRepository.adicionarDiarias(hospedagemId, diarias, valores);
+    double totalDiarias = valores.stream().mapToDouble(Double::doubleValue).sum();
+    hospedagemRepository.atualizarValorTotal(hospedagemId, totalDiarias);
+
+    // Atualiza o período da hospedagem para abranger as novas diárias (menor checkin / maior
+    // checkout), para que o card do quarto reflita as datas corretas.
+    LocalDateTime novoCheckin =
+        diarias.stream()
+            .map(Hospedagem.Diaria.Request::checkin)
+            .filter(Objects::nonNull)
+            .min(LocalDateTime::compareTo)
+            .orElse(null);
+    LocalDateTime novoCheckout =
+        diarias.stream()
+            .map(Hospedagem.Diaria.Request::checkout)
+            .filter(Objects::nonNull)
+            .max(LocalDateTime::compareTo)
+            .orElse(null);
+    if (novoCheckin != null && novoCheckout != null) {
+      hospedagemRepository.atualizarPeriodo(hospedagemId, novoCheckin, novoCheckout);
+    }
+
+    log.info(
+        "Diárias da hospedagem {} atualizadas: {} diárias, total {}, período {} -> {}",
+        hospedagemId,
+        diarias.size(),
+        totalDiarias,
+        novoCheckin,
+        novoCheckout);
+    return withDetails(hospedagemRepository.buscarPorId(hospedagemId));
   }
 
   // ── Status ───────────────────────────────────────────────────────────────────
@@ -630,7 +754,7 @@ public class HospedagemService {
     for (int i = 0; i < total_diarias; i++) {
       diarias.add(
           new Hospedagem.Diaria.Request(
-              request.quarto_id(), dataInicio, dataInicio.plusDays(1), request.pessoas()));
+              request.quarto_id(), dataInicio, dataInicio.plusDays(1), false, request.pessoas()));
       dataInicio = dataInicio.plusDays(1);
     }
     adicionarDiarias(hospedagemId, diarias);
@@ -842,6 +966,7 @@ public class HospedagemService {
                 request.quarto_id(),
                 request.data_hora_checkin(),
                 request.data_hora_checkout(),
+                false,
                 request.pessoas()));
     adicionarDiarias(hospedagemId, diarias);
     adicionarPessoas(hospedagemId, request.pessoas());
