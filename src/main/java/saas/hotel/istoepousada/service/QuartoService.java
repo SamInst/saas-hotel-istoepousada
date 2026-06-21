@@ -85,6 +85,7 @@ public class QuartoService {
 
     Map<Long, List<Recepcao.QuartoData.Categoria.Quartos>> quartosPorCat = new LinkedHashMap<>();
     Map<Long, String[]> catNames = new LinkedHashMap<>();
+    Map<Long, java.time.LocalTime[]> catHorarios = new LinkedHashMap<>();
 
     for (QuartoComCategoria qr : quartoRows) {
       Quarto quarto =
@@ -109,14 +110,24 @@ public class QuartoService {
 
       catNames.putIfAbsent(
           qr.categoriaId(), new String[] {qr.categoriaNome(), qr.categoriaDescricao()});
+      catHorarios.putIfAbsent(
+          qr.categoriaId(),
+          new java.time.LocalTime[] {qr.categoriaHoraCheckin(), qr.categoriaHoraCheckout()});
     }
 
     List<Recepcao.QuartoData.Categoria> categorias = new ArrayList<>();
     for (Map.Entry<Long, List<Recepcao.QuartoData.Categoria.Quartos>> entry :
         quartosPorCat.entrySet()) {
       String[] names = catNames.get(entry.getKey());
+      java.time.LocalTime[] horarios = catHorarios.get(entry.getKey());
       categorias.add(
-          new Recepcao.QuartoData.Categoria(entry.getKey(), names[0], names[1], entry.getValue()));
+          new Recepcao.QuartoData.Categoria(
+              entry.getKey(),
+              names[0],
+              names[1],
+              horarios != null ? horarios[0] : null,
+              horarios != null ? horarios[1] : null,
+              entry.getValue()));
     }
 
     return new Recepcao.QuartoData(data, 0, categorias);
@@ -207,10 +218,11 @@ public class QuartoService {
   public void finalizarLimpeza(Long id) {
     if (id == null) throw new IllegalArgumentException("ID é obrigatório.");
     Long quartoId = quartoRepository.finalizarLimpeza(id);
-    Quarto.Status novoStatus =
-        hospedagemService.temReservaAtivaParaQuartoHoje(quartoId)
-            ? Quarto.Status.RESERVADO
-            : Quarto.Status.DISPONIVEL;
+    Quarto.Status novoStatus = Quarto.Status.DISPONIVEL;
+        if (hospedagemService.temReservaAtivaParaQuartoHoje(quartoId)){
+          novoStatus = Quarto.Status.RESERVADO;
+        }
+
     quartoRepository.updateStatus(quartoId, novoStatus);
   }
 

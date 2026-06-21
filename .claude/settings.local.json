@@ -49,7 +49,8 @@
       "PowerShell(.\\\\gradlew.bat compileJava -q 2>&1 | Select-Object -Last 40)",
       "Bash(grep -vE '\\\\.\\(png|jpg|jpeg|svg|ico|woff2?|ttf\\)$')",
       "Bash(./mvnw -q -o compile)",
-      "Bash(./mvnw -q compile)"
+      "Bash(./mvnw -q compile)",
+      "Bash(awk '/^\\\\.bar \\\\{/,/^\\\\}/' src/pages/calendar/BookingCalendar.module.css)"
     ]
   },
   "prefersReducedMotion": true

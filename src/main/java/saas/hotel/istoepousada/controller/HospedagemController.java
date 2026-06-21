@@ -40,6 +40,12 @@ public class HospedagemController {
     return hospedagemService.buscarPorId(hospedagemId);
   }
 
+  /** Totais consolidados de um grupo (todas as hospedagens do grupo). */
+  @GetMapping("/grupo/{grupoId}/resumo")
+  public HospedagemService.GrupoResumo resumoGrupo(@PathVariable Long grupoId) {
+    return hospedagemService.buscarResumoGrupo(grupoId);
+  }
+
   /** Reservas de um quarto, paginadas. periodo: "anteriores" | "proximas" | (vazio = mês/ano). */
   @GetMapping("/quarto/{quartoId}")
   public PageResult<Hospedagem> buscarPorQuarto(

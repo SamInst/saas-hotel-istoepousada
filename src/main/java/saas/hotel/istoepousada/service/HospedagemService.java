@@ -283,7 +283,29 @@ public class HospedagemService {
     hospedagemRepository.deletarDiarias(hospedagemId);
     hospedagemRepository.adicionarDiarias(hospedagemId, diarias, valores);
     double totalDiarias = valores.stream().mapToDouble(Double::doubleValue).sum();
-    hospedagemRepository.atualizarValorTotal(hospedagemId, totalDiarias);
+
+    // Reaplica o ajuste manual de preço (desconto/adicional) vigente sobre o novo total de diárias,
+    // para que o desconto seja considerado ao adicionar/remover diárias.
+    HospedagemNovoPreco novoPreco = hospedagemRepository.buscarNovoPreco(hospedagemId);
+    double totalFinal = aplicarNovoPrecoAoTotal(totalDiarias, diarias.size(), novoPreco);
+    if (novoPreco != null && novoPreco.valor_diaria() != null) {
+      // Modo "valor por diária": todas as diárias passam a valer o valor definido.
+      hospedagemRepository.sobrescreverValorDiarias(hospedagemId, novoPreco.valor_diaria());
+    }
+    hospedagemRepository.atualizarValorTotal(hospedagemId, totalFinal);
+    if (novoPreco != null) {
+      // Mantém o snapshot do ajuste coerente com a nova quantidade de diárias e total.
+      HospedagemNovoPreco.Request snapshot =
+          new HospedagemNovoPreco.Request(
+              diarias.size(),
+              novoPreco.quantidade_pessoas(),
+              novoPreco.valor_diaria(),
+              novoPreco.porcentagem(),
+              novoPreco.valor_desconto(),
+              totalFinal,
+              null);
+      hospedagemRepository.salvarNovoPreco(hospedagemId, snapshot, getFuncionarioId());
+    }
 
     // Atualiza o período da hospedagem para abranger as novas diárias (menor checkin / maior
     // checkout), para que o card do quarto reflita as datas corretas.
@@ -304,13 +326,27 @@ public class HospedagemService {
     }
 
     log.info(
-        "Diárias da hospedagem {} atualizadas: {} diárias, total {}, período {} -> {}",
+        "Diárias da hospedagem {} atualizadas: {} diárias, total {} (base {}), período {} -> {}",
         hospedagemId,
         diarias.size(),
+        totalFinal,
         totalDiarias,
         novoCheckin,
         novoCheckout);
     return withDetails(hospedagemRepository.buscarPorId(hospedagemId));
+  }
+
+  /**
+   * Aplica o ajuste manual de preço ("Gerenciar Preços") sobre um total base. O sinal já está
+   * embutido em {@code porcentagem}/{@code valor_desconto} (negativo = desconto). Modos mutuamente
+   * exclusivos: valor por diária, percentual ou valor absoluto sobre o total.
+   */
+  private double aplicarNovoPrecoAoTotal(double base, int qtdDiarias, HospedagemNovoPreco np) {
+    if (np == null) return base;
+    if (np.valor_diaria() != null) return np.valor_diaria() * qtdDiarias;
+    if (np.porcentagem() != null) return base + (base * np.porcentagem() / 100.0);
+    if (np.valor_desconto() != null) return base + np.valor_desconto();
+    return base;
   }
 
   // ── Status ───────────────────────────────────────────────────────────────────
@@ -467,6 +503,43 @@ public class HospedagemService {
         newPagamento.uuid(),
         grupoId,
         hospedagemIds);
+  }
+
+  /** Totais consolidados de um grupo (todas as hospedagens, independentemente do status). */
+  public record GrupoResumo(
+      Long grupo_id, int count, double total, double pago, double pendente) {}
+
+  public GrupoResumo buscarResumoGrupo(Long grupoId) {
+    List<Long> ids = hospedagemRepository.buscarHospedagemIdsPorGrupo(grupoId);
+    if (ids == null || ids.isEmpty()) return new GrupoResumo(grupoId, 0, 0.0, 0.0, 0.0);
+    List<Hospedagem> membros =
+        withDetailsBatch(ids.stream().map(hospedagemRepository::buscarPorId).toList());
+
+    double total = 0.0;
+    double pago = 0.0;
+    Set<UUID> pagamentosVistos = new HashSet<>();
+    for (Hospedagem h : membros) {
+      double consumoSum =
+          h.consumos() == null
+              ? 0.0
+              : h.consumos().stream()
+                  .filter(c -> !Boolean.TRUE.equals(c.cancelado()))
+                  .mapToDouble(c -> c.valor() == null ? 0.0 : c.valor())
+                  .sum();
+      total += (h.valor_total() == null ? 0.0 : h.valor_total()) + consumoSum;
+
+      if (h.pagamentos() != null) {
+        for (Pagamento p : h.pagamentos()) {
+          if (Boolean.TRUE.equals(p.cancelado())) continue;
+          if (!pagamentosVistos.add(p.uuid())) continue; // pagamento de grupo aparece em vários
+          String tipo = p.tipo_pagamento() != null ? p.tipo_pagamento().descricao() : null;
+          if (tipo == null || !tipo.equalsIgnoreCase("PENDENTE")) {
+            pago += p.valor() == null ? 0.0 : p.valor();
+          }
+        }
+      }
+    }
+    return new GrupoResumo(grupoId, membros.size(), total, pago, Math.max(0.0, total - pago));
   }
 
   @Transactional
@@ -747,15 +820,22 @@ public class HospedagemService {
   @Transactional
   protected void calcularDiarias(Long hospedagemId, Hospedagem.Request request) {
     List<Hospedagem.Diaria.Request> diarias = new ArrayList<>();
-    var dataInicio = request.data_hora_checkin();
+    LocalDateTime checkin = request.data_hora_checkin();
+    LocalDateTime checkout = request.data_hora_checkout();
+    // Hora de checkout (definida pela categoria) — usada como fim de cada diária para não carregar
+    // a hora de check-in (ex.: 19:00) para o fim da diária e gerar conflito de quarto.
+    java.time.LocalTime horaCheckout = checkout.toLocalTime();
     int total_diarias =
-        Period.between(dataInicio.toLocalDate(), request.data_hora_checkout().toLocalDate())
-            .getDays();
+        Period.between(checkin.toLocalDate(), checkout.toLocalDate()).getDays();
+    LocalDateTime inicioDiaria = checkin;
     for (int i = 0; i < total_diarias; i++) {
+      // Cada diária encerra no dia seguinte, na hora de checkout; a próxima começa nesse mesmo ponto.
+      LocalDateTime fimDiaria =
+          LocalDateTime.of(checkin.toLocalDate().plusDays(i + 1L), horaCheckout);
       diarias.add(
           new Hospedagem.Diaria.Request(
-              request.quarto_id(), dataInicio, dataInicio.plusDays(1), false, request.pessoas()));
-      dataInicio = dataInicio.plusDays(1);
+              request.quarto_id(), inicioDiaria, fimDiaria, false, request.pessoas()));
+      inicioDiaria = fimDiaria;
     }
     adicionarDiarias(hospedagemId, diarias);
   }

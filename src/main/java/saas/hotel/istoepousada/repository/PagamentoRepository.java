@@ -195,15 +195,4 @@ public class PagamentoRepository {
         funcionarioId,
         motivo);
   }
-
-  public Boolean existsDescontoByPagamentoUuid(UUID uuid) {
-    return jdbcTemplate.queryForObject(
-        """
-                SELECT COUNT(*) > 0
-                FROM pagamento_desconto
-                WHERE fk_pagamento = ?
-                """,
-        Boolean.class,
-        uuid);
-  }
 }

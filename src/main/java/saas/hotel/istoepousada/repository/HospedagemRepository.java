@@ -1193,7 +1193,7 @@ public class HospedagemRepository {
                         FROM public.diaria d
                         JOIN public.hospedagem h ON h.id = d.fk_hospedagem
                         WHERE h.status::hospedagem_status IN (
-                            'PERNOITE_ATIVO', 'PERNOITE_FINALIZADO_PAGAMENTO_PENDENTE',
+                            'PERNOITE_ATIVO',
                             'RESERVA_ATIVA', 'RESERVA_SOLICITADA',
                             'DAY_USE_ATIVO', 'DAY_USE_SOLICITADO'
                         )

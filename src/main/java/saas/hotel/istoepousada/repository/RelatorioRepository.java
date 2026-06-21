@@ -51,14 +51,6 @@ public class RelatorioRepository {
                         tipo_pagamento.id                          AS tipo_pagamento_id,
                         tipo_pagamento.descricao                   AS tipo_pagamento_descricao,
 
-                        pagamento_desconto.id                      AS pagamento_desconto_id,
-                        pagamento_desconto.porcentagem             AS pagamento_desconto_porcentagem,
-                        pagamento_desconto.valor                   AS pagamento_desconto_valor,
-                        pagamento_desconto.data_hora_registro      AS pagamento_desconto_data_hora_registro,
-
-                        funcionario_pagamento_desconto.id          AS pagamento_desconto_funcionario_id,
-                        pessoa_funcionario_pagamento_desconto.nome AS pagamento_desconto_funcionario_nome,
-
                         mc.id                                      AS pagamento_motivo_id,
                         mc.motivo_cancelamento                     AS pagamento_motivo_cancelamento,
                         mc.data_hora_registro                      AS pagamento_motivo_data_hora_registro,
@@ -74,10 +66,6 @@ public class RelatorioRepository {
 
                     LEFT JOIN funcionario funcionario_pagamento ON funcionario_pagamento.id = pagamento.fk_funcionario
                     LEFT JOIN pessoa pessoa_funcionario_pagamento ON pessoa_funcionario_pagamento.id = funcionario_pagamento.fk_pessoa
-
-                    LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
-                    LEFT JOIN funcionario funcionario_pagamento_desconto ON funcionario_pagamento_desconto.id = pagamento_desconto.fk_funcionario
-                    LEFT JOIN pessoa pessoa_funcionario_pagamento_desconto ON pessoa_funcionario_pagamento_desconto.id = funcionario_pagamento_desconto.fk_pessoa
 
                     LEFT JOIN LATERAL (
                         SELECT * FROM public.pagamento_motivo_cancelamento
@@ -464,16 +452,14 @@ public class RelatorioRepository {
                          SELECT
                             relatorio.id,
                             COALESCE(pagamento.valor, 0) AS valor,
-                            tipo_pagamento.id AS tipo_id,
-                            pagamento_desconto.porcentagem AS desconto_porcentagem,
-                            pagamento_desconto.valor AS desconto_valor
+                            tipo_pagamento.id AS tipo_id
                         FROM relatorio
                         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
                         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-                        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
+
                         WHERE relatorio.data_hora > (SELECT data_hora FROM relatorio WHERE id = ?)
                            OR (relatorio.data_hora = (SELECT data_hora FROM relatorio WHERE id = ?) AND relatorio.id > ?)
-                        ORDER BY relatorio.data_hora ASC, relatorio.id ASC
+                        ORDER BY relatorio.data_hora, relatorio.id
                         """;
 
     List<Map<String, Object>> posteriores =
@@ -538,14 +524,7 @@ public class RelatorioRepository {
         entradas
             ? """
                         COALESCE(SUM(
-                          CASE WHEN pagamento.valor > 0 THEN
-                            CASE
-                              WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN
-                                pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
-                              WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN
-                                pagamento.valor - pagamento_desconto.valor
-                              ELSE pagamento.valor
-                            END
+                          CASE WHEN pagamento.valor > 0 THEN pagamento.valor
                           ELSE 0
                           END
                         ), 0)
@@ -569,7 +548,6 @@ public class RelatorioRepository {
                         FROM relatorio
                         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
                         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-                        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
                         WHERE 1 = 1
                         """
             + where.replaceFirst(" WHERE 1 = 1 ", "")
@@ -601,14 +579,7 @@ public class RelatorioRepository {
                           tipo_pagamento.id        AS tipo_id,
                           tipo_pagamento.descricao AS descricao,
                           COALESCE(SUM(
-                            CASE WHEN pagamento.valor > 0 THEN
-                              CASE
-                                WHEN pagamento_desconto.porcentagem IS NOT NULL AND pagamento_desconto.porcentagem > 0 THEN
-                                  pagamento.valor - (pagamento.valor * pagamento_desconto.porcentagem / 100)
-                                WHEN pagamento_desconto.valor IS NOT NULL AND pagamento_desconto.valor > 0 THEN
-                                  pagamento.valor - pagamento_desconto.valor
-                                ELSE pagamento.valor
-                              END
+                            CASE WHEN pagamento.valor > 0 THEN pagamento.valor
                             ELSE 0
                             END
                           ), 0) AS receitas,
@@ -620,7 +591,6 @@ public class RelatorioRepository {
                         FROM relatorio
                         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
                         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
-                        LEFT JOIN pagamento_desconto ON pagamento_desconto.fk_pagamento = pagamento.id
                         """
             + where
             + """

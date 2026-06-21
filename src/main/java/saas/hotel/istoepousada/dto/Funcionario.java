@@ -46,14 +46,6 @@ public record Funcionario(
               ? null
               : new Funcionario.Nome(funcionarioId, rs.getString("pagamento_funcionario_nome"));
         };
-    public static final RowMapper<Funcionario.Nome> ROW_MAPPER_PAGAMENTO_DESCONTO =
-        (rs, row_num) -> {
-          Long funcionarioId = rs.getObject("pagamento_desconto_funcionario_id", Long.class);
-          return funcionarioId == null
-              ? null
-              : new Funcionario.Nome(
-                  funcionarioId, rs.getString("pagamento_desconto_funcionario_nome"));
-        };
 
     public static final RowMapper<Funcionario.Nome> ROW_MAPPER_RELATORIO =
         (rs, row_num) -> {
