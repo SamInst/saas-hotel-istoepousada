@@ -85,6 +85,55 @@ public record Pessoa(
 
   public record Nome(@NotNull Long id, @NotNull String nome) {}
 
+  /**
+   * Projeção mínima para o auto-cadastro público (busca por CPF). Expõe apenas os campos que o
+   * formulário público precisa preencher — sem RG, data de registro, histórico de hospedagem,
+   * funcionário responsável, titular/acompanhantes ou empresas.
+   */
+  public record AutoCadastro(
+      @NotNull Long id,
+      @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_nascimento,
+      @NotNull String nome,
+      @NotNull String cpf,
+      String email,
+      String telefone,
+      String profissao,
+      Integer sexo,
+      String pais,
+      String estado,
+      String municipio,
+      String endereco,
+      String complemento,
+      String cep,
+      String bairro,
+      String numero,
+      Status status,
+      List<Veiculo> veiculos_vinculados) {}
+
+  /**
+   * Requisição do auto-cadastro público (upsert por CPF). Contém apenas os campos que o próprio
+   * hóspede pode informar — sem {@code id}, {@code status}, {@code funcionario}, {@code titular} ou
+   * {@code empresas}: esses são controlados pelo servidor, evitando IDOR e mass-assignment.
+   */
+  public record AutoCadastroRequest(
+      @NotNull String nome,
+      @NotNull @JsonFormat(pattern = "dd/MM/yyyy") LocalDate data_nascimento,
+      @NotNull String cpf,
+      String email,
+      @NotNull String telefone,
+      @NotNull String cep,
+      String profissao,
+      String rg,
+      String pais,
+      String estado,
+      String municipio,
+      String endereco,
+      String complemento,
+      String bairro,
+      Integer sexo,
+      String numero,
+      List<Veiculo.Update> veiculos) {}
+
   public record DadosPrincipais(
       @NotNull Long id,
       @NotNull String nome,

@@ -11,18 +11,25 @@ public class WebConfig implements WebMvcConfigurer {
   private final JwtInterceptor jwtInterceptor;
   private final PermissionInterceptor permissionInterceptor;
   private final CalendarBroadcastInterceptor calendarBroadcastInterceptor;
+  private final RateLimitInterceptor rateLimitInterceptor;
 
   public WebConfig(
       JwtInterceptor jwtInterceptor,
       PermissionInterceptor permissionInterceptor,
-      CalendarBroadcastInterceptor calendarBroadcastInterceptor) {
+      CalendarBroadcastInterceptor calendarBroadcastInterceptor,
+      RateLimitInterceptor rateLimitInterceptor) {
     this.jwtInterceptor = jwtInterceptor;
     this.permissionInterceptor = permissionInterceptor;
     this.calendarBroadcastInterceptor = calendarBroadcastInterceptor;
+    this.rateLimitInterceptor = rateLimitInterceptor;
   }
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
+    // Rate limiting dos endpoints públicos de auto-cadastro — roda antes de tudo.
+    registry
+        .addInterceptor(rateLimitInterceptor)
+        .addPathPatterns("/pessoa/auto-cadastro", "/pessoa/cpf/**");
     registry
         .addInterceptor(jwtInterceptor)
         .addPathPatterns("/**")

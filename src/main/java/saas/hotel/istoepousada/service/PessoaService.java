@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -22,6 +23,10 @@ import saas.hotel.istoepousada.repository.PessoaRepository;
 public class PessoaService {
 
   private static final Logger log = LoggerFactory.getLogger(PessoaService.class);
+
+  private static final Pattern EMAIL_RE = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+  // Placa: AAA0A00 (Mercosul) ou AAA0000 (antiga)
+  private static final Pattern PLACA_RE = Pattern.compile("^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$");
 
   private final PessoaRepository pessoaRepository;
   private final EmpresaService empresaService;
@@ -48,6 +53,151 @@ public class PessoaService {
     String placaNormalizada = StringUtils.hasText(placa) ? placa.trim() : null;
     return pessoaRepository.buscar(
         id, termoNormalizado, placaNormalizada, status, ordenacao, direcao, pageable);
+  }
+
+  /** Remove tudo que não for dígito de um CPF (máscara, espaços, etc.). */
+  public static String normalizarCpf(String cpf) {
+    return cpf == null ? "" : cpf.replaceAll("\\D", "");
+  }
+
+  /** Valida CPF (11 dígitos + dígitos verificadores). Aceita valor com ou sem máscara. */
+  public static boolean cpfValido(String cpf) {
+    String n = normalizarCpf(cpf);
+    if (n.length() != 11) return false;
+    if (n.chars().distinct().count() == 1) return false; // todos os dígitos iguais
+
+    int soma = 0;
+    for (int i = 0; i < 9; i++) soma += (n.charAt(i) - '0') * (10 - i);
+    int dv1 = (soma * 10) % 11;
+    if (dv1 >= 10) dv1 = 0;
+    if (dv1 != n.charAt(9) - '0') return false;
+
+    soma = 0;
+    for (int i = 0; i < 10; i++) soma += (n.charAt(i) - '0') * (11 - i);
+    int dv2 = (soma * 10) % 11;
+    if (dv2 >= 10) dv2 = 0;
+    return dv2 == n.charAt(10) - '0';
+  }
+
+  /**
+   * Busca pública por CPF exato para o auto-cadastro. Retorna a projeção mínima {@link
+   * Pessoa.AutoCadastro} ou {@code null} se o CPF não estiver cadastrado.
+   */
+  public Pessoa.AutoCadastro buscarPorCpf(String cpf) {
+    return pessoaRepository.buscarPorCpf(normalizarCpf(cpf));
+  }
+
+  /**
+   * Auto-cadastro público (upsert pela chave natural CPF). O id alvo é resolvido no servidor a
+   * partir do CPF (nunca recebido do cliente → sem IDOR) e os campos privilegiados (status,
+   * funcionário, titular, empresas) são forçados/ignorados (sem mass-assignment).
+   */
+  @Transactional
+  public Pessoa.AutoCadastro autoCadastro(Pessoa.AutoCadastroRequest req) {
+    if (req == null) {
+      throw new IllegalArgumentException("Dados do cadastro são obrigatórios.");
+    }
+    String cpf = normalizarCpf(req.cpf());
+    if (!cpfValido(cpf)) {
+      throw new IllegalArgumentException("CPF inválido.");
+    }
+    validarAutoCadastro(req);
+
+    List<Veiculo.Update> veiculos = req.veiculos() == null ? List.of() : req.veiculos();
+    Long existingId = pessoaRepository.findIdByCpf(cpf);
+
+    if (existingId != null) {
+      // Atualiza o registro do próprio CPF — id derivado no servidor.
+      Pessoa.Update update =
+          new Pessoa.Update(
+              existingId,
+              req.data_nascimento(),
+              req.nome(),
+              cpf,
+              req.rg(),
+              req.email(),
+              req.telefone(),
+              req.pais(),
+              req.estado(),
+              req.municipio(),
+              req.endereco(),
+              req.complemento(),
+              req.cep(),
+              req.bairro(),
+              req.sexo(),
+              req.numero(),
+              Pessoa.Status.ATIVO, // status forçado
+              veiculos,
+              null, // funcionario (ignorado pelo repositório)
+              null, // titular (sem vínculo)
+              req.profissao(),
+              null); // empresas (sem vínculo)
+      atualizarPessoa(update);
+    } else {
+      List<Veiculo> veiculosNovos =
+          veiculos.stream()
+              .map(v -> new Veiculo(v.id(), v.modelo(), v.marca(), v.ano(), v.placa(), v.cor()))
+              .toList();
+      Pessoa.Request request =
+          new Pessoa.Request(
+              req.nome(),
+              req.data_nascimento(),
+              cpf,
+              req.email(),
+              req.telefone(),
+              req.cep(),
+              req.profissao(),
+              req.rg(),
+              req.pais(),
+              req.estado(),
+              req.municipio(),
+              req.endereco(),
+              req.complemento(),
+              req.bairro(),
+              req.sexo(),
+              req.numero(),
+              Pessoa.Status.ATIVO, // status forçado
+              veiculosNovos,
+              null, // funcionario
+              null, // titular
+              null); // acompanhantes
+      salvarListaPessoas(new Pessoa.BatchRequest(List.of(request), null));
+    }
+
+    return pessoaRepository.buscarPorCpf(cpf);
+  }
+
+  /** Validação de formato/completude do auto-cadastro público (não confia no cliente). */
+  private void validarAutoCadastro(Pessoa.AutoCadastroRequest req) {
+    if (!StringUtils.hasText(req.nome())) {
+      throw new IllegalArgumentException("Nome é obrigatório.");
+    }
+    if (req.data_nascimento() == null) {
+      throw new IllegalArgumentException("Data de nascimento é obrigatória.");
+    }
+    if (req.data_nascimento().isAfter(LocalDate.now())) {
+      throw new IllegalArgumentException("Data de nascimento inválida.");
+    }
+    String tel = req.telefone() == null ? "" : req.telefone().replaceAll("\\D", "");
+    if (tel.length() != 10 && tel.length() != 11) {
+      throw new IllegalArgumentException("Telefone inválido.");
+    }
+    String cep = req.cep() == null ? "" : req.cep().replaceAll("\\D", "");
+    if (cep.length() != 8) {
+      throw new IllegalArgumentException("CEP inválido.");
+    }
+    if (StringUtils.hasText(req.email()) && !EMAIL_RE.matcher(req.email().trim()).matches()) {
+      throw new IllegalArgumentException("E-mail inválido.");
+    }
+    if (req.veiculos() != null) {
+      for (Veiculo.Update v : req.veiculos()) {
+        String placa =
+            v.placa() == null ? "" : v.placa().replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        if (!PLACA_RE.matcher(placa).matches()) {
+          throw new IllegalArgumentException("Placa inválida.");
+        }
+      }
+    }
   }
 
   public Pessoa findById(Long id) {
