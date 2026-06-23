@@ -515,16 +515,30 @@ public class HospedagemService {
     List<Hospedagem> membros =
         withDetailsBatch(ids.stream().map(hospedagemRepository::buscarPorId).toList());
 
+    Set<Hospedagem.Status> cancelados =
+        EnumSet.of(
+            Hospedagem.Status.RESERVA_CANCELADA,
+            Hospedagem.Status.PERNOITE_CANCELADO,
+            Hospedagem.Status.DAY_USE_CANCELADO,
+            Hospedagem.Status.ORCAMENTO_CANCELADO);
+
     double total = 0.0;
     double pago = 0.0;
+    int considerados = 0;
     Set<UUID> pagamentosVistos = new HashSet<>();
     for (Hospedagem h : membros) {
+      if (cancelados.contains(h.status())) continue; // hospedagens canceladas não entram no total
+      considerados++;
       double consumoSum =
           h.consumos() == null
               ? 0.0
               : h.consumos().stream()
                   .filter(c -> !Boolean.TRUE.equals(c.cancelado()))
-                  .mapToDouble(c -> c.valor() == null ? 0.0 : c.valor())
+                  // valor é o preço unitário; o total da linha é valor * quantidade.
+                  .mapToDouble(
+                      c ->
+                          (c.valor() == null ? 0.0 : c.valor())
+                              * (c.quantidade() == null ? 0.0 : c.quantidade()))
                   .sum();
       total += (h.valor_total() == null ? 0.0 : h.valor_total()) + consumoSum;
 
@@ -539,7 +553,7 @@ public class HospedagemService {
         }
       }
     }
-    return new GrupoResumo(grupoId, membros.size(), total, pago, Math.max(0.0, total - pago));
+    return new GrupoResumo(grupoId, considerados, total, pago, Math.max(0.0, total - pago));
   }
 
   @Transactional

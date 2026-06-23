@@ -26,38 +26,14 @@ public class EnderecoService {
         throw new NotFoundException("CEP não encontrado ou invalido");
       }
 
-      Objeto pais =
-          localidadeRepository
-              .buscarPaisPorNome("Brasil")
-              .orElseThrow(
-                  () -> new NotFoundException("País 'Brasil' não encontrado no banco de dados"));
-
-      Objeto estado =
-          localidadeRepository
-              .buscarEstadoPorNome(viaCep.estado())
-              .orElseThrow(
-                  () ->
-                      new NotFoundException(
-                          "Estado '" + viaCep.estado() + "' não encontrado no banco de dados"));
-
-      Objeto municipio =
-          localidadeRepository
-              .buscarMunicipioPorNome(viaCep.localidade(), estado.id())
-              .orElseThrow(
-                  () ->
-                      new NotFoundException(
-                          "Município '"
-                              + viaCep.localidade()
-                              + "' não encontrado no banco de dados"));
-
       return new Endereco(
           viaCep.cep().replaceAll("\\D", ""),
           viaCep.logradouro(),
           viaCep.bairro(),
           viaCep.complemento(),
-          pais,
-          estado,
-          municipio);
+          "BRASIL",
+          viaCep.estado() != null ? viaCep.estado().toUpperCase() : "N/A",
+          viaCep.localidade() != null ? viaCep.localidade().toUpperCase() : "N/A");
 
     } catch (RestClientException e) {
       throw new UnavaiableException("Erro ao consultar CEP na API ViaCEP: " + e.getMessage(), e);

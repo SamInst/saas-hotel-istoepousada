@@ -5,6 +5,6 @@ public record Endereco(
     String endereco,
     String bairro,
     String complemento,
-    Objeto pais,
-    Objeto estado,
-    Objeto municipio) {}
+    String pais,
+    String estado,
+    String municipio) {}

@@ -625,6 +625,114 @@ public class PessoaRepository {
     }
   }
 
+  /**
+   * Busca enxuta por CPF exato para o auto-cadastro público. Retorna apenas a projeção {@link
+   * Pessoa.AutoCadastro} (com os veículos vinculados ativos) ou {@code null} se não houver pessoa
+   * com o CPF informado. Não suporta busca por nome/termo — evitando enumeração.
+   */
+  public Pessoa.AutoCadastro buscarPorCpf(String cpf) {
+    String sql =
+        """
+        SELECT
+            p.id              AS pessoa_id,
+            p.nome            AS pessoa_nome,
+            p.data_nascimento AS pessoa_data_nascimento,
+            p.cpf             AS pessoa_cpf,
+            p.email           AS pessoa_email,
+            p.telefone        AS pessoa_telefone,
+            p.profissao       AS pessoa_profissao,
+            p.sexo            AS pessoa_sexo,
+            p.pais            AS pessoa_pais,
+            p.estado          AS pessoa_estado,
+            p.municipio       AS pessoa_municipio,
+            p.endereco        AS pessoa_endereco,
+            p.complemento     AS pessoa_complemento,
+            p.cep             AS pessoa_cep,
+            p.bairro          AS pessoa_bairro,
+            p.numero          AS pessoa_numero,
+            p.status          AS pessoa_status,
+            v.id              AS veiculo_id,
+            v.modelo          AS veiculo_modelo,
+            v.marca           AS veiculo_marca,
+            v.ano             AS veiculo_ano,
+            v.placa           AS veiculo_placa,
+            v.cor             AS veiculo_cor
+        FROM pessoa p
+            LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id AND pv.vinculo_ativo = true
+            LEFT JOIN veiculo v ON v.id = pv.veiculo_id
+        WHERE p.cpf = ?
+        """;
+
+    return jdbcTemplate.query(
+        sql,
+        rs -> {
+          Pessoa.AutoCadastro base = null;
+          Map<Long, Veiculo> veiculos = new LinkedHashMap<>();
+          int rowNum = 0;
+          while (rs.next()) {
+            if (base == null) {
+              base =
+                  new Pessoa.AutoCadastro(
+                      rs.getLong("pessoa_id"),
+                      rs.getObject("pessoa_data_nascimento", LocalDate.class),
+                      rs.getString("pessoa_nome"),
+                      rs.getString("pessoa_cpf"),
+                      rs.getString("pessoa_email"),
+                      rs.getString("pessoa_telefone"),
+                      rs.getString("pessoa_profissao"),
+                      rs.getObject("pessoa_sexo", Integer.class),
+                      rs.getString("pessoa_pais"),
+                      rs.getString("pessoa_estado"),
+                      rs.getString("pessoa_municipio"),
+                      rs.getString("pessoa_endereco"),
+                      rs.getString("pessoa_complemento"),
+                      rs.getString("pessoa_cep"),
+                      rs.getString("pessoa_bairro"),
+                      rs.getString("pessoa_numero"),
+                      Pessoa.Status.map(rs.getString("pessoa_status")),
+                      null);
+            }
+            Veiculo veiculo = Veiculo.ROW_MAPPER.mapRow(rs, rowNum++);
+            if (veiculo != null) {
+              veiculos.putIfAbsent(veiculo.id(), veiculo);
+            }
+          }
+          if (base == null) {
+            return null;
+          }
+          return new Pessoa.AutoCadastro(
+              base.id(),
+              base.data_nascimento(),
+              base.nome(),
+              base.cpf(),
+              base.email(),
+              base.telefone(),
+              base.profissao(),
+              base.sexo(),
+              base.pais(),
+              base.estado(),
+              base.municipio(),
+              base.endereco(),
+              base.complemento(),
+              base.cep(),
+              base.bairro(),
+              base.numero(),
+              base.status(),
+              new ArrayList<>(veiculos.values()));
+        },
+        cpf);
+  }
+
+  /** Resolve o id a partir do CPF (chave natural). Retorna {@code null} se não houver cadastro. */
+  public Long findIdByCpf(String cpf) {
+    List<Long> ids =
+        jdbcTemplate.query(
+            "SELECT id FROM pessoa WHERE cpf = ? ORDER BY id LIMIT 1",
+            (rs, rowNum) -> rs.getLong("id"),
+            cpf);
+    return ids.isEmpty() ? null : ids.get(0);
+  }
+
   public Boolean cpfJaExiste(String cpf) {
     return jdbcTemplate.queryForObject(
         """
