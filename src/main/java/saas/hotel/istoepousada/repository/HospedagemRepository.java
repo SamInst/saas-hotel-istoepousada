@@ -1209,21 +1209,16 @@ public class HospedagemRepository {
                               )
                         ORDER BY
                             d.fk_quarto,
-                            CASE
-                              WHEN h.status::hospedagem_status = 'PERNOITE_ATIVO'  THEN 0
-                              WHEN (d.checkin::date <= ? AND d.checkout::date > ?) THEN 1
-                              WHEN h.status::hospedagem_status = 'RESERVA_ATIVA'   THEN 2
-                              ELSE 3
-                            END,
-                            ABS(d.checkin::date - ?::date),
-                            h.data_hora_checkin DESC
+                            -- Pernoite ativo é o principal do quarto.
+                            CASE WHEN h.status::hospedagem_status = 'PERNOITE_ATIVO' THEN 0 ELSE 1 END,
+                            -- Reservas: respeita a fila — mostra a próxima/mais antiga relevante
+                            -- (a que está acontecendo hoje ou ficou para trás), nunca a última.
+                            d.checkin::date,
+                            h.data_hora_checkin
                         """,
         rs -> {
           quartoParaHospedagem.put(rs.getLong("quarto_id"), rs.getLong("hospedagem_id"));
         },
-        data,
-        data,
-        data,
         data,
         data,
         data);
