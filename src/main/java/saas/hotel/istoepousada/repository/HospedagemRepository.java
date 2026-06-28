@@ -512,6 +512,14 @@ public class HospedagemRepository {
         });
   }
 
+  /** Define a pessoa informada como titular (representante) da hospedagem; as demais deixam de ser. */
+  public int definirTitular(Long hospedagemId, Long pessoaId) {
+    return jdbcTemplate.update(
+        "UPDATE hospedagem_pessoa SET representante = (pessoa_id = ?) WHERE hospedagem_id = ?",
+        pessoaId,
+        hospedagemId);
+  }
+
   public List<Long> filtrarPessoasExistentes(Long hospedagemId, List<Long> pessoasIds) {
     return jdbcTemplate.queryForList(
         """
@@ -723,6 +731,12 @@ public class HospedagemRepository {
         request.porcentagem(),
         request.valor_desconto(),
         funcionarioId);
+  }
+
+  /** Remove o ajuste manual de preço (desconto) da hospedagem, se houver. */
+  public void deletarNovoPreco(Long hospedagemId) {
+    jdbcTemplate.update(
+        "DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
   }
 
   public void atualizarValorTotal(Long hospedagemId, Double valorTotal) {

@@ -792,6 +792,7 @@ public class PessoaRepository {
         FROM pessoa p
         JOIN hospedagem_pessoa hp ON hp.pessoa_id = p.id
         WHERE hp.hospedagem_id = ?
+        ORDER BY hp.representante DESC, p.nome
         """;
     try {
       return jdbcTemplate.query(sql, Pessoa.DadosPrincipais.ROW_MAPPER, hospedagemId);
@@ -818,6 +819,7 @@ public class PessoaRepository {
         FROM pessoa p
         JOIN hospedagem_pessoa hp ON hp.pessoa_id = p.id
         WHERE hp.hospedagem_id IN (%s)
+        ORDER BY hp.hospedagem_id, hp.representante DESC, p.nome
         """
             .formatted(in);
     Map<Long, List<Pessoa.DadosPrincipais>> result = new java.util.LinkedHashMap<>();
