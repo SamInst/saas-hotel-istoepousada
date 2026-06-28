@@ -167,13 +167,19 @@ public class HospedagemController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void adicionarPessoas(
       @PathVariable Long hospedagemId, @RequestBody List<Long> pessoasIds) {
-    hospedagemService.adicionarPessoas(hospedagemId, pessoasIds);
+    hospedagemService.adicionarPessoasReserva(hospedagemId, pessoasIds);
   }
 
   @DeleteMapping("/{hospedagemId}/pessoas")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void removerPessoas(@PathVariable Long hospedagemId, @RequestBody List<Long> pessoasIds) {
-    hospedagemService.removerPessoas(hospedagemId, pessoasIds);
+    hospedagemService.removerPessoasReserva(hospedagemId, pessoasIds);
+  }
+
+  @PutMapping("/{hospedagemId}/titular/{pessoaId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void definirTitular(@PathVariable Long hospedagemId, @PathVariable Long pessoaId) {
+    hospedagemService.definirTitular(hospedagemId, pessoaId);
   }
 
   // ── Cancelamento ─────────────────────────────────────────────────────────────

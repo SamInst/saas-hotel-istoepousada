@@ -3,6 +3,7 @@ package saas.hotel.istoepousada.service;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -59,14 +60,13 @@ public class HospedagemService {
               boolean disponivel;
 
               // Apenas estados físicos independentes de data bloqueiam o intervalo inteiro.
-              // OCUPADO é a ocupação atual do quarto: ela já está representada pelas
-              // reservas/diárias, então é resolvida pela verificação de conflito por datas (senão
-              // um
-              // quarto ocupado hoje apareceria indisponível para datas futuras livres, divergindo
-              // do
-              // calendário).
+              // OCUPADO e LIMPEZA são estados transitórios do "agora": OCUPADO já está
+              // representado pelas reservas/diárias e LIMPEZA se resolve em horas (o quarto
+              // estará limpo muito antes de uma estadia futura). Ambos são resolvidos pela
+              // verificação de conflito por datas — senão um quarto ocupado/em limpeza hoje
+              // apareceria indisponível para datas futuras livres, divergindo do calendário.
+              // Só MANUTENCAO e FORA_DE_SERVICO retiram o quarto de serviço por completo.
               if (statusFisico == Quarto.Status.MANUTENCAO
-                  || statusFisico == Quarto.Status.LIMPEZA
                   || statusFisico == Quarto.Status.FORA_DE_SERVICO) {
                 statusEfetivo = statusFisico;
                 disponivel = false;
@@ -232,52 +232,7 @@ public class HospedagemService {
         });
 
     // Calcula o preço de cada diária (considerando as pessoas/idades de cada uma).
-    Set<Long> todasPessoasIds =
-        diarias.stream()
-            .filter(d -> d.pessoas() != null)
-            .flatMap(d -> d.pessoas().stream())
-            .collect(Collectors.toSet());
-    Map<Long, LocalDate> dataNascimentoPorPessoa =
-        todasPessoasIds.isEmpty()
-            ? Map.of()
-            : pessoaService.findDataNascimentoByIds(todasPessoasIds);
-
-    List<CalcularPreco.Request> calcularPrecoRequests = new ArrayList<>();
-    for (var d : diarias) {
-      List<LocalDate> datasNascimento =
-          d.pessoas() == null
-              ? List.of()
-              : d.pessoas().stream()
-                  .map(dataNascimentoPorPessoa::get)
-                  .filter(Objects::nonNull)
-                  .toList();
-      // Meia diária: checkin/checkout caem no mesmo dia → o cálculo retorna 1 diária; usamos a
-      // data de entrada + 1 para garantir o preço de uma diária cheia e depois dividimos por 2.
-      boolean meia = Boolean.TRUE.equals(d.meia_diaria());
-      LocalDate dataEntrada = d.checkin().toLocalDate();
-      LocalDate dataSaida = meia ? dataEntrada.plusDays(1) : d.checkout().toLocalDate();
-      calcularPrecoRequests.add(
-          new CalcularPreco.Request(
-              d.quarto_id(), dataEntrada, dataSaida, datasNascimento, null, null));
-    }
-    List<Double> precosCheios =
-        calcularPrecoService.calcularPreco(calcularPrecoRequests).stream()
-            .map(CalcularPreco.Resultado::valor_total)
-            .toList();
-    List<Double> valores = new ArrayList<>(precosCheios.size());
-    for (int i = 0; i < diarias.size(); i++) {
-      boolean meia = Boolean.TRUE.equals(diarias.get(i).meia_diaria());
-      double cheio = precosCheios.get(i) == null ? 0.0 : precosCheios.get(i);
-      double v = meia ? cheio / 2.0 : cheio;
-      log.info(
-          "Diária {} do quarto {}: meia_diaria={}, valor_cheio={}, valor_final={}",
-          i + 1,
-          diarias.get(i).quarto_id(),
-          meia,
-          cheio,
-          v);
-      valores.add(v);
-    }
+    List<Double> valores = precificarDiarias(diarias);
 
     // Substitui as diárias e recalcula o total da hospedagem.
     hospedagemRepository.deletarDiarias(hospedagemId);
@@ -347,6 +302,95 @@ public class HospedagemService {
     if (np.porcentagem() != null) return base + (base * np.porcentagem() / 100.0);
     if (np.valor_desconto() != null) return base + np.valor_desconto();
     return base;
+  }
+
+  /**
+   * Calcula o valor de cada diária (considerando as pessoas/idades de cada uma), respeitando a
+   * meia diária (preço de uma diária cheia dividido por 2). Não persiste nada.
+   */
+  private List<Double> precificarDiarias(List<Hospedagem.Diaria.Request> diarias) {
+    Set<Long> todasPessoasIds =
+        diarias.stream()
+            .filter(d -> d.pessoas() != null)
+            .flatMap(d -> d.pessoas().stream())
+            .collect(Collectors.toSet());
+    Map<Long, LocalDate> dataNascimentoPorPessoa =
+        todasPessoasIds.isEmpty()
+            ? Map.of()
+            : pessoaService.findDataNascimentoByIds(todasPessoasIds);
+
+    List<CalcularPreco.Request> calcularPrecoRequests = new ArrayList<>();
+    for (var d : diarias) {
+      List<LocalDate> datasNascimento =
+          d.pessoas() == null
+              ? List.of()
+              : d.pessoas().stream()
+                  .map(dataNascimentoPorPessoa::get)
+                  .filter(Objects::nonNull)
+                  .toList();
+      // Meia diária: checkin/checkout caem no mesmo dia → o cálculo retorna 1 diária; usamos a
+      // data de entrada + 1 para garantir o preço de uma diária cheia e depois dividimos por 2.
+      boolean meia = Boolean.TRUE.equals(d.meia_diaria());
+      LocalDate dataEntrada = d.checkin().toLocalDate();
+      LocalDate dataSaida = meia ? dataEntrada.plusDays(1) : d.checkout().toLocalDate();
+      calcularPrecoRequests.add(
+          new CalcularPreco.Request(
+              d.quarto_id(), dataEntrada, dataSaida, datasNascimento, null, null));
+    }
+    List<Double> precosCheios =
+        calcularPrecoService.calcularPreco(calcularPrecoRequests).stream()
+            .map(CalcularPreco.Resultado::valor_total)
+            .toList();
+    List<Double> valores = new ArrayList<>(precosCheios.size());
+    for (int i = 0; i < diarias.size(); i++) {
+      boolean meia = Boolean.TRUE.equals(diarias.get(i).meia_diaria());
+      double cheio = precosCheios.get(i) == null ? 0.0 : precosCheios.get(i);
+      valores.add(meia ? cheio / 2.0 : cheio);
+    }
+    return valores;
+  }
+
+  /**
+   * Recalcula as diárias e o {@code valor_total} de uma reserva a partir do conjunto ATUAL de
+   * pessoas (todas as pessoas entram em todas as diárias, como na criação). Qualquer desconto/ajuste
+   * manual vigente é REMOVIDO — ao mudar as pessoas o desconto deve ser reaplicado manualmente.
+   * Atua somente sobre reservas (RESERVA_ATIVA / RESERVA_SOLICITADA); demais status ficam intactos.
+   */
+  private void recalcularPorPessoas(Long hospedagemId) {
+    Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
+    if (!EnumSet.of(Hospedagem.Status.RESERVA_ATIVA, Hospedagem.Status.RESERVA_SOLICITADA)
+        .contains(hospedagem.status())) {
+      return;
+    }
+    List<Hospedagem.Diaria> atuais = hospedagemRepository.listarDiarias(hospedagemId);
+    if (atuais.isEmpty()) return;
+    List<Long> pessoasIds = hospedagemRepository.buscarPessoasIds(hospedagemId);
+
+    List<Hospedagem.Diaria.Request> reqs =
+        atuais.stream()
+            .map(
+                d ->
+                    new Hospedagem.Diaria.Request(
+                        d.quarto() != null ? d.quarto().id() : null,
+                        d.checkin(),
+                        d.checkout(),
+                        d.meia_diaria(),
+                        pessoasIds))
+            .toList();
+
+    List<Double> valores = precificarDiarias(reqs);
+    hospedagemRepository.deletarDiarias(hospedagemId);
+    hospedagemRepository.adicionarDiarias(hospedagemId, reqs, valores);
+    double total = valores.stream().mapToDouble(Double::doubleValue).sum();
+    hospedagemRepository.atualizarValorTotal(hospedagemId, total);
+    // Mudança de pessoas remove o desconto/ajuste manual vigente.
+    hospedagemRepository.deletarNovoPreco(hospedagemId);
+
+    log.info(
+        "Recálculo por pessoas: hospedagem {} -> {} diárias, total {} (desconto removido)",
+        hospedagemId,
+        reqs.size(),
+        total);
   }
 
   // ── Status ───────────────────────────────────────────────────────────────────
@@ -452,6 +496,37 @@ public class HospedagemService {
     hospedagemRepository.adicionarPessoas(hospedagemId, pessoasPendentes);
   }
 
+  /**
+   * Adiciona pessoas a uma reserva (endpoint "Gerenciar Pessoas") e recalcula diárias/valor_total
+   * conforme a nova ocupação, removendo qualquer desconto vigente. Usado pelo controller; os fluxos
+   * internos de criação continuam usando {@link #adicionarPessoas} (sem recálculo).
+   */
+  @Transactional
+  public void adicionarPessoasReserva(Long hospedagemId, List<Long> pessoasIds) {
+    adicionarPessoas(hospedagemId, pessoasIds);
+    recalcularPorPessoas(hospedagemId);
+  }
+
+  /** Remove pessoas de uma reserva e recalcula diárias/valor_total (remove desconto vigente). */
+  @Transactional
+  public void removerPessoasReserva(Long hospedagemId, List<Long> pessoasIds) {
+    removerPessoas(hospedagemId, pessoasIds);
+    recalcularPorPessoas(hospedagemId);
+  }
+
+  /**
+   * Define outra pessoa como titular (representante) da hospedagem. A pessoa precisa já estar
+   * vinculada. Não altera preço — apenas quem é o titular.
+   */
+  @Transactional
+  public void definirTitular(Long hospedagemId, Long pessoaId) {
+    List<Long> vinculadas = hospedagemRepository.buscarPessoasIds(hospedagemId);
+    if (!vinculadas.contains(pessoaId)) {
+      throw new IllegalArgumentException("Pessoa não está vinculada a esta hospedagem.");
+    }
+    hospedagemRepository.definirTitular(hospedagemId, pessoaId);
+  }
+
   // ── Pagamentos ───────────────────────────────────────────────────────────────
 
   public void adicionarHospedagemPagamento(Long hospedagemId, List<UUID> pagamentosUUID) {
@@ -483,7 +558,7 @@ public class HospedagemService {
           var hospedagem = hospedagemRepository.buscarPorId(id);
           adicionarHospedagemPagamento(id, pagamentosUUID);
           adicionarRelatorioHospedagem(
-              hospedagem.quarto().id(), newPagamento, pagamento.arquivo(), hospedagem.status());
+              hospedagem.quarto().id(), newPagamento, pagamento.arquivo(), hospedagem.status(), null);
         });
     log.info("Pagamento {} adicionado às hospedagens {}", newPagamento.uuid(), hospedagemIds);
   }
@@ -498,6 +573,7 @@ public class HospedagemService {
     var newPagamento = pagamentoService.criar(pagamento);
     List<UUID> pagamentosUUID = List.of(newPagamento.uuid());
     hospedagemIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoId));
+    adicionarRelatorioHospedagem(null, newPagamento, pagamento.arquivo(), null, grupoId);
     log.info(
         "Pagamento {} adicionado ao grupo {} (hospedagens {})",
         newPagamento.uuid(),
@@ -568,15 +644,16 @@ public class HospedagemService {
           pagamento -> {
             var newPagamento = pagamentoService.criar(pagamento);
             pagamentosUUID.add(newPagamento.uuid());
-            adicionarRelatorioHospedagem(quartoId, newPagamento, pagamento.arquivo(), status);
+            adicionarRelatorioHospedagem(quartoId, newPagamento, pagamento.arquivo(), status, null);
           });
       adicionarHospedagemPagamento(hospedagemId, pagamentosUUID);
     }
   }
 
   public void adicionarRelatorioHospedagem(
-      Long quartoId, Pagamento pagamento, MultipartFile arquivo, Hospedagem.Status status) {
+      Long quartoId, Pagamento pagamento, MultipartFile arquivo, Hospedagem.Status status, Long grupoId) {
     String relatorio = "";
+
     switch (status) {
       case RESERVA_ATIVA ->
           relatorio =
@@ -597,6 +674,11 @@ public class HospedagemService {
                   + pagamento.nome_pagador()
                   + " | "
                   + pagamento.descricao();
+        case null -> { return; }
+        default -> throw new IllegalStateException("Unexpected value: " + status);
+    }
+    if (grupoId != null) {
+      relatorio = relatorio + " | Grupo #" + grupoId;
     }
 
     Relatorio.Request relatorioRequest =
@@ -838,7 +920,7 @@ public class HospedagemService {
     LocalDateTime checkout = request.data_hora_checkout();
     // Hora de checkout (definida pela categoria) — usada como fim de cada diária para não carregar
     // a hora de check-in (ex.: 19:00) para o fim da diária e gerar conflito de quarto.
-    java.time.LocalTime horaCheckout = checkout.toLocalTime();
+    LocalTime horaCheckout = checkout.toLocalTime();
     int total_diarias =
         Period.between(checkin.toLocalDate(), checkout.toLocalDate()).getDays();
     LocalDateTime inicioDiaria = checkin;
@@ -934,7 +1016,8 @@ public class HospedagemService {
                       firstWithPagamentos.quarto_id(),
                       newPagamento,
                       pagamento.arquivo(),
-                      firstWithPagamentos.status());
+                      firstWithPagamentos.status(),
+                           null);
                 });
         final Long grupoIdFinal = grupoId;
         resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoIdFinal));
@@ -1020,7 +1103,8 @@ public class HospedagemService {
                       firstWithPagamentos.quarto_id(),
                       newPagamento,
                       pagamento.arquivo(),
-                      firstWithPagamentos.status());
+                      firstWithPagamentos.status(),
+                          null);
                 });
         final Long grupoIdFinal = grupoId;
         resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoIdFinal));
@@ -1289,6 +1373,7 @@ public class HospedagemService {
   }
 
   /** Reservas de um quarto, paginadas. periodo: "anteriores" | "proximas" | null (mês/ano). */
+  @Transactional(readOnly = true)
   public PageResult<Hospedagem> buscarPorQuarto(
       Long quartoId, Integer mes, Integer ano, String periodo, int page, int size) {
     long total = hospedagemRepository.contarPorQuarto(quartoId, mes, ano, periodo);
