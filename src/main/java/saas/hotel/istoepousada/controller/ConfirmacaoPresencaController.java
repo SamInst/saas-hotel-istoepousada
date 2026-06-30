@@ -37,6 +37,7 @@ public class ConfirmacaoPresencaController {
   }
 
   @Operation(summary = "Listar confirmações de presença (para os anfitriões)")
+  @PublicEndpoint
   @GetMapping("/confirmacoes")
   public List<ConfirmacaoPresenca> listar() {
     return service.listar();
