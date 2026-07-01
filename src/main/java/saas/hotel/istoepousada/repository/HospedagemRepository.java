@@ -465,6 +465,28 @@ public class HospedagemRepository {
         "SELECT fk_hospedagem FROM hospedagem_grupo WHERE fk_grupo = ?", Long.class, grupoId);
   }
 
+  /** Resumo leve de um grupo existente para seleção ao vincular novas reservas. */
+  public record GrupoInfo(Long grupo_id, int count, String titulares) {}
+
+  /** Lista todos os grupos (id, quantidade de hospedagens e titulares), independentemente do mês. */
+  public List<GrupoInfo> listarGrupos() {
+    return jdbcTemplate.query(
+        """
+        SELECT hg.fk_grupo AS grupo_id,
+               COUNT(DISTINCT hg.fk_hospedagem) AS quantidade,
+               STRING_AGG(DISTINCT pessoa_titular.nome, ', ') AS titulares
+        FROM public.hospedagem_grupo hg
+        LEFT JOIN public.hospedagem_pessoa hp_titular
+               ON hp_titular.hospedagem_id = hg.fk_hospedagem AND hp_titular.representante = true
+        LEFT JOIN public.pessoa pessoa_titular ON pessoa_titular.id = hp_titular.pessoa_id
+        GROUP BY hg.fk_grupo
+        ORDER BY hg.fk_grupo DESC
+        """,
+        (rs, rowNum) ->
+            new GrupoInfo(
+                rs.getLong("grupo_id"), rs.getInt("quantidade"), rs.getString("titulares")));
+  }
+
   public List<Long> filtrarPessoasDuplicadas(Long hospedagemId, List<Long> pessoasIds) {
     List<Long> existentes =
         jdbcTemplate.queryForList(

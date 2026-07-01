@@ -43,7 +43,9 @@ public record Hospedagem(
       List<Consumo.Request> consumos,
       MotivoCancelamentoHospedagem.Request motivo_cancelamento,
       /* ajuste manual de preço aplicado na criação ("Gerenciar Preços"); opcional */
-      HospedagemNovoPreco.Request novo_preco) {}
+      HospedagemNovoPreco.Request novo_preco,
+      /* vincular a um grupo já existente (opcional); quando nulo, cria um novo grupo se houver >1 reserva */
+      Long grupo_id) {}
 
   public record Diaria(
       @NotNull Long id,
