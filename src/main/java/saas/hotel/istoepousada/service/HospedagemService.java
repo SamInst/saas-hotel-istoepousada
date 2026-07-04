@@ -467,7 +467,6 @@ public class HospedagemService {
   @Transactional
   public void alterarStatusComValidacao(Long hospedagemId, Hospedagem.Status novoStatus) {
     Hospedagem hospedagem = buscarPorId(hospedagemId);
-    System.out.println(hospedagem);
     validarTransicaoDeStatus(hospedagem.status(), novoStatus);
     alterarStatus(hospedagemId, novoStatus);
     if (novoStatus == Hospedagem.Status.PERNOITE_ATIVO) {
@@ -579,6 +578,18 @@ public class HospedagemService {
         newPagamento.uuid(),
         grupoId,
         hospedagemIds);
+  }
+
+  /** Lista todos os grupos existentes (para vincular novas reservas a um grupo já criado). */
+  public List<HospedagemRepository.GrupoInfo> listarGrupos() {
+    return hospedagemRepository.listarGrupos();
+  }
+
+  /** Todas as hospedagens de um grupo, com detalhes — independentemente do mês/data. */
+  public List<Hospedagem> buscarHospedagensGrupo(Long grupoId) {
+    List<Long> ids = hospedagemRepository.buscarHospedagemIdsPorGrupo(grupoId);
+    if (ids == null || ids.isEmpty()) return List.of();
+    return withDetailsBatch(ids.stream().map(hospedagemRepository::buscarPorId).toList());
   }
 
   /** Totais consolidados de um grupo (todas as hospedagens, independentemente do status). */
@@ -871,6 +882,7 @@ public class HospedagemService {
                       hospedagem.pessoas_orcamento(),
                       null,
                       null,
+                      null,
                       null);
               Hospedagem newHospedagem =
                   hospedagemRepository.insertHospedagem(insertRequest, getFuncionarioId());
@@ -949,7 +961,6 @@ public class HospedagemService {
       Long hospedagemId = request.hospedagem_id();
 
       if (hospedagemId != null) {
-        System.out.println("Hospedagem com id: " + hospedagemId + " foi encontrada. ");
         Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
         if (hospedagem.status().equals(Hospedagem.Status.RESERVA_ATIVA))
           throw new IllegalArgumentException("Reserva já ativa para esse quarto e data.");
@@ -986,9 +997,16 @@ public class HospedagemService {
       resolvedIds.add(resolvedId);
     }
 
-    // Phase 2 — link all reservations in a group when more than one was activated
+    // Phase 2 — link reservations to a group. Quando o request carrega um grupo_id existente,
+    // vincula a esse grupo; caso contrário, cria um novo grupo quando houver mais de uma reserva.
     Long grupoId = null;
-    if (resolvedIds.size() > 1) {
+    Long grupoExistente =
+        requests.stream().map(Hospedagem.Request::grupo_id).filter(g -> g != null).findFirst().orElse(null);
+    if (grupoExistente != null) {
+      grupoId = grupoExistente;
+      hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
+      log.info("Hospedagens {} vinculadas ao grupo existente {}", resolvedIds, grupoId);
+    } else if (resolvedIds.size() > 1) {
       grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Grupo {} criado para as hospedagens {}", grupoId, resolvedIds);
@@ -1074,9 +1092,16 @@ public class HospedagemService {
       resolvedIds.add(resolvedId);
     }
 
-    // Phase 2 — link all overnights in a group when more than one was created
+    // Phase 2 — link overnights to a group. Vincula a um grupo existente informado no request ou,
+    // na ausência dele, cria um novo grupo quando houver mais de um pernoite.
     Long grupoId = null;
-    if (resolvedIds.size() > 1) {
+    Long grupoExistente =
+        requests.stream().map(Hospedagem.Request::grupo_id).filter(g -> g != null).findFirst().orElse(null);
+    if (grupoExistente != null) {
+      grupoId = grupoExistente;
+      hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
+      log.info("Pernoites {} vinculados ao grupo existente {}", resolvedIds, grupoId);
+    } else if (resolvedIds.size() > 1) {
       grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Grupo {} criado para os pernoites {}", grupoId, resolvedIds);
@@ -1202,6 +1227,7 @@ public class HospedagemService {
             null,
             request.observacao(),
             request.valor_total(),
+            null,
             null,
             null,
             null,
@@ -1346,6 +1372,7 @@ public class HospedagemService {
                   null,
                   null,
                   0.0,
+                  null,
                   null,
                   null,
                   null,

@@ -11,6 +11,7 @@ import saas.hotel.istoepousada.dto.Item;
 import saas.hotel.istoepousada.dto.MotivoCancelamentoHospedagem;
 import saas.hotel.istoepousada.dto.Pagamento;
 import saas.hotel.istoepousada.dto.PageResult;
+import saas.hotel.istoepousada.repository.HospedagemRepository;
 import saas.hotel.istoepousada.service.HospedagemService;
 
 @RestController
@@ -44,6 +45,18 @@ public class HospedagemController {
   @GetMapping("/grupo/{grupoId}/resumo")
   public HospedagemService.GrupoResumo resumoGrupo(@PathVariable Long grupoId) {
     return hospedagemService.buscarResumoGrupo(grupoId);
+  }
+
+  /** Lista todos os grupos existentes (id, quantidade e titulares) — para vincular novas reservas. */
+  @GetMapping("/grupos")
+  public List<HospedagemRepository.GrupoInfo> listarGrupos() {
+    return hospedagemService.listarGrupos();
+  }
+
+  /** Todas as hospedagens de um grupo, independentemente do mês (para o painel do grupo). */
+  @GetMapping("/grupo/{grupoId}")
+  public List<Hospedagem> buscarGrupo(@PathVariable Long grupoId) {
+    return hospedagemService.buscarHospedagensGrupo(grupoId);
   }
 
   /** Reservas de um quarto, paginadas. periodo: "anteriores" | "proximas" | (vazio = mês/ano). */
