@@ -49,12 +49,14 @@ public record Relatorio(
         @NotNull Float lucro_total_dia,
         List<Relatorio> relatorios) {}
 
-    public record Resumo(@NotNull Float receitas, @NotNull Float despesas, @NotNull Float lucro) {
+    public record Resumo(
+        @NotNull Float receitas, @NotNull Float despesas, @NotNull Float lucro, @NotNull Integer amount) {
 
-      public static Resumo of(Float receitas, Float despesas) {
+      public static Resumo of(Float receitas, Float despesas, Integer amount) {
         Float r = receitas != null ? receitas : 0F;
         Float d = despesas != null ? despesas : 0F;
-        return new Resumo(r, d, r - d);
+        Integer a = amount != null ? amount : 0;
+        return new Resumo(r, d, r - d, a);
       }
     }
 
