@@ -47,7 +47,9 @@ public class HospedagemController {
     return hospedagemService.buscarResumoGrupo(grupoId);
   }
 
-  /** Lista todos os grupos existentes (id, quantidade e titulares) — para vincular novas reservas. */
+  /**
+   * Lista todos os grupos existentes (id, quantidade e titulares) — para vincular novas reservas.
+   */
   @GetMapping("/grupos")
   public List<HospedagemRepository.GrupoInfo> listarGrupos() {
     return hospedagemService.listarGrupos();
@@ -124,8 +126,8 @@ public class HospedagemController {
   }
 
   /**
-   * Substitui todas as diárias da hospedagem ("Gerenciar Diárias"). Cada diária pode ter seu próprio
-   * quarto e pessoas; os preços e o total são recalculados.
+   * Substitui todas as diárias da hospedagem ("Gerenciar Diárias"). Cada diária pode ter seu
+   * próprio quarto e pessoas; os preços e o total são recalculados.
    */
   @PutMapping("/{hospedagemId}/diarias")
   public Hospedagem atualizarDiarias(

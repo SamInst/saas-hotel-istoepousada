@@ -2,10 +2,12 @@ package saas.hotel.istoepousada.controller;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import saas.hotel.istoepousada.dto.Relatorio;
+import saas.hotel.istoepousada.dto.RelatorioHistorico;
 import saas.hotel.istoepousada.security.RequireTela;
 import saas.hotel.istoepousada.service.RelatorioService;
 
@@ -59,5 +61,10 @@ public class RelatorioController {
       @RequestPart(value = "arquivo", required = false) MultipartFile arquivo)
       throws IOException {
     return relatorioService.atualizar(relatorio, arquivo);
+  }
+
+  @GetMapping("/{id}/historico")
+  public List<RelatorioHistorico> historico(@PathVariable Long id) {
+    return relatorioService.buscarHistorico(id);
   }
 }

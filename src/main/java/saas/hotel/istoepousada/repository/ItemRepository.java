@@ -259,7 +259,7 @@ public class ItemRepository {
                 LEFT JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
                 LEFT JOIN funcionario fp ON fp.id = p.fk_funcionario
                 LEFT JOIN pessoa pp ON pp.id = fp.fk_pessoa
-            
+
                 ORDER BY c.data_hora_registro DESC
                 LIMIT ? OFFSET ?
                 """;

@@ -32,10 +32,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
   private int cpfLookupPerMinute;
 
   private final Cache<String, Bucket> buckets =
-      Caffeine.newBuilder()
-          .expireAfterAccess(Duration.ofMinutes(15))
-          .maximumSize(100_000)
-          .build();
+      Caffeine.newBuilder().expireAfterAccess(Duration.ofMinutes(15)).maximumSize(100_000).build();
 
   public RateLimitInterceptor(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;

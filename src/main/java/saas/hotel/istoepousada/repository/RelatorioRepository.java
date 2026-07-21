@@ -30,6 +30,9 @@ public class RelatorioRepository {
                         relatorio.relatorio                        AS relatorio_descricao,
                         relatorio.valor_historico_dinheiro         AS relatorio_valor_historico_dinheiro,
                         relatorio.despesa_pessoal                  AS relatorio_despesa_pessoal,
+                        EXISTS (
+                            SELECT 1 FROM relatorio_historico rh WHERE rh.fk_relatorio = relatorio.id
+                        )                                          AS relatorio_editado,
 
                         q.id                                       AS quarto_id,
                         q.descricao                                AS quarto_descricao,
@@ -483,6 +486,10 @@ public class RelatorioRepository {
     }
   }
 
+  public Relatorio buscarPorId(Long id) {
+    return getByIdOrThrow(new Relatorio.Id(id));
+  }
+
   private Relatorio getByIdOrThrow(Relatorio.Id relatorio) {
     if (relatorio == null) {
       throw new IllegalStateException("Registro salvo sem ID.");
@@ -626,7 +633,8 @@ public class RelatorioRepository {
           Long tipoId = rs.getObject("id", Long.class);
           String descricao = rs.getString("descricao");
           mapa.put(
-              descricao, agregadosPorId.getOrDefault(tipoId, Relatorio.Extrato.Resumo.of(0F, 0F, 0)));
+              descricao,
+              agregadosPorId.getOrDefault(tipoId, Relatorio.Extrato.Resumo.of(0F, 0F, 0)));
         });
 
     Float totalReceitas = 0F;

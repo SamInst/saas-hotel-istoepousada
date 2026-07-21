@@ -51,7 +51,8 @@ public class ConfirmacaoPresencaRepository {
   }
 
   public long total() {
-    Long total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM confirmacao_presenca", Long.class);
+    Long total =
+        jdbcTemplate.queryForObject("SELECT COUNT(*) FROM confirmacao_presenca", Long.class);
     return total == null ? 0L : total;
   }
 }

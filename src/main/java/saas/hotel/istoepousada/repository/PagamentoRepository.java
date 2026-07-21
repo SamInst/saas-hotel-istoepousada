@@ -42,7 +42,7 @@ public class PagamentoRepository {
                     JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
                     LEFT JOIN funcionario f ON f.id = p.fk_funcionario
                     LEFT JOIN pessoa pe ON pe.id = f.fk_pessoa
- 
+
                     LEFT JOIN LATERAL (
                       SELECT *
                       FROM pagamento_motivo_cancelamento mc
@@ -107,7 +107,7 @@ public class PagamentoRepository {
           tp.descricao         AS tipo_pagamento_descricao,
           f.id                 AS pagamento_funcionario_id,
           pe.nome              AS pagamento_funcionario_nome,
-        
+
           mc.id                AS pagamento_motivo_id,
           mc.motivo_cancelamento AS pagamento_motivo_cancelamento,
           mcf.id               AS pagamento_motivo_funcionario_id,
@@ -118,7 +118,7 @@ public class PagamentoRepository {
         JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
         LEFT JOIN funcionario f ON f.id = p.fk_funcionario
         LEFT JOIN pessoa pe ON pe.id = f.fk_pessoa
-  
+
         LEFT JOIN LATERAL (
           SELECT * FROM pagamento_motivo_cancelamento mc
           WHERE mc.fk_pagamento = p.id

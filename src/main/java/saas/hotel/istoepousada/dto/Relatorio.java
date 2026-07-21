@@ -18,7 +18,8 @@ public record Relatorio(
     @NotNull Pagamento pagamento,
     Quarto.Descricao quarto,
     @NotNull Float valor_historico_dinheiro,
-    @NotNull Boolean despesa_pessoal) {
+    @NotNull Boolean despesa_pessoal,
+    @NotNull Boolean editado) {
   public record Id(@NotNull Long id) {}
 
   public record Request(
@@ -50,7 +51,10 @@ public record Relatorio(
         List<Relatorio> relatorios) {}
 
     public record Resumo(
-        @NotNull Float receitas, @NotNull Float despesas, @NotNull Float lucro, @NotNull Integer amount) {
+        @NotNull Float receitas,
+        @NotNull Float despesas,
+        @NotNull Float lucro,
+        @NotNull Integer amount) {
 
       public static Resumo of(Float receitas, Float despesas, Integer amount) {
         Float r = receitas != null ? receitas : 0F;
@@ -81,7 +85,8 @@ public record Relatorio(
               Pagamento.ROW_MAPPER.mapRow(rs, row_num),
               quarto,
               rs.getFloat("relatorio_valor_historico_dinheiro"),
-              rs.getObject("relatorio_despesa_pessoal", Boolean.class));
+              rs.getObject("relatorio_despesa_pessoal", Boolean.class),
+              rs.getBoolean("relatorio_editado"));
         };
   }
 }

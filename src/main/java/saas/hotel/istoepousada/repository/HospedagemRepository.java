@@ -468,7 +468,9 @@ public class HospedagemRepository {
   /** Resumo leve de um grupo existente para seleção ao vincular novas reservas. */
   public record GrupoInfo(Long grupo_id, int count, String titulares) {}
 
-  /** Lista todos os grupos (id, quantidade de hospedagens e titulares), independentemente do mês. */
+  /**
+   * Lista todos os grupos (id, quantidade de hospedagens e titulares), independentemente do mês.
+   */
   public List<GrupoInfo> listarGrupos() {
     return jdbcTemplate.query(
         """
@@ -534,7 +536,9 @@ public class HospedagemRepository {
         });
   }
 
-  /** Define a pessoa informada como titular (representante) da hospedagem; as demais deixam de ser. */
+  /**
+   * Define a pessoa informada como titular (representante) da hospedagem; as demais deixam de ser.
+   */
   public int definirTitular(Long hospedagemId, Long pessoaId) {
     return jdbcTemplate.update(
         "UPDATE hospedagem_pessoa SET representante = (pessoa_id = ?) WHERE hospedagem_id = ?",
@@ -737,8 +741,7 @@ public class HospedagemRepository {
   /** Substitui o ajuste vigente da hospedagem (um ativo por hospedagem). */
   public void salvarNovoPreco(
       Long hospedagemId, HospedagemNovoPreco.Request request, Long funcionarioId) {
-    jdbcTemplate.update(
-        "DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
+    jdbcTemplate.update("DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
     jdbcTemplate.update(
         """
         INSERT INTO hospedagem_novo_preco
@@ -757,8 +760,7 @@ public class HospedagemRepository {
 
   /** Remove o ajuste manual de preço (desconto) da hospedagem, se houver. */
   public void deletarNovoPreco(Long hospedagemId) {
-    jdbcTemplate.update(
-        "DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
+    jdbcTemplate.update("DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
   }
 
   public void atualizarValorTotal(Long hospedagemId, Double valorTotal) {
@@ -767,8 +769,7 @@ public class HospedagemRepository {
   }
 
   /** Atualiza o período (checkin/checkout) da hospedagem — usado ao recalcular as diárias. */
-  public void atualizarPeriodo(
-      Long hospedagemId, LocalDateTime checkin, LocalDateTime checkout) {
+  public void atualizarPeriodo(Long hospedagemId, LocalDateTime checkin, LocalDateTime checkout) {
     jdbcTemplate.update(
         "UPDATE hospedagem SET data_hora_checkin = ?, data_hora_checkout = ? WHERE id = ?",
         checkin,
@@ -779,8 +780,7 @@ public class HospedagemRepository {
   /** Modo "valor por diária" na criação: sobrescreve o valor de todas as diárias da hospedagem. */
   public void sobrescreverValorDiarias(Long hospedagemId, Double valor) {
     if (valor == null) return;
-    jdbcTemplate.update(
-        "UPDATE diaria SET valor = ? WHERE fk_hospedagem = ?", valor, hospedagemId);
+    jdbcTemplate.update("UPDATE diaria SET valor = ? WHERE fk_hospedagem = ?", valor, hospedagemId);
   }
 
   /** Modo "valor por diária": sobrescreve o valor das diárias existentes (qtd inalterada). */

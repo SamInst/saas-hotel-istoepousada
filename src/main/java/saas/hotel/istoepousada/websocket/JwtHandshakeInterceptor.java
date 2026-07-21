@@ -47,8 +47,7 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
       ServerHttpRequest request,
       ServerHttpResponse response,
       WebSocketHandler wsHandler,
-      Exception exception) {
-  }
+      Exception exception) {}
 
   private String extractToken(ServerHttpRequest request) {
     String query = request.getURI().getQuery();

@@ -14,8 +14,8 @@ import org.springframework.jdbc.core.RowMapper;
  *   <li>{@code porcentagem} – ajuste percentual sobre o total.
  * </ul>
  *
- * O sinal (desconto/adicional) e todo o cálculo são feitos no front-end; o back-end apenas
- * persiste o snapshot, o {@code valor_total} resultante e (no modo diária) os valores das diárias.
+ * O sinal (desconto/adicional) e todo o cálculo são feitos no front-end; o back-end apenas persiste
+ * o snapshot, o {@code valor_total} resultante e (no modo diária) os valores das diárias.
  */
 public record HospedagemNovoPreco(
     Long id,
