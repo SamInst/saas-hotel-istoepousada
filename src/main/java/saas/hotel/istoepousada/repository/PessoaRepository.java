@@ -202,8 +202,8 @@ public class PessoaRepository {
             LEFT JOIN funcionario fe on fe.id = e.fk_funcionario
             LEFT JOIN pessoa pfe ON pfe.id = fe.fk_pessoa
 
-            LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id
-            LEFT JOIN veiculo v ON v.id = pv.veiculo_id AND pv.vinculo_ativo = true
+            LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id AND pv.vinculo_ativo = true
+            LEFT JOIN veiculo v ON v.id = pv.veiculo_id
           """;
 
   public Page<Pessoa> buscar(
@@ -222,9 +222,7 @@ public class PessoaRepository {
     String search = hasTermo ? "%" + termo + "%" : null;
     String placaTrim = hasPlaca ? placa.trim().toUpperCase() : null;
 
-    String veiculoJoinCondition = hasPlaca ? " AND UPPER(v.placa) = ?" : "";
-
-    String baseSelect = String.format(SELECT_PESSOA_COMPLETO + FROM_BASE, veiculoJoinCondition);
+    String baseSelect = SELECT_PESSOA_COMPLETO + FROM_BASE;
 
     StringBuilder where =
         new StringBuilder(
@@ -374,12 +372,23 @@ public class PessoaRepository {
   }
 
   public Pessoa findById(Long id) {
-    try {
-      return jdbcTemplate.queryForObject(
-          SELECT_PESSOA_COMPLETO + FROM_BASE + " WHERE p.id = ?", Pessoa.ROW_MAPPER, id);
-    } catch (EmptyResultDataAccessException ex) {
+    // A query traz empresas e veículos por JOIN, então uma pessoa pode render N linhas.
+    // Precisa do extractor (agrega as linhas) — queryForObject falharia com N > 1.
+    List<Pessoa> pessoas =
+        jdbcTemplate.query(
+            SELECT_PESSOA_COMPLETO + FROM_BASE + " WHERE p.id = ?", PESSOA_EXTRACTOR, id);
+
+    if (pessoas == null || pessoas.isEmpty()) {
       throw new NotFoundException("Pessoa não encontrada para o id: " + id);
     }
+    return pessoas.getFirst();
+  }
+
+  /** Checagem de existência barata — evita a query completa quando só interessa o id. */
+  public boolean existsById(Long id) {
+    return Boolean.TRUE.equals(
+        jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) > 0 FROM pessoa WHERE id = ?", Boolean.class, id));
   }
 
   /** Busca apenas id + data_nascimento — mais leve que findById para cálculo de preço. */
@@ -453,8 +462,6 @@ public class PessoaRepository {
 
   @Transactional
   public Pessoa update(Pessoa.Update pessoa) {
-    findById(pessoa.id());
-
     String sql =
         """
                 UPDATE pessoa SET
@@ -487,40 +494,54 @@ public class PessoaRepository {
             ? Period.between(pessoa.data_nascimento(), LocalDate.now()).getYears()
             : null;
 
-    var pessoa_id =
-        jdbcTemplate.queryForObject(
-            sql,
-            Long.class,
-            pessoa.nome(),
-            pessoa.data_nascimento() != null ? Date.valueOf(pessoa.data_nascimento()) : null,
-            idade,
-            pessoa.cpf(),
-            pessoa.rg(),
-            pessoa.email(),
-            pessoa.telefone(),
-            pessoa.pais(),
-            pessoa.estado(),
-            pessoa.municipio(),
-            pessoa.endereco(),
-            pessoa.complemento(),
-            pessoa.cep(),
-            pessoa.bairro(),
-            pessoa.sexo(),
-            pessoa.numero(),
-            pessoa.status() == null ? Pessoa.Status.ATIVO.name() : pessoa.status().name(),
-            getFuncionarioIdFromRequest(),
-            pessoa.titular() != null ? pessoa.titular().id() : null,
-            pessoa.profissao(),
-            pessoa.id());
+    // O RETURNING já sinaliza id inexistente (nenhuma linha) — dispensa um SELECT prévio.
+    final Long pessoa_id;
+    try {
+      pessoa_id =
+          jdbcTemplate.queryForObject(
+              sql,
+              Long.class,
+              pessoa.nome(),
+              pessoa.data_nascimento() != null ? Date.valueOf(pessoa.data_nascimento()) : null,
+              idade,
+              pessoa.cpf(),
+              pessoa.rg(),
+              pessoa.email(),
+              pessoa.telefone(),
+              pessoa.pais(),
+              pessoa.estado(),
+              pessoa.municipio(),
+              pessoa.endereco(),
+              pessoa.complemento(),
+              pessoa.cep(),
+              pessoa.bairro(),
+              pessoa.sexo(),
+              pessoa.numero(),
+              pessoa.status() == null ? Pessoa.Status.ATIVO.name() : pessoa.status().name(),
+              getFuncionarioIdFromRequest(),
+              pessoa.titular() != null ? pessoa.titular().id() : null,
+              pessoa.profissao(),
+              pessoa.id());
+    } catch (EmptyResultDataAccessException ex) {
+      throw new NotFoundException("Pessoa não encontrada para o id: " + pessoa.id());
+    }
     return findById(pessoa_id);
   }
 
   @Transactional
   public void alterarStatus(Long id, Pessoa.Status status) {
-    Pessoa pessoa = findById(id);
+    // Só o status anterior interessa aqui (log) — não precisa da query completa com JOINs.
+    List<String> anterior =
+        jdbcTemplate.query(
+            "SELECT status FROM pessoa WHERE id = ?", (rs, rowNum) -> rs.getString("status"), id);
+
+    if (anterior.isEmpty()) {
+      throw new NotFoundException("Pessoa não encontrada para o id: " + id);
+    }
+
     jdbcTemplate.update(
         "UPDATE pessoa SET status = ?::pessoa_status WHERE id = ?", status.name(), id);
-    log.info("Status alterado da pessoa {}: {} -> {}", id, pessoa.status(), status);
+    log.info("Status alterado da pessoa {}: {} -> {}", id, anterior.getFirst(), status);
   }
 
   @Transactional

@@ -1,14 +1,9 @@
 package saas.hotel.istoepousada.service;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,11 +14,9 @@ import saas.hotel.istoepousada.dto.Pessoa;
 import saas.hotel.istoepousada.dto.Veiculo;
 import saas.hotel.istoepousada.repository.PessoaRepository;
 
+@Slf4j
 @Service
 public class PessoaService {
-
-  private static final Logger log = LoggerFactory.getLogger(PessoaService.class);
-
   private static final Pattern EMAIL_RE = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
   // Placa: AAA0A00 (Mercosul) ou AAA0000 (antiga)
   private static final Pattern PLACA_RE = Pattern.compile("^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$");
@@ -214,6 +207,7 @@ public class PessoaService {
 
   @Transactional
   public Pessoa atualizarPessoa(Pessoa.Update pessoa) {
+    log.info("POST /pessoa request:[{}]", pessoa);
     if (pessoa.veiculos_vinculados() != null) {
       pessoa
           .veiculos_vinculados()
