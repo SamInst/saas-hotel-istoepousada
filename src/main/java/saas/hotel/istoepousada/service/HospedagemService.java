@@ -584,6 +584,32 @@ public class HospedagemService {
         hospedagemIds);
   }
 
+  /**
+   * Responsável principal do grupo: o titular da primeira reserva. Fica gravado em
+   * grupo_reserva.descricao para o grupo ser identificado por um nome só, em vez da lista de todos
+   * os titulares.
+   */
+  private String nomeResponsavel(List<Hospedagem.Request> requests, List<Long> hospedagemIds) {
+    String informado =
+        requests.stream()
+            .map(Hospedagem.Request::grupo_descricao)
+            .filter(d -> d != null && !d.isBlank())
+            .findFirst()
+            .orElse(null);
+    if (informado != null) return informado.trim();
+    return hospedagemIds.stream()
+        .map(hospedagemRepository::buscarNomeTitular)
+        .filter(nome -> nome != null && !nome.isBlank())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /** Renomeia o responsável principal de um grupo. */
+  public void renomearGrupo(Long grupoId, String descricao) {
+    hospedagemRepository.atualizarDescricaoGrupo(
+        grupoId, descricao == null || descricao.isBlank() ? null : descricao.trim());
+  }
+
   /** Lista todos os grupos existentes (para vincular novas reservas a um grupo já criado). */
   public List<HospedagemRepository.GrupoInfo> listarGrupos() {
     return hospedagemRepository.listarGrupos();
@@ -892,6 +918,7 @@ public class HospedagemService {
                       null,
                       null,
                       null,
+                      null,
                       null);
               Hospedagem newHospedagem =
                   hospedagemRepository.insertHospedagem(insertRequest, getFuncionarioId());
@@ -1020,7 +1047,9 @@ public class HospedagemService {
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Hospedagens {} vinculadas ao grupo existente {}", resolvedIds, grupoId);
     } else if (resolvedIds.size() > 1) {
-      grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
+      grupoId =
+          hospedagemRepository.criarGrupoReserva(
+              getFuncionarioId(), nomeResponsavel(requests, resolvedIds));
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Grupo {} criado para as hospedagens {}", grupoId, resolvedIds);
     }
@@ -1119,7 +1148,9 @@ public class HospedagemService {
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Pernoites {} vinculados ao grupo existente {}", resolvedIds, grupoId);
     } else if (resolvedIds.size() > 1) {
-      grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
+      grupoId =
+          hospedagemRepository.criarGrupoReserva(
+              getFuncionarioId(), nomeResponsavel(requests, resolvedIds));
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Grupo {} criado para os pernoites {}", grupoId, resolvedIds);
     }
@@ -1244,6 +1275,7 @@ public class HospedagemService {
             null,
             request.observacao(),
             request.valor_total(),
+            null,
             null,
             null,
             null,
@@ -1389,6 +1421,7 @@ public class HospedagemService {
                   null,
                   null,
                   0.0,
+                  null,
                   null,
                   null,
                   null,

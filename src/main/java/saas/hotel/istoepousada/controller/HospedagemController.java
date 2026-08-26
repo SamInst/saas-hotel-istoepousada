@@ -55,6 +55,15 @@ public class HospedagemController {
     return hospedagemService.listarGrupos();
   }
 
+  /** Renomeia o responsável principal do grupo (grupo_reserva.descricao). */
+  public record RenomearGrupo(String descricao) {}
+
+  @PatchMapping("/grupo/{grupoId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void renomearGrupo(@PathVariable Long grupoId, @RequestBody RenomearGrupo req) {
+    hospedagemService.renomearGrupo(grupoId, req.descricao());
+  }
+
   /** Todas as hospedagens de um grupo, independentemente do mês (para o painel do grupo). */
   @GetMapping("/grupo/{grupoId}")
   public List<Hospedagem> buscarGrupo(@PathVariable Long grupoId) {

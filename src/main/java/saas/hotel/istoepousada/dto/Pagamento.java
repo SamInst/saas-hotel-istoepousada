@@ -17,7 +17,35 @@ public record Pagamento(
     @NotNull Float valor,
     Boolean cancelado,
     String path_arquivo,
-    MotivoCancelamento motivo_cancelamento) {
+    MotivoCancelamento motivo_cancelamento,
+    /* grupo do lançamento: preenchido quando é um pagamento único do grupo */
+    Long grupo_id) {
+  /** Sem vínculo de grupo — usado por quem monta o pagamento fora da hospedagem. */
+  public Pagamento(
+      UUID uuid,
+      TipoPagamento tipo_pagamento,
+      Funcionario.Nome funcionario,
+      LocalDateTime data_hora_registro,
+      String nome_pagador,
+      String descricao,
+      Float valor,
+      Boolean cancelado,
+      String path_arquivo,
+      MotivoCancelamento motivo_cancelamento) {
+    this(
+        uuid,
+        tipo_pagamento,
+        funcionario,
+        data_hora_registro,
+        nome_pagador,
+        descricao,
+        valor,
+        cancelado,
+        path_arquivo,
+        motivo_cancelamento,
+        null);
+  }
+
   public record Uuid(@NotNull UUID uuid) {}
 
   public record CancelamentoRequest(@NotNull String motivo_cancelamento) {}
@@ -85,6 +113,16 @@ public record Pagamento(
         };
   }
 
+  /** Nem toda consulta de pagamento traz o vínculo com o grupo. */
+  private static boolean temColuna(java.sql.ResultSet rs, String coluna) {
+    try {
+      rs.findColumn(coluna);
+      return true;
+    } catch (java.sql.SQLException e) {
+      return false;
+    }
+  }
+
   public static final RowMapper<Pagamento> ROW_MAPPER =
       (rs, row_num) -> {
         UUID pagamentoId = rs.getObject("pagamento_id", UUID.class);
@@ -102,6 +140,9 @@ public record Pagamento(
                 : rs.getObject("pagamento_valor", Float.class),
             rs.getBoolean("pagamento_cancelado"),
             rs.getString("pagamento_path_arquivo"),
-            Pagamento.MotivoCancelamento.ROW_MAPPER.mapRow(rs, row_num));
+            Pagamento.MotivoCancelamento.ROW_MAPPER.mapRow(rs, row_num),
+            temColuna(rs, "pagamento_grupo_id")
+                ? rs.getObject("pagamento_grupo_id", Long.class)
+                : null);
       };
 }

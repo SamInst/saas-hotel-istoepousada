@@ -75,7 +75,10 @@
       "Bash(docker version *)",
       "Bash(npm -v)",
       "Bash(npx tsc *)",
-      "Bash(echo \"TYPECHECK_DONE exit=$?\")"
+      "Bash(echo \"TYPECHECK_DONE exit=$?\")",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(./gradlew spotlessApply -q)"
     ]
   },
   "prefersReducedMotion": true
