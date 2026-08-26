@@ -219,9 +219,9 @@ public class QuartoService {
     if (id == null) throw new IllegalArgumentException("ID é obrigatório.");
     Long quartoId = quartoRepository.finalizarLimpeza(id);
     Quarto.Status novoStatus = Quarto.Status.DISPONIVEL;
-        if (hospedagemService.temReservaAtivaParaQuartoHoje(quartoId)){
-          novoStatus = Quarto.Status.RESERVADO;
-        }
+    if (hospedagemService.temReservaAtivaParaQuartoHoje(quartoId)) {
+      novoStatus = Quarto.Status.RESERVADO;
+    }
 
     quartoRepository.updateStatus(quartoId, novoStatus);
   }

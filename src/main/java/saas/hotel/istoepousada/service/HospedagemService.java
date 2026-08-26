@@ -196,8 +196,7 @@ public class HospedagemService {
    * diárias. Remove as diárias antigas via {@link HospedagemRepository#deletarDiarias}.
    */
   @Transactional
-  public Hospedagem atualizarDiarias(
-      Long hospedagemId, List<Hospedagem.Diaria.Request> diarias) {
+  public Hospedagem atualizarDiarias(Long hospedagemId, List<Hospedagem.Diaria.Request> diarias) {
     hospedagemRepository.buscarPorId(hospedagemId);
     if (diarias == null || diarias.isEmpty())
       throw new IllegalArgumentException("Informe ao menos uma diária.");
@@ -305,8 +304,8 @@ public class HospedagemService {
   }
 
   /**
-   * Calcula o valor de cada diária (considerando as pessoas/idades de cada uma), respeitando a
-   * meia diária (preço de uma diária cheia dividido por 2). Não persiste nada.
+   * Calcula o valor de cada diária (considerando as pessoas/idades de cada uma), respeitando a meia
+   * diária (preço de uma diária cheia dividido por 2). Não persiste nada.
    */
   private List<Double> precificarDiarias(List<Hospedagem.Diaria.Request> diarias) {
     Set<Long> todasPessoasIds =
@@ -352,9 +351,10 @@ public class HospedagemService {
 
   /**
    * Recalcula as diárias e o {@code valor_total} de uma reserva a partir do conjunto ATUAL de
-   * pessoas (todas as pessoas entram em todas as diárias, como na criação). Qualquer desconto/ajuste
-   * manual vigente é REMOVIDO — ao mudar as pessoas o desconto deve ser reaplicado manualmente.
-   * Atua somente sobre reservas (RESERVA_ATIVA / RESERVA_SOLICITADA); demais status ficam intactos.
+   * pessoas (todas as pessoas entram em todas as diárias, como na criação). Qualquer
+   * desconto/ajuste manual vigente é REMOVIDO — ao mudar as pessoas o desconto deve ser reaplicado
+   * manualmente. Atua somente sobre reservas (RESERVA_ATIVA / RESERVA_SOLICITADA); demais status
+   * ficam intactos.
    */
   private void recalcularPorPessoas(Long hospedagemId) {
     Hospedagem hospedagem = hospedagemRepository.buscarPorId(hospedagemId);
@@ -557,7 +557,11 @@ public class HospedagemService {
           var hospedagem = hospedagemRepository.buscarPorId(id);
           adicionarHospedagemPagamento(id, pagamentosUUID);
           adicionarRelatorioHospedagem(
-              hospedagem.quarto().id(), newPagamento, pagamento.arquivo(), hospedagem.status(), null);
+              hospedagem.quarto().id(),
+              newPagamento,
+              pagamento.arquivo(),
+              hospedagem.status(),
+              null);
         });
     log.info("Pagamento {} adicionado às hospedagens {}", newPagamento.uuid(), hospedagemIds);
   }
@@ -580,6 +584,32 @@ public class HospedagemService {
         hospedagemIds);
   }
 
+  /**
+   * Responsável principal do grupo: o titular da primeira reserva. Fica gravado em
+   * grupo_reserva.descricao para o grupo ser identificado por um nome só, em vez da lista de todos
+   * os titulares.
+   */
+  private String nomeResponsavel(List<Hospedagem.Request> requests, List<Long> hospedagemIds) {
+    String informado =
+        requests.stream()
+            .map(Hospedagem.Request::grupo_descricao)
+            .filter(d -> d != null && !d.isBlank())
+            .findFirst()
+            .orElse(null);
+    if (informado != null) return informado.trim();
+    return hospedagemIds.stream()
+        .map(hospedagemRepository::buscarNomeTitular)
+        .filter(nome -> nome != null && !nome.isBlank())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /** Renomeia o responsável principal de um grupo. */
+  public void renomearGrupo(Long grupoId, String descricao) {
+    hospedagemRepository.atualizarDescricaoGrupo(
+        grupoId, descricao == null || descricao.isBlank() ? null : descricao.trim());
+  }
+
   /** Lista todos os grupos existentes (para vincular novas reservas a um grupo já criado). */
   public List<HospedagemRepository.GrupoInfo> listarGrupos() {
     return hospedagemRepository.listarGrupos();
@@ -593,8 +623,7 @@ public class HospedagemService {
   }
 
   /** Totais consolidados de um grupo (todas as hospedagens, independentemente do status). */
-  public record GrupoResumo(
-      Long grupo_id, int count, double total, double pago, double pendente) {}
+  public record GrupoResumo(Long grupo_id, int count, double total, double pago, double pendente) {}
 
   public GrupoResumo buscarResumoGrupo(Long grupoId) {
     List<Long> ids = hospedagemRepository.buscarHospedagemIdsPorGrupo(grupoId);
@@ -662,7 +691,11 @@ public class HospedagemService {
   }
 
   public void adicionarRelatorioHospedagem(
-      Long quartoId, Pagamento pagamento, MultipartFile arquivo, Hospedagem.Status status, Long grupoId) {
+      Long quartoId,
+      Pagamento pagamento,
+      MultipartFile arquivo,
+      Hospedagem.Status status,
+      Long grupoId) {
     String relatorio = "";
 
     switch (status) {
@@ -685,8 +718,10 @@ public class HospedagemService {
                   + pagamento.nome_pagador()
                   + " | "
                   + pagamento.descricao();
-        case null -> { return; }
-        default -> throw new IllegalStateException("Unexpected value: " + status);
+      case null -> {
+        return;
+      }
+      default -> throw new IllegalStateException("Unexpected value: " + status);
     }
     if (grupoId != null) {
       relatorio = relatorio + " | Grupo #" + grupoId;
@@ -883,6 +918,7 @@ public class HospedagemService {
                       null,
                       null,
                       null,
+                      null,
                       null);
               Hospedagem newHospedagem =
                   hospedagemRepository.insertHospedagem(insertRequest, getFuncionarioId());
@@ -933,11 +969,11 @@ public class HospedagemService {
     // Hora de checkout (definida pela categoria) — usada como fim de cada diária para não carregar
     // a hora de check-in (ex.: 19:00) para o fim da diária e gerar conflito de quarto.
     LocalTime horaCheckout = checkout.toLocalTime();
-    int total_diarias =
-        Period.between(checkin.toLocalDate(), checkout.toLocalDate()).getDays();
+    int total_diarias = Period.between(checkin.toLocalDate(), checkout.toLocalDate()).getDays();
     LocalDateTime inicioDiaria = checkin;
     for (int i = 0; i < total_diarias; i++) {
-      // Cada diária encerra no dia seguinte, na hora de checkout; a próxima começa nesse mesmo ponto.
+      // Cada diária encerra no dia seguinte, na hora de checkout; a próxima começa nesse mesmo
+      // ponto.
       LocalDateTime fimDiaria =
           LocalDateTime.of(checkin.toLocalDate().plusDays(i + 1L), horaCheckout);
       diarias.add(
@@ -1001,13 +1037,19 @@ public class HospedagemService {
     // vincula a esse grupo; caso contrário, cria um novo grupo quando houver mais de uma reserva.
     Long grupoId = null;
     Long grupoExistente =
-        requests.stream().map(Hospedagem.Request::grupo_id).filter(g -> g != null).findFirst().orElse(null);
+        requests.stream()
+            .map(Hospedagem.Request::grupo_id)
+            .filter(g -> g != null)
+            .findFirst()
+            .orElse(null);
     if (grupoExistente != null) {
       grupoId = grupoExistente;
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Hospedagens {} vinculadas ao grupo existente {}", resolvedIds, grupoId);
     } else if (resolvedIds.size() > 1) {
-      grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
+      grupoId =
+          hospedagemRepository.criarGrupoReserva(
+              getFuncionarioId(), nomeResponsavel(requests, resolvedIds));
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Grupo {} criado para as hospedagens {}", grupoId, resolvedIds);
     }
@@ -1035,7 +1077,7 @@ public class HospedagemService {
                       newPagamento,
                       pagamento.arquivo(),
                       firstWithPagamentos.status(),
-                           null);
+                      null);
                 });
         final Long grupoIdFinal = grupoId;
         resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoIdFinal));
@@ -1045,8 +1087,8 @@ public class HospedagemService {
 
   /**
    * Cria um (ou vários) pernoite(s) diretamente, sem passar por reserva. Espelha {@link
-   * #ativarReserva}, mas o status alvo é {@link Hospedagem.Status#PERNOITE_ATIVO} e o quarto passa a
-   * OCUPADO. As requisições já chegam com {@code status = PERNOITE_ATIVO}.
+   * #ativarReserva}, mas o status alvo é {@link Hospedagem.Status#PERNOITE_ATIVO} e o quarto passa
+   * a OCUPADO. As requisições já chegam com {@code status = PERNOITE_ATIVO}.
    */
   @Transactional
   public void criarPernoiteDireto(List<Hospedagem.Request> requests, Boolean pagamentoUnico) {
@@ -1096,13 +1138,19 @@ public class HospedagemService {
     // na ausência dele, cria um novo grupo quando houver mais de um pernoite.
     Long grupoId = null;
     Long grupoExistente =
-        requests.stream().map(Hospedagem.Request::grupo_id).filter(g -> g != null).findFirst().orElse(null);
+        requests.stream()
+            .map(Hospedagem.Request::grupo_id)
+            .filter(g -> g != null)
+            .findFirst()
+            .orElse(null);
     if (grupoExistente != null) {
       grupoId = grupoExistente;
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Pernoites {} vinculados ao grupo existente {}", resolvedIds, grupoId);
     } else if (resolvedIds.size() > 1) {
-      grupoId = hospedagemRepository.criarGrupoReserva(getFuncionarioId());
+      grupoId =
+          hospedagemRepository.criarGrupoReserva(
+              getFuncionarioId(), nomeResponsavel(requests, resolvedIds));
       hospedagemRepository.vincularHospedagensGrupo(resolvedIds, grupoId);
       log.info("Grupo {} criado para os pernoites {}", grupoId, resolvedIds);
     }
@@ -1129,7 +1177,7 @@ public class HospedagemService {
                       newPagamento,
                       pagamento.arquivo(),
                       firstWithPagamentos.status(),
-                          null);
+                      null);
                 });
         final Long grupoIdFinal = grupoId;
         resolvedIds.forEach(id -> adicionarHospedagemPagamento(id, pagamentosUUID, grupoIdFinal));
@@ -1227,6 +1275,7 @@ public class HospedagemService {
             null,
             request.observacao(),
             request.valor_total(),
+            null,
             null,
             null,
             null,
@@ -1376,6 +1425,7 @@ public class HospedagemService {
                   null,
                   null,
                   null,
+                  null,
                   null);
           calcularDiarias(hospedagemId, reqDiarias);
         }
@@ -1501,8 +1551,8 @@ public class HospedagemService {
 
   /**
    * Igual a {@link #buscarAtivasPorQuartoNaData}, porém com a hospedagem completa (diárias,
-   * consumos, pagamentos, pessoas, pessoas de orçamento e motivo de cancelamento). Usa
-   * {@link #withDetailsBatch} para evitar N+1.
+   * consumos, pagamentos, pessoas, pessoas de orçamento e motivo de cancelamento). Usa {@link
+   * #withDetailsBatch} para evitar N+1.
    */
   public Map<Long, Hospedagem> buscarAtivasComDetalhesPorQuartoNaData(LocalDate data) {
     Map<Long, Hospedagem> base = hospedagemRepository.buscarAtivasPorQuartoNaData(data);
@@ -1516,8 +1566,7 @@ public class HospedagemService {
             .stream()
             .toList();
     Map<Long, Hospedagem> porId =
-        withDetailsBatch(distintas).stream()
-            .collect(Collectors.toMap(Hospedagem::id, h -> h));
+        withDetailsBatch(distintas).stream().collect(Collectors.toMap(Hospedagem::id, h -> h));
 
     Map<Long, Hospedagem> result = new LinkedHashMap<>();
     base.forEach((quartoId, h) -> result.put(quartoId, porId.getOrDefault(h.id(), h)));

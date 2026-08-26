@@ -321,15 +321,35 @@ public class HospedagemRepository {
         });
   }
 
-  public Long criarGrupoReserva(Long funcionarioId) {
+  public Long criarGrupoReserva(Long funcionarioId, String descricao) {
     return jdbcTemplate.queryForObject(
         """
-        INSERT INTO grupo_reserva (fk_funcionario, data_hora_registro)
-        VALUES (?, now())
+        INSERT INTO grupo_reserva (fk_funcionario, descricao, data_hora_registro)
+        VALUES (?, ?, now())
         RETURNING id;
         """,
         Long.class,
-        funcionarioId);
+        funcionarioId,
+        descricao);
+  }
+
+  /** Nome do titular (representante) de uma hospedagem — vira o responsável do grupo. */
+  public String buscarNomeTitular(Long hospedagemId) {
+    return jdbcTemplate.query(
+        """
+        SELECT p.nome
+        FROM public.hospedagem_pessoa hp
+        JOIN public.pessoa p ON p.id = hp.pessoa_id
+        WHERE hp.hospedagem_id = ? AND hp.representante = true
+        LIMIT 1
+        """,
+        rs -> rs.next() ? rs.getString("nome") : null,
+        hospedagemId);
+  }
+
+  /** Renomeia o responsável principal do grupo. */
+  public void atualizarDescricaoGrupo(Long grupoId, String descricao) {
+    jdbcTemplate.update("UPDATE grupo_reserva SET descricao = ? WHERE id = ?", descricao, grupoId);
   }
 
   public void vincularHospedagensGrupo(List<Long> hospedagemIds, Long grupoId) {
@@ -466,25 +486,42 @@ public class HospedagemRepository {
   }
 
   /** Resumo leve de um grupo existente para seleção ao vincular novas reservas. */
-  public record GrupoInfo(Long grupo_id, int count, String titulares) {}
+  public record GrupoInfo(Long grupo_id, int count, String titulares, String descricao) {}
 
-  /** Lista todos os grupos (id, quantidade de hospedagens e titulares), independentemente do mês. */
+  /** Situações que mantêm um grupo "em aberto" — fora delas a reserva já se encerrou. */
+  private static final String GRUPO_STATUS_ABERTOS =
+      "'ORCAMENTO','RESERVA_SOLICITADA','RESERVA_ATIVA','PERNOITE_ATIVO',"
+          + "'PERNOITE_FINALIZADO_PAGAMENTO_PENDENTE'";
+
+  /**
+   * Lista os grupos em aberto (id, quantidade de hospedagens e titulares), independentemente do
+   * mês. Quando a última reserva do grupo é finalizada (ou cancelada/ausente) o grupo se encerra e
+   * deixa de aparecer — tanto na listagem quanto na vinculação de novas reservas.
+   */
   public List<GrupoInfo> listarGrupos() {
     return jdbcTemplate.query(
         """
         SELECT hg.fk_grupo AS grupo_id,
                COUNT(DISTINCT hg.fk_hospedagem) AS quantidade,
-               STRING_AGG(DISTINCT pessoa_titular.nome, ', ') AS titulares
+               STRING_AGG(DISTINCT pessoa_titular.nome, ', ') AS titulares,
+               MAX(gr.descricao) AS descricao
         FROM public.hospedagem_grupo hg
+        JOIN public.hospedagem h ON h.id = hg.fk_hospedagem
+        LEFT JOIN public.grupo_reserva gr ON gr.id = hg.fk_grupo
         LEFT JOIN public.hospedagem_pessoa hp_titular
                ON hp_titular.hospedagem_id = hg.fk_hospedagem AND hp_titular.representante = true
         LEFT JOIN public.pessoa pessoa_titular ON pessoa_titular.id = hp_titular.pessoa_id
         GROUP BY hg.fk_grupo
+        HAVING COUNT(*) FILTER (WHERE h.status IN (%s)) > 0
         ORDER BY hg.fk_grupo DESC
-        """,
+        """
+            .formatted(GRUPO_STATUS_ABERTOS),
         (rs, rowNum) ->
             new GrupoInfo(
-                rs.getLong("grupo_id"), rs.getInt("quantidade"), rs.getString("titulares")));
+                rs.getLong("grupo_id"),
+                rs.getInt("quantidade"),
+                rs.getString("titulares"),
+                rs.getString("descricao")));
   }
 
   public List<Long> filtrarPessoasDuplicadas(Long hospedagemId, List<Long> pessoasIds) {
@@ -534,7 +571,9 @@ public class HospedagemRepository {
         });
   }
 
-  /** Define a pessoa informada como titular (representante) da hospedagem; as demais deixam de ser. */
+  /**
+   * Define a pessoa informada como titular (representante) da hospedagem; as demais deixam de ser.
+   */
   public int definirTitular(Long hospedagemId, Long pessoaId) {
     return jdbcTemplate.update(
         "UPDATE hospedagem_pessoa SET representante = (pessoa_id = ?) WHERE hospedagem_id = ?",
@@ -737,8 +776,7 @@ public class HospedagemRepository {
   /** Substitui o ajuste vigente da hospedagem (um ativo por hospedagem). */
   public void salvarNovoPreco(
       Long hospedagemId, HospedagemNovoPreco.Request request, Long funcionarioId) {
-    jdbcTemplate.update(
-        "DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
+    jdbcTemplate.update("DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
     jdbcTemplate.update(
         """
         INSERT INTO hospedagem_novo_preco
@@ -757,8 +795,7 @@ public class HospedagemRepository {
 
   /** Remove o ajuste manual de preço (desconto) da hospedagem, se houver. */
   public void deletarNovoPreco(Long hospedagemId) {
-    jdbcTemplate.update(
-        "DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
+    jdbcTemplate.update("DELETE FROM hospedagem_novo_preco WHERE fk_hospedagem = ?", hospedagemId);
   }
 
   public void atualizarValorTotal(Long hospedagemId, Double valorTotal) {
@@ -767,8 +804,7 @@ public class HospedagemRepository {
   }
 
   /** Atualiza o período (checkin/checkout) da hospedagem — usado ao recalcular as diárias. */
-  public void atualizarPeriodo(
-      Long hospedagemId, LocalDateTime checkin, LocalDateTime checkout) {
+  public void atualizarPeriodo(Long hospedagemId, LocalDateTime checkin, LocalDateTime checkout) {
     jdbcTemplate.update(
         "UPDATE hospedagem SET data_hora_checkin = ?, data_hora_checkout = ? WHERE id = ?",
         checkin,
@@ -779,8 +815,7 @@ public class HospedagemRepository {
   /** Modo "valor por diária" na criação: sobrescreve o valor de todas as diárias da hospedagem. */
   public void sobrescreverValorDiarias(Long hospedagemId, Double valor) {
     if (valor == null) return;
-    jdbcTemplate.update(
-        "UPDATE diaria SET valor = ? WHERE fk_hospedagem = ?", valor, hospedagemId);
+    jdbcTemplate.update("UPDATE diaria SET valor = ? WHERE fk_hospedagem = ?", valor, hospedagemId);
   }
 
   /** Modo "valor por diária": sobrescreve o valor das diárias existentes (qtd inalterada). */

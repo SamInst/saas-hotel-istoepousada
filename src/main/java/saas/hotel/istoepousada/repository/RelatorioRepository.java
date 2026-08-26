@@ -30,6 +30,9 @@ public class RelatorioRepository {
                         relatorio.relatorio                        AS relatorio_descricao,
                         relatorio.valor_historico_dinheiro         AS relatorio_valor_historico_dinheiro,
                         relatorio.despesa_pessoal                  AS relatorio_despesa_pessoal,
+                        EXISTS (
+                            SELECT 1 FROM relatorio_historico rh WHERE rh.fk_relatorio = relatorio.id
+                        )                                          AS relatorio_editado,
 
                         q.id                                       AS quarto_id,
                         q.descricao                                AS quarto_descricao,
@@ -483,6 +486,10 @@ public class RelatorioRepository {
     }
   }
 
+  public Relatorio buscarPorId(Long id) {
+    return getByIdOrThrow(new Relatorio.Id(id));
+  }
+
   private Relatorio getByIdOrThrow(Relatorio.Id relatorio) {
     if (relatorio == null) {
       throw new IllegalStateException("Registro salvo sem ID.");
@@ -587,7 +594,8 @@ public class RelatorioRepository {
                             CASE WHEN pagamento.valor < 0 THEN ABS(pagamento.valor)
                             ELSE 0
                             END
-                          ), 0) AS despesas
+                          ), 0) AS despesas,
+                          COUNT(pagamento.id) AS amount
                         FROM relatorio
                         LEFT JOIN pagamento ON pagamento.id = relatorio.fk_pagamento
                         LEFT JOIN tipo_pagamento ON tipo_pagamento.id = pagamento.fk_tipo_pagamento
@@ -605,7 +613,8 @@ public class RelatorioRepository {
           Long tipoId = rs.getLong("tipo_id");
           Float receitas = rs.getFloat("receitas");
           Float despesas = rs.getFloat("despesas");
-          agregadosPorId.put(tipoId, Relatorio.Extrato.Resumo.of(receitas, despesas));
+          Integer amount = rs.getInt("amount");
+          agregadosPorId.put(tipoId, Relatorio.Extrato.Resumo.of(receitas, despesas, amount));
         },
         params.toArray());
 
@@ -624,17 +633,20 @@ public class RelatorioRepository {
           Long tipoId = rs.getObject("id", Long.class);
           String descricao = rs.getString("descricao");
           mapa.put(
-              descricao, agregadosPorId.getOrDefault(tipoId, Relatorio.Extrato.Resumo.of(0F, 0F)));
+              descricao,
+              agregadosPorId.getOrDefault(tipoId, Relatorio.Extrato.Resumo.of(0F, 0F, 0)));
         });
 
     Float totalReceitas = 0F;
     Float totalDespesas = 0F;
+    Integer totalAmount = 0;
     for (Relatorio.Extrato.Resumo resumo : mapa.values()) {
       totalReceitas += resumo.receitas();
       totalDespesas += resumo.despesas();
+      totalAmount += resumo.amount();
     }
 
-    mapa.put("TOTAL", Relatorio.Extrato.Resumo.of(totalReceitas, totalDespesas));
+    mapa.put("TOTAL", Relatorio.Extrato.Resumo.of(totalReceitas, totalDespesas, totalAmount));
     return mapa;
   }
 }

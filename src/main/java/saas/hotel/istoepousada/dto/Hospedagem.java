@@ -45,7 +45,9 @@ public record Hospedagem(
       /* ajuste manual de preço aplicado na criação ("Gerenciar Preços"); opcional */
       HospedagemNovoPreco.Request novo_preco,
       /* vincular a um grupo já existente (opcional); quando nulo, cria um novo grupo se houver >1 reserva */
-      Long grupo_id) {}
+      Long grupo_id,
+      /* responsável do grupo informado no assistente; grava em grupo_reserva.descricao */
+      String grupo_descricao) {}
 
   public record Diaria(
       @NotNull Long id,

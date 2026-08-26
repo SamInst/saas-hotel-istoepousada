@@ -1,7 +1,6 @@
 package saas.hotel.istoepousada.repository;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.client.RestClient;

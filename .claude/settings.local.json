@@ -71,7 +71,14 @@
       "Bash(awk \"/^\\\\.detailTab \\\\{/,/\\\\}/\" src/pages/recepcao/recepcao.module.css)",
       "Bash(gh auth *)",
       "PowerShell($c = Get-Command gh -ErrorAction SilentlyContinue; if \\($c\\) { $c.Source; gh --version; gh auth status } else { \"gh not found on PATH\" })",
-      "Bash(git log *)"
+      "Bash(git log *)",
+      "Bash(docker version *)",
+      "Bash(npm -v)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"TYPECHECK_DONE exit=$?\")",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(./gradlew spotlessApply -q)"
     ]
   },
   "prefersReducedMotion": true

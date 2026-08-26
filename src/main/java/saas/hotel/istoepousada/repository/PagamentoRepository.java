@@ -37,12 +37,16 @@ public class PagamentoRepository {
                       mc.motivo_cancelamento AS pagamento_motivo_cancelamento,
                       mcf.id               AS pagamento_motivo_funcionario_id,
                       mcp.nome             AS pagamento_motivo_funcionario_nome,
-                      mc.data_hora_registro AS pagamento_motivo_data_hora_registro
+                      mc.data_hora_registro AS pagamento_motivo_data_hora_registro,
+
+                      (SELECT hp_g.fk_grupo FROM hospedagem_pagamento hp_g
+                        WHERE hp_g.fk_pagamento = p.id AND hp_g.fk_grupo IS NOT NULL
+                        LIMIT 1)           AS pagamento_grupo_id
                     FROM pagamento p
                     JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
                     LEFT JOIN funcionario f ON f.id = p.fk_funcionario
                     LEFT JOIN pessoa pe ON pe.id = f.fk_pessoa
- 
+
                     LEFT JOIN LATERAL (
                       SELECT *
                       FROM pagamento_motivo_cancelamento mc
@@ -107,18 +111,19 @@ public class PagamentoRepository {
           tp.descricao         AS tipo_pagamento_descricao,
           f.id                 AS pagamento_funcionario_id,
           pe.nome              AS pagamento_funcionario_nome,
-        
+
           mc.id                AS pagamento_motivo_id,
           mc.motivo_cancelamento AS pagamento_motivo_cancelamento,
           mcf.id               AS pagamento_motivo_funcionario_id,
           mcp.nome             AS pagamento_motivo_funcionario_nome,
-          mc.data_hora_registro AS pagamento_motivo_data_hora_registro
+          mc.data_hora_registro AS pagamento_motivo_data_hora_registro,
+          hp.fk_grupo          AS pagamento_grupo_id
         FROM hospedagem_pagamento hp
         JOIN pagamento p ON p.id = hp.fk_pagamento
         JOIN tipo_pagamento tp ON tp.id = p.fk_tipo_pagamento
         LEFT JOIN funcionario f ON f.id = p.fk_funcionario
         LEFT JOIN pessoa pe ON pe.id = f.fk_pessoa
-  
+
         LEFT JOIN LATERAL (
           SELECT * FROM pagamento_motivo_cancelamento mc
           WHERE mc.fk_pagamento = p.id

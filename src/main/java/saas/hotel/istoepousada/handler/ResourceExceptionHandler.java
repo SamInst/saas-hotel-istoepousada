@@ -1,23 +1,23 @@
- package saas.hotel.istoepousada.handler;
+package saas.hotel.istoepousada.handler;
 
- import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
+import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 
- import jakarta.servlet.http.HttpServletRequest;
- import java.time.Instant;
- import java.util.Objects;
- import org.springframework.core.annotation.Order;
- import org.springframework.dao.DataIntegrityViolationException;
- import org.springframework.http.HttpStatus;
- import org.springframework.http.ResponseEntity;
- import org.springframework.jdbc.BadSqlGrammarException;
- import org.springframework.web.HttpMediaTypeNotSupportedException;
- import org.springframework.web.bind.annotation.ControllerAdvice;
- import org.springframework.web.bind.annotation.ExceptionHandler;
- import saas.hotel.istoepousada.handler.exceptions.*;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
+import java.util.Objects;
+import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.BadSqlGrammarException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import saas.hotel.istoepousada.handler.exceptions.*;
 
- @ControllerAdvice
- @Order(HIGHEST_PRECEDENCE)
- public class ResourceExceptionHandler {
+@ControllerAdvice
+@Order(HIGHEST_PRECEDENCE)
+public class ResourceExceptionHandler {
   static final String INTERNAL_SERVER_ERROR = "Erro interno no servidor";
   static final String BAD_SQL_GRAMAR = "SQL COM ERRO DE SINTAXE.";
   static final String SQL_VIOLATION = "SQL COM ERRO DE VIOLACAO.";
@@ -187,15 +187,15 @@
 
   @ExceptionHandler(IllegalStateException.class)
   public ResponseEntity<Object> errorInternalServerErrorKeyException(
-          IllegalStateException e, HttpServletRequest request) {
+      IllegalStateException e, HttpServletRequest request) {
     var error =
-            new StandardError(
-                    Instant.now(),
-                    HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                    SQL_VIOLATION,
-                    e.getMessage(),
-                    "",
-                    request.getRequestURI());
+        new StandardError(
+            Instant.now(),
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            SQL_VIOLATION,
+            e.getMessage(),
+            "",
+            request.getRequestURI());
 
     e.printStackTrace();
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
@@ -206,4 +206,4 @@
       HttpMediaTypeNotSupportedException ex) {
     return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body("Unsupported Media Type");
   }
- }
+}

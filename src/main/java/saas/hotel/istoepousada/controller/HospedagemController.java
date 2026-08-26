@@ -47,10 +47,21 @@ public class HospedagemController {
     return hospedagemService.buscarResumoGrupo(grupoId);
   }
 
-  /** Lista todos os grupos existentes (id, quantidade e titulares) — para vincular novas reservas. */
+  /**
+   * Lista todos os grupos existentes (id, quantidade e titulares) — para vincular novas reservas.
+   */
   @GetMapping("/grupos")
   public List<HospedagemRepository.GrupoInfo> listarGrupos() {
     return hospedagemService.listarGrupos();
+  }
+
+  /** Renomeia o responsável principal do grupo (grupo_reserva.descricao). */
+  public record RenomearGrupo(String descricao) {}
+
+  @PatchMapping("/grupo/{grupoId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void renomearGrupo(@PathVariable Long grupoId, @RequestBody RenomearGrupo req) {
+    hospedagemService.renomearGrupo(grupoId, req.descricao());
   }
 
   /** Todas as hospedagens de um grupo, independentemente do mês (para o painel do grupo). */
@@ -124,8 +135,8 @@ public class HospedagemController {
   }
 
   /**
-   * Substitui todas as diárias da hospedagem ("Gerenciar Diárias"). Cada diária pode ter seu próprio
-   * quarto e pessoas; os preços e o total são recalculados.
+   * Substitui todas as diárias da hospedagem ("Gerenciar Diárias"). Cada diária pode ter seu
+   * próprio quarto e pessoas; os preços e o total são recalculados.
    */
   @PutMapping("/{hospedagemId}/diarias")
   public Hospedagem atualizarDiarias(
