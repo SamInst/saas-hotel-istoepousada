@@ -175,10 +175,14 @@ public class PessoaService {
     if (tel.length() != 10 && tel.length() != 11) {
       throw new IllegalArgumentException("Telefone inválido.");
     }
-    String cep = req.cep() == null ? "" : req.cep().replaceAll("\\D", "");
-    if (cep.length() != 8) {
-      throw new IllegalArgumentException("CEP inválido.");
+
+    if (req.cep() != null){
+    String cep = req.cep().replaceAll("\\D", "");
+      if (cep.length() != 8) {
+        throw new IllegalArgumentException("CEP inválido.");
+      }
     }
+
     if (StringUtils.hasText(req.email()) && !EMAIL_RE.matcher(req.email().trim()).matches()) {
       throw new IllegalArgumentException("E-mail inválido.");
     }
@@ -431,9 +435,9 @@ public class PessoaService {
     if (pessoa.telefone() == null) {
       throw new IllegalArgumentException("Telefone é obrigatório.");
     }
-    if (pessoa.cep() == null) {
-      throw new IllegalArgumentException("CEP é obrigatório.");
-    }
+//    if (pessoa.cep() == null) {
+//      throw new IllegalArgumentException("CEP é obrigatório.");
+//    }
     if (!StringUtils.hasText(pessoa.cpf())) {
       throw new IllegalArgumentException("CPF é obrigatório.");
     }
