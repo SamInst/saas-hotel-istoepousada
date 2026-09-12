@@ -915,7 +915,9 @@ public class HospedagemRepository {
                       rs.getObject("diaria_checkout", LocalDateTime.class),
                       rs.getFloat("diaria_valor"),
                       rs.getObject("diaria_meia_diaria", Boolean.class),
-                      null));
+                      null, // pessoas
+                      null, // sazonalidade — resolvida no HospedagemService
+                      null)); // ocupacao — idem
         },
         ids.toArray());
     return result;
@@ -1071,7 +1073,9 @@ public class HospedagemRepository {
               rs.getObject("diaria_checkout", LocalDateTime.class),
               rs.getFloat("diaria_valor"),
               rs.getObject("diaria_meia_diaria", Boolean.class),
-              null);
+              null, // pessoas
+              null, // sazonalidade — resolvida no HospedagemService
+              null); // ocupacao — idem
         },
         hospedagemId);
   }

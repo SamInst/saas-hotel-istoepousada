@@ -919,6 +919,7 @@ public class HospedagemService {
                       null,
                       null,
                       null,
+                      null,
                       null);
               Hospedagem newHospedagem =
                   hospedagemRepository.insertHospedagem(insertRequest, getFuncionarioId());
@@ -981,7 +982,28 @@ public class HospedagemService {
               request.quarto_id(), inicioDiaria, fimDiaria, false, request.pessoas()));
       inicioDiaria = fimDiaria;
     }
+    // Meia diária: a reserva informa só a hora de saída. Vira uma diária extra no dia do
+    // check-out, do fim da última diária inteira até essa hora, com meio valor — o próprio
+    // adicionarDiarias divide, como já faz com a meia diária da Recepção.
+    LocalTime horaSaidaMeia = request.hora_saida_meia_diaria();
+    boolean temMeiaDiaria =
+        total_diarias > 0 && horaSaidaMeia != null && horaSaidaMeia.isAfter(horaCheckout);
+    if (temMeiaDiaria) {
+      diarias.add(
+          new Hospedagem.Diaria.Request(
+              request.quarto_id(),
+              LocalDateTime.of(checkout.toLocalDate(), horaCheckout),
+              LocalDateTime.of(checkout.toLocalDate(), horaSaidaMeia),
+              true,
+              request.pessoas()));
+    }
     adicionarDiarias(hospedagemId, diarias);
+    // O período da hospedagem acompanha a última diária — mesma regra do recálculo em
+    // atualizarDiarias. Sem isso o quarto apareceria livre de manhã, com o hóspede ainda nele.
+    if (temMeiaDiaria) {
+      hospedagemRepository.atualizarPeriodo(
+          hospedagemId, checkin, LocalDateTime.of(checkout.toLocalDate(), horaSaidaMeia));
+    }
   }
 
   @Transactional
@@ -1280,6 +1302,7 @@ public class HospedagemService {
             null,
             null,
             null,
+            null,
             null);
     return hospedagemRepository.insertHospedagem(insertRequest, getFuncionarioId());
   }
@@ -1426,6 +1449,7 @@ public class HospedagemService {
                   null,
                   null,
                   null,
+                  null,
                   null);
           calcularDiarias(hospedagemId, reqDiarias);
         }
@@ -1461,14 +1485,120 @@ public class HospedagemService {
     return new PageResult<>(content, page, size, total, totalPages);
   }
 
+  // ── Composição das diárias ───────────────────────────────────────────────────
+  // O valor da diária já está persistido; o que falta na resposta é a leitura dele — qual
+  // sazonalidade valeu naquela noite, como a ocupação se descreve e quanto saiu das crianças.
+  // Era a única informação que só existia no /calcular-preco. Resolvido aqui, em lote, para
+  // não reconsultar categoria/sazonalidade/modelos a cada diária.
+
+  private Map<Long, List<Hospedagem.Diaria>> comComposicao(
+      List<Hospedagem> hospedagens,
+      Map<Long, List<Hospedagem.Diaria>> diariasPorHospedagem,
+      Map<Long, List<Pessoa.DadosPrincipais>> pessoasPorHospedagem) {
+    List<Hospedagem.Diaria> todas =
+        diariasPorHospedagem.values().stream().flatMap(List::stream).toList();
+    if (todas.isEmpty()) return diariasPorHospedagem;
+    CalcularPrecoService.ComposicaoNoite composicao = carregarComposicao(todas);
+    Map<Long, List<Hospedagem.Diaria>> result = new LinkedHashMap<>();
+    for (Hospedagem h : hospedagens) {
+      List<Hospedagem.Diaria> diarias = diariasPorHospedagem.get(h.id());
+      if (diarias == null) continue;
+      result.put(
+          h.id(),
+          aplicarComposicao(
+              diarias,
+              pessoasPorHospedagem.getOrDefault(h.id(), List.of()),
+              h.data_hora_checkin(),
+              composicao));
+    }
+    return result;
+  }
+
+  private List<Hospedagem.Diaria> comComposicao(
+      List<Hospedagem.Diaria> diarias,
+      List<Pessoa.DadosPrincipais> pessoas,
+      LocalDateTime checkinHospedagem) {
+    if (diarias == null || diarias.isEmpty()) return diarias;
+    return aplicarComposicao(diarias, pessoas, checkinHospedagem, carregarComposicao(diarias));
+  }
+
+  private CalcularPrecoService.ComposicaoNoite carregarComposicao(
+      List<Hospedagem.Diaria> diarias) {
+    return calcularPrecoService.carregarComposicaoPorQuarto(
+        diarias.stream().map(HospedagemService::quartoDaDiaria).filter(Objects::nonNull).toList());
+  }
+
+  private static List<Hospedagem.Diaria> aplicarComposicao(
+      List<Hospedagem.Diaria> diarias,
+      List<Pessoa.DadosPrincipais> pessoas,
+      LocalDateTime checkinHospedagem,
+      CalcularPrecoService.ComposicaoNoite composicao) {
+
+    // Adulto/criança é decidido pela idade na entrada da estadia, não na noite — mesma
+    // referência que o /calcular-preco usa para a estadia inteira.
+    LocalDate referencia = checkinHospedagem == null ? null : checkinHospedagem.toLocalDate();
+    List<Pessoa.DadosPrincipais> hospedes = pessoas == null ? List.of() : pessoas;
+    List<Integer> idadesCriancas = new ArrayList<>();
+    int totalAdultos = 0;
+    for (Pessoa.DadosPrincipais pessoa : hospedes) {
+      Integer idade = idadeEm(pessoa.data_nascimento(), referencia);
+      if (idade == null || idade >= 18) totalAdultos++;
+      else idadesCriancas.add(idade);
+    }
+    final int adultos = totalAdultos;
+
+    return diarias.stream()
+        .map(
+            d -> {
+              CalcularPrecoService.NoiteResolvida noite =
+                  composicao.resolver(quartoDaDiaria(d), noiteDaDiaria(d), adultos, idadesCriancas);
+              if (noite == null) return d;
+              // Sem hóspede vinculado não há ocupação a descrever; a sazonalidade continua valendo.
+              Hospedagem.Diaria.Ocupacao ocupacao =
+                  hospedes.isEmpty()
+                      ? null
+                      : new Hospedagem.Diaria.Ocupacao(
+                          adultos,
+                          noite.ocupacao(),
+                          noite.precoCriancas() > 0 ? noite.precoCriancas() : null);
+              return d.comComposicao(noite.sazonalidade(), ocupacao);
+            })
+        .toList();
+  }
+
+  private static Integer idadeEm(LocalDate nascimento, LocalDate referencia) {
+    if (nascimento == null || referencia == null) return null;
+    return Period.between(nascimento, referencia).getYears();
+  }
+
+  private static Long quartoDaDiaria(Hospedagem.Diaria d) {
+    return d.quarto() == null ? null : d.quarto().id();
+  }
+
+  /**
+   * A noite da diária é a data do check-in dela. Check-in e check-out no mesmo dia é entrada após a
+   * meia-noite: a noite é a anterior — mesma convenção do cálculo de preço.
+   */
+  private static LocalDate noiteDaDiaria(Hospedagem.Diaria d) {
+    if (d.checkin() == null) return null;
+    LocalDate entrada = d.checkin().toLocalDate();
+    return (d.checkout() != null && d.checkout().toLocalDate().isEqual(entrada))
+        ? entrada.minusDays(1)
+        : entrada;
+  }
+
   private List<Hospedagem> withDetailsBatch(List<Hospedagem> hospedagens) {
     List<Long> ids = hospedagens.stream().map(Hospedagem::id).toList();
 
-    Map<Long, List<Hospedagem.Diaria>> diariasMap = hospedagemRepository.listarDiariasBatch(ids);
+    Map<Long, List<Hospedagem.Diaria>> diariasBase = hospedagemRepository.listarDiariasBatch(ids);
     Map<Long, List<Item.Consumo>> consumosMap = hospedagemRepository.buscarConsumosBatch(ids);
     Map<Long, List<Pagamento>> pagamentosMap = pagamentoService.buscarPorHospedagemIds(ids);
     Map<Long, Quarto> quartosMap = quartoRepository.buscarPorHospedagemIds(ids);
     Map<Long, List<Pessoa.DadosPrincipais>> pessoasMap = pessoaService.buscarByHospedagemIds(ids);
+
+    // A composição da noite classifica os hóspedes por idade, então só depois de tê-los.
+    Map<Long, List<Hospedagem.Diaria>> diariasMap =
+        comComposicao(hospedagens, diariasBase, pessoasMap);
     Map<Long, List<Hospedagem.PessoaHospedagemOrcamento>> pessoasOrcMap =
         hospedagemRepository.buscarPessoasOrcamentoBatch(ids);
     Map<Long, MotivoCancelamentoHospedagem> motivosMap =
@@ -1506,11 +1636,13 @@ public class HospedagemService {
   }
 
   private Hospedagem withDetails(Hospedagem hospedagem) {
-    var diarias = listarDiarias(hospedagem.id());
+    var pessoas = buscarPessoasHospedagem(hospedagem.id());
+    var diarias =
+        comComposicao(
+            listarDiarias(hospedagem.id()), pessoas, hospedagem.data_hora_checkin());
     var consumos = buscarConsumosPorHospedagem(hospedagem.id());
     var pagamentos = pagamentoService.buscarPorHospedagemId(hospedagem.id());
     var quarto = quartoRepository.buscarPorHospedagemId(hospedagem.id());
-    var pessoas = buscarPessoasHospedagem(hospedagem.id());
 
     List<Hospedagem.PessoaHospedagemOrcamento> pessoasOrcamento =
         hospedagemRepository.buscarPessoasHospedagemOrcamento(hospedagem.id());

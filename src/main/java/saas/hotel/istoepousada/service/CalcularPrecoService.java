@@ -103,6 +103,90 @@ public class CalcularPrecoService {
         .toList();
   }
 
+  // ── Sazonalidade avulsa ───────────────────────────────────────────────────
+
+  /**
+   * Composição de uma noite de um quarto já conhecido. Quem já tem o valor da diária persistido
+   * (hospedagem, reserva) não precisa recalcular preço — precisa da leitura: qual sazonalidade
+   * valeu, como a ocupação se descreve e quanto daquele valor foi das crianças. A regra é a mesma
+   * do cálculo ({@link #resolverNoite}).
+   */
+  public interface ComposicaoNoite {
+    NoiteResolvida resolver(Long quartoId, LocalDate noite, int adultos, List<Integer> idadesCriancas);
+  }
+
+  /**
+   * Carrega de uma vez categorias, sazonalidades e modelos de preço dos quartos informados e
+   * devolve um resolvedor por quarto/noite. O número de consultas não cresce com a quantidade de
+   * diárias.
+   *
+   * <p>Diferente do cálculo de preço, quarto sem categoria configurada aqui não é erro: devolve
+   * simplesmente nada, para não derrubar uma listagem por causa de cadastro incompleto.
+   */
+  @Transactional(readOnly = true)
+  public ComposicaoNoite carregarComposicaoPorQuarto(Collection<Long> quartoIds) {
+    List<Long> ids =
+        quartoIds == null
+            ? List.of()
+            : quartoIds.stream().filter(Objects::nonNull).distinct().toList();
+    if (ids.isEmpty()) return (quartoId, noite, adultos, idades) -> null;
+
+    Map<Long, CategoriaCheckin> catInfoMap =
+        categoriaRepository.findCategoriasCheckinByQuartoIds(ids);
+
+    List<Long> categoriaIds =
+        catInfoMap.values().stream()
+            .filter(Objects::nonNull)
+            .map(CategoriaCheckin::id)
+            .distinct()
+            .toList();
+
+    Map<Long, Categoria> categoriasMap =
+        categoriaIds.isEmpty() ? Map.of() : categoriaRepository.findCategoriasParaCalculo(categoriaIds);
+
+    Map<Long, List<Sazonalidade>> sazonalidadesPorCategoriaId =
+        categoriaRepository.findSazonalidades(categoriaIds);
+
+    List<Long> sazonalidadeIds =
+        sazonalidadesPorCategoriaId.values().stream()
+            .flatMap(List::stream)
+            .map(Sazonalidade::id)
+            .distinct()
+            .toList();
+
+    Map<Long, List<Categoria.ModeloOcupacao>> sazonalidadeModeloPrecoPorOcupacao =
+        sazonalidadeIds.isEmpty()
+            ? Map.of()
+            : categoriaRepository.buscaModeloPrecoPorOcupacaoSazonalidade(sazonalidadeIds);
+
+    Map<Long, List<Categoria.ModeloFixo>> sazonalidadeModeloPrecoFixo =
+        sazonalidadeIds.isEmpty()
+            ? Map.of()
+            : categoriaRepository.buscaModeloPrecoFixoSazonalidade(sazonalidadeIds);
+
+    Map<Long, List<Categoria.MenorIdade>> sazonalidadeMenoresIdade =
+        sazonalidadeIds.isEmpty()
+            ? Map.of()
+            : categoriaRepository.findSazonMenoresIdade(sazonalidadeIds);
+
+    return (quartoId, noite, adultos, idadesCriancas) -> {
+      if (quartoId == null || noite == null) return null;
+      CategoriaCheckin catInfo = catInfoMap.get(quartoId);
+      if (catInfo == null) return null;
+      Categoria categoria = categoriasMap.get(catInfo.id());
+      if (categoria == null) return null;
+      return resolverNoite(
+          noite,
+          categoria,
+          sazonalidadesPorCategoriaId.getOrDefault(catInfo.id(), List.of()),
+          sazonalidadeModeloPrecoPorOcupacao,
+          sazonalidadeModeloPrecoFixo,
+          sazonalidadeMenoresIdade,
+          adultos,
+          idadesCriancas);
+    };
+  }
+
   private CalcularPreco calcularPorDataNascimento(CalcularPreco.Request request) {
     if (request.datas_nascimento() == null || request.datas_nascimento().isEmpty())
       throw new IllegalArgumentException("Informe ao menos uma data de nascimento.");
@@ -181,138 +265,42 @@ public class CalcularPrecoService {
     // Rastreia sazonalidades efetivamente aplicadas
     Map<Long, Sazonalidade.Nome> sazonAplicadasMap = new LinkedHashMap<>();
 
-    boolean temCriancas = request.idades_criancas() != null && !request.idades_criancas().isEmpty();
-
     for (int i = 0; i < noites; i++) {
       LocalDate night = dataEntradaCalculo.plusDays(i);
-      Long activeSazonId = findActiveSazonalidade(sazonalidades, night);
+      NoiteResolvida noite =
+          resolverNoite(
+              night,
+              categoria,
+              sazonalidades,
+              sazonalidadeModelosPrecoPorOcupacao,
+              sazonalidadeModelosPrecoFixo,
+              sazonalidadeMenoresIdade,
+              request.quantidade_adultos(),
+              request.idades_criancas());
 
       // Registra sazonalidade detectada para incluir na resposta
-      if (activeSazonId != null) {
-        sazonAplicadasMap.computeIfAbsent(
-            activeSazonId,
-            id ->
-                sazonalidades.stream()
-                    .filter(s -> s.id().equals(id))
-                    .findFirst()
-                    .map(s -> new Sazonalidade.Nome(s.id(), s.descricao()))
-                    .orElse(null));
-      }
+      if (noite.sazonalidade() != null)
+        sazonAplicadasMap.putIfAbsent(noite.sazonalidade().id(), noite.sazonalidade());
 
-      // Prioridade 1: modelos próprios da sazonalidade (fk_categoria IS NULL)
-      List<Categoria.ModeloOcupacao> modelosOcupacao =
-          activeSazonId != null
-              ? sazonalidadeModelosPrecoPorOcupacao.getOrDefault(activeSazonId, List.of())
-              : List.of();
-      List<Categoria.ModeloFixo> modelosFixo =
-          activeSazonId != null
-              ? sazonalidadeModelosPrecoFixo.getOrDefault(activeSazonId, List.of())
-              : List.of();
-
-      // Prioridade 2: modelos da categoria vinculados àquela sazonalidade
-      if (modelosOcupacao.isEmpty() && modelosFixo.isEmpty() && activeSazonId != null) {
-        modelosOcupacao = filtrarPorSazon(categoria.modelos_ocupacao(), activeSazonId);
-        modelosFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), activeSazonId);
-      }
-
-      // Prioridade 3: modelos base da categoria (sem sazonalidade)
-      boolean usandoBase = modelosOcupacao.isEmpty() && modelosFixo.isEmpty();
-      if (usandoBase) {
-        modelosOcupacao = filtrarPorSazon(categoria.modelos_ocupacao(), null);
-        modelosFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), null);
-      }
-
-      // Preço base sempre calculado dos modelos sem sazonalidade (para o acréscimo)
-      List<Categoria.ModeloOcupacao> baseOcupacao =
-          filtrarPorSazon(categoria.modelos_ocupacao(), null);
-      List<Categoria.ModeloFixo> baseFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), null);
-      double precoBase = resolverPrecoAdultos(baseOcupacao, baseFixo, request.quantidade_adultos());
-
-      double noiteAdultosPreco =
-          resolverPrecoAdultos(modelosOcupacao, modelosFixo, request.quantidade_adultos());
-      String adultoLabel = request.quantidade_adultos() + " Adulto(s)";
-      if (!modelosFixo.isEmpty() && modelosOcupacao.isEmpty()) adultoLabel = "tarifa fixa";
-
-      // Crianças por noite
-      double noiteCriancasPreco = 0.0;
-      List<Integer> criancasComTaxa = new ArrayList<>();
-      List<Integer> criancasGratuitas = new ArrayList<>();
-      if (temCriancas) {
-        // Prioridade 1: regra própria da sazonalidade (fk_categoria IS NULL)
-        List<Categoria.MenorIdade> regras =
-            activeSazonId != null
-                ? sazonalidadeMenoresIdade.getOrDefault(activeSazonId, List.of())
-                : List.of();
-        // Prioridade 2: regra da categoria vinculada à sazonalidade
-        if (regras.isEmpty() && activeSazonId != null)
-          regras = filtrarMenoresPorSazon(categoria.menores_idade(), activeSazonId);
-        // Prioridade 3: regra base da categoria
-        if (regras.isEmpty()) regras = filtrarMenoresPorSazon(categoria.menores_idade(), null);
-        if (!regras.isEmpty()) {
-          Categoria.MenorIdade regra = regras.getFirst();
-          int qtdCriancas = request.idades_criancas().size();
-          for (Integer idade : request.idades_criancas()) {
-            double taxa =
-                calcularTaxaCrianca(regra, idade, request.quantidade_adultos(), qtdCriancas);
-            if (taxa > 0) {
-              noiteCriancasPreco += taxa;
-              criancasComTaxa.add(idade);
-            } else {
-              criancasGratuitas.add(idade);
-            }
-          }
-        }
-      }
-
-      double acrescimo = usandoBase ? 0.0 : noiteAdultosPreco - precoBase;
-      double noiteTotal = noiteAdultosPreco + noiteCriancasPreco;
-
-      LocalDate nextNight = night.plusDays(1);
-      StringBuilder desc =
-          new StringBuilder(
-              "Diaria "
-                  + (i + 1)
-                  + " - ("
-                  + night.format(fmt)
-                  + " -> "
-                  + nextNight.format(fmt)
-                  + ") "
-                  + adultoLabel);
-      if (!criancasComTaxa.isEmpty()) {
-        if (criancasComTaxa.size() == 1) {
-          desc.append(" + Criança de ").append(criancasComTaxa.getFirst()).append(" anos");
-        } else {
-          desc.append(" + Crianças de ")
-              .append(
-                  criancasComTaxa.stream().map(String::valueOf).collect(Collectors.joining(", ")))
-              .append(" anos");
-        }
-      }
-      if (!criancasGratuitas.isEmpty()) {
-        if (criancasGratuitas.size() == 1) {
-          desc.append(" + Criança de ")
-              .append(criancasGratuitas.getFirst())
-              .append(" anos (gratuidade)");
-        } else {
-          desc.append(" + Crianças de ")
-              .append(
-                  criancasGratuitas.stream().map(String::valueOf).collect(Collectors.joining(", ")))
-              .append(" anos (gratuidade)");
-        }
-      }
-
-      Sazonalidade.Nome sazonNomeItem =
-          activeSazonId != null ? sazonAplicadasMap.get(activeSazonId) : null;
+      String descricao =
+          "Diaria "
+              + (i + 1)
+              + " - ("
+              + night.format(fmt)
+              + " -> "
+              + night.plusDays(1).format(fmt)
+              + ") "
+              + noite.ocupacao();
 
       detalhes.add(
           new CalcularPreco.ItemPreco(
-              desc.toString(),
-              sazonNomeItem,
-              precoBase,
-              acrescimo,
-              noiteCriancasPreco > 0 ? noiteCriancasPreco : null,
-              noiteTotal));
-      valorTotal += noiteTotal;
+              descricao,
+              noite.sazonalidade(),
+              noite.precoBase(),
+              noite.acrescimoSazonalidade(),
+              noite.precoCriancas() > 0 ? noite.precoCriancas() : null,
+              noite.total()));
+      valorTotal += noite.total();
     }
 
     List<Sazonalidade.Nome> sazonAplicadas =
@@ -327,6 +315,153 @@ public class CalcularPrecoService {
         valorTotal,
         sazonAplicadas.isEmpty() ? null : sazonAplicadas,
         detalhes);
+  }
+
+  // ── Composição de uma noite ───────────────────────────────────────────────
+
+  /**
+   * O que valeu numa noite: a sazonalidade ativa, quanto saiu de adultos e de crianças e como a
+   * ocupação se descreve. Fica isolado porque duas leituras precisam disso: o cálculo de preço, que
+   * ainda vai somar tudo, e a leitura de uma hospedagem já gravada, que quer só o rótulo e a parte
+   * das crianças — o valor da diária dela já está persistido.
+   */
+  public record NoiteResolvida(
+      Sazonalidade.Nome sazonalidade,
+      /* "2 Adulto(s) + Criança de 5 anos (gratuidade)" */
+      String ocupacao,
+      double precoBase,
+      double precoAdultos,
+      double precoCriancas,
+      boolean usandoBase) {
+
+    public double acrescimoSazonalidade() {
+      return usandoBase ? 0.0 : precoAdultos - precoBase;
+    }
+
+    public double total() {
+      return precoAdultos + precoCriancas;
+    }
+  }
+
+  private NoiteResolvida resolverNoite(
+      LocalDate night,
+      Categoria categoria,
+      List<Sazonalidade> sazonalidades,
+      Map<Long, List<Categoria.ModeloOcupacao>> sazonalidadeModelosPrecoPorOcupacao,
+      Map<Long, List<Categoria.ModeloFixo>> sazonalidadeModelosPrecoFixo,
+      Map<Long, List<Categoria.MenorIdade>> sazonalidadeMenoresIdade,
+      int quantidadeAdultos,
+      List<Integer> idadesCriancas) {
+
+    Long activeSazonId = findActiveSazonalidade(sazonalidades, night);
+    Sazonalidade.Nome sazonNome =
+        activeSazonId == null
+            ? null
+            : sazonalidades.stream()
+                .filter(sz -> sz.id().equals(activeSazonId))
+                .findFirst()
+                .map(sz -> new Sazonalidade.Nome(sz.id(), sz.descricao()))
+                .orElse(null);
+
+    // Prioridade 1: modelos próprios da sazonalidade (fk_categoria IS NULL)
+    List<Categoria.ModeloOcupacao> modelosOcupacao =
+        activeSazonId != null
+            ? sazonalidadeModelosPrecoPorOcupacao.getOrDefault(activeSazonId, List.of())
+            : List.of();
+    List<Categoria.ModeloFixo> modelosFixo =
+        activeSazonId != null
+            ? sazonalidadeModelosPrecoFixo.getOrDefault(activeSazonId, List.of())
+            : List.of();
+
+    // Prioridade 2: modelos da categoria vinculados àquela sazonalidade
+    if (modelosOcupacao.isEmpty() && modelosFixo.isEmpty() && activeSazonId != null) {
+      modelosOcupacao = filtrarPorSazon(categoria.modelos_ocupacao(), activeSazonId);
+      modelosFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), activeSazonId);
+    }
+
+    // Prioridade 3: modelos base da categoria (sem sazonalidade)
+    boolean usandoBase = modelosOcupacao.isEmpty() && modelosFixo.isEmpty();
+    if (usandoBase) {
+      modelosOcupacao = filtrarPorSazon(categoria.modelos_ocupacao(), null);
+      modelosFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), null);
+    }
+
+    // Preço base sempre calculado dos modelos sem sazonalidade (para o acréscimo)
+    List<Categoria.ModeloOcupacao> baseOcupacao =
+        filtrarPorSazon(categoria.modelos_ocupacao(), null);
+    List<Categoria.ModeloFixo> baseFixo = filtrarFixoPorSazon(categoria.modelos_fixo(), null);
+    double precoBase = resolverPrecoAdultos(baseOcupacao, baseFixo, quantidadeAdultos);
+
+    double noiteAdultosPreco =
+        resolverPrecoAdultos(modelosOcupacao, modelosFixo, quantidadeAdultos);
+    String adultoLabel = quantidadeAdultos + " Adulto(s)";
+    if (!modelosFixo.isEmpty() && modelosOcupacao.isEmpty()) adultoLabel = "tarifa fixa";
+
+    // Crianças por noite
+    double noiteCriancasPreco = 0.0;
+    List<Integer> criancasComTaxa = new ArrayList<>();
+    List<Integer> criancasGratuitas = new ArrayList<>();
+    if (idadesCriancas != null && !idadesCriancas.isEmpty()) {
+      // Prioridade 1: regra própria da sazonalidade (fk_categoria IS NULL)
+      List<Categoria.MenorIdade> regras =
+          activeSazonId != null
+              ? sazonalidadeMenoresIdade.getOrDefault(activeSazonId, List.of())
+              : List.of();
+      // Prioridade 2: regra da categoria vinculada à sazonalidade
+      if (regras.isEmpty() && activeSazonId != null)
+        regras = filtrarMenoresPorSazon(categoria.menores_idade(), activeSazonId);
+      // Prioridade 3: regra base da categoria
+      if (regras.isEmpty()) regras = filtrarMenoresPorSazon(categoria.menores_idade(), null);
+      if (!regras.isEmpty()) {
+        Categoria.MenorIdade regra = regras.getFirst();
+        int qtdCriancas = idadesCriancas.size();
+        for (Integer idade : idadesCriancas) {
+          double taxa = calcularTaxaCrianca(regra, idade, quantidadeAdultos, qtdCriancas);
+          if (taxa > 0) {
+            noiteCriancasPreco += taxa;
+            criancasComTaxa.add(idade);
+          } else {
+            criancasGratuitas.add(idade);
+          }
+        }
+      }
+    }
+
+    return new NoiteResolvida(
+        sazonNome,
+        descreverOcupacao(adultoLabel, criancasComTaxa, criancasGratuitas),
+        precoBase,
+        noiteAdultosPreco,
+        noiteCriancasPreco,
+        usandoBase);
+  }
+
+  /** "2 Adulto(s) + Criança de 5 anos + Criança de 2 anos (gratuidade)". */
+  private static String descreverOcupacao(
+      String adultoLabel, List<Integer> criancasComTaxa, List<Integer> criancasGratuitas) {
+    StringBuilder desc = new StringBuilder(adultoLabel);
+    if (!criancasComTaxa.isEmpty()) {
+      if (criancasComTaxa.size() == 1) {
+        desc.append(" + Criança de ").append(criancasComTaxa.getFirst()).append(" anos");
+      } else {
+        desc.append(" + Crianças de ")
+            .append(criancasComTaxa.stream().map(String::valueOf).collect(Collectors.joining(", ")))
+            .append(" anos");
+      }
+    }
+    if (!criancasGratuitas.isEmpty()) {
+      if (criancasGratuitas.size() == 1) {
+        desc.append(" + Criança de ")
+            .append(criancasGratuitas.getFirst())
+            .append(" anos (gratuidade)");
+      } else {
+        desc.append(" + Crianças de ")
+            .append(
+                criancasGratuitas.stream().map(String::valueOf).collect(Collectors.joining(", ")))
+            .append(" anos (gratuidade)");
+      }
+    }
+    return desc.toString();
   }
 
   // ── Cálculo Day Use ───────────────────────────────────────────────────────
