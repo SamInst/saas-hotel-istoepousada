@@ -277,16 +277,19 @@ public class ItemRepository {
                           c.descricao                AS categoria_descricao,
                           i.id                       AS item_id,
                           i.descricao                AS item_descricao,
+                          i.servico                  AS item_servico,
                           e.qtd_total_unidades        AS item_quantidade,
                           ultimo.qtd_total_unidades   AS ultimo_quantidade,
                           ultimo.valor_venda_unidade  AS item_valor_venda,
+                          ultimo.valor_compra_unidade AS item_valor_compra,
+                          ultimo.fornecedor           AS item_fornecedor,
                           COALESCE(ultimo.qtd_total_unidades * ultimo.valor_compra_unidade, 0) AS valor_investido,
                           COALESCE(ultimo.qtd_total_unidades * (ultimo.valor_venda_unidade - ultimo.valor_compra_unidade), 0) AS lucro_potencial
                         FROM categoria_item c
                         LEFT JOIN item i ON i.fk_categoria = c.id
                         LEFT JOIN estoque e ON e.fk_item = i.id
                         LEFT JOIN LATERAL (
-                          SELECT qtd_total_unidades, valor_compra_unidade, valor_venda_unidade
+                          SELECT qtd_total_unidades, valor_compra_unidade, valor_venda_unidade, fornecedor
                           FROM historico_estoque
                           WHERE fk_estoque = e.id
                           ORDER BY data_hora_reposicao DESC, id DESC
@@ -318,12 +321,17 @@ public class ItemRepository {
                                   new Item.HistoricoEstoque.Estoque.CategoriaItem.ItemEstoque(
                                       ((Number) row.get("item_id")).longValue(),
                                       (String) row.get("item_descricao"),
+                                      Boolean.TRUE.equals(row.get("item_servico")),
                                       row.get("item_quantidade") != null
                                           ? ((Number) row.get("item_quantidade")).intValue()
                                           : 0,
                                       row.get("item_valor_venda") != null
                                           ? ((Number) row.get("item_valor_venda")).floatValue()
-                                          : 0f))
+                                          : 0f,
+                                      row.get("item_valor_compra") != null
+                                          ? ((Number) row.get("item_valor_compra")).floatValue()
+                                          : 0f,
+                                      (String) row.get("item_fornecedor")))
                           .toList();
 
                   var itensComEstoque =
@@ -369,13 +377,14 @@ public class ItemRepository {
     var id =
         jdbcTemplate.queryForObject(
             """
-                        INSERT INTO item (descricao, fk_categoria, data_hora_registro)
-                        VALUES (?, ?, now())
+                        INSERT INTO item (descricao, fk_categoria, servico, data_hora_registro)
+                        VALUES (?, ?, ?, now())
                         returning id
                         """,
             Long.class,
             request.descricao().trim(),
-            request.categoria_item().id());
+            request.categoria_item().id(),
+            Boolean.TRUE.equals(request.servico()));
 
     return findById(id);
   }
@@ -385,11 +394,12 @@ public class ItemRepository {
         jdbcTemplate.update(
             """
                                 UPDATE item
-                                SET descricao = ?, fk_categoria = ?
+                                SET descricao = ?, fk_categoria = ?, servico = ?
                                 WHERE id = ?
                                 """,
             request.descricao().trim(),
             request.categoria_item().id(),
+            Boolean.TRUE.equals(request.servico()),
             request.id());
 
     if (rows == 0) {

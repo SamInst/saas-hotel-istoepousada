@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -37,8 +38,37 @@ public class QuartoService {
 
   public Page<Quarto> buscar(Long id, String termo, Quarto.Status status, Pageable pageable) {
     if (pageable == null) throw new IllegalArgumentException("pageable é obrigatório.");
-    return quartoRepository.buscar(
-        id, StringUtils.hasText(termo) ? termo.trim() : null, status, pageable);
+    Page<Quarto> page =
+        quartoRepository.buscar(
+            id, StringUtils.hasText(termo) ? termo.trim() : null, status, pageable);
+
+    // A listagem devolve os itens de cada quarto, como /quarto/recepcao já fazia:
+    // uma consulta em lote para a página inteira, não uma por quarto.
+    return page.map(preencherItens(page.getContent()));
+  }
+
+  /**
+   * Carrega os itens de todos os quartos da página de uma vez e devolve uma função que injeta a
+   * lista de cada quarto no seu registro.
+   */
+  private UnaryOperator<Quarto> preencherItens(List<Quarto> quartos) {
+    List<Long> ids = quartos.stream().map(Quarto::id).toList();
+    Map<Long, List<Quarto.ItemQuarto>> itensPorQuarto =
+        ids.isEmpty() ? Map.of() : quartoRepository.buscarItensPorQuartos(ids);
+
+    return quarto ->
+        new Quarto(
+            quarto.id(),
+            quarto.descricao(),
+            quarto.quantidade_pessoas(),
+            quarto.status(),
+            quarto.quantidade_cama_casal(),
+            quarto.quantidade_cama_solteiro(),
+            quarto.quantidade_rede(),
+            quarto.quantidade_beliche(),
+            itensPorQuarto.getOrDefault(quarto.id(), List.of()),
+            quarto.quarto_manutencao(),
+            quarto.quarto_limpeza());
   }
 
   @Transactional

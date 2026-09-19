@@ -11,10 +11,14 @@ public record Item(@NotNull Long id, String descricao) {
 
   public record Id(@NotNull Long id) {}
 
-  public record Request(CategoriaItem.Id categoria_item, String descricao) {}
+  /** `servico` marca itens sem estoque físico: não têm quantidade nem custo de compra. */
+  public record Request(CategoriaItem.Id categoria_item, String descricao, Boolean servico) {}
 
   public record Update(
-      @NotNull Long id, @NotNull CategoriaItem.Id categoria_item, @NotNull String descricao) {}
+      @NotNull Long id,
+      @NotNull CategoriaItem.Id categoria_item,
+      @NotNull String descricao,
+      Boolean servico) {}
 
   public record HistoricoEstoque(
       @NotNull Long id,
@@ -41,7 +45,13 @@ public record Item(@NotNull Long id, String descricao) {
             Integer quantidade_itens, Float valor_investido, Float lucro_potencial) {}
 
         public record ItemEstoque(
-            Long id, String descricao, Integer quantidade, Float valor_venda) {}
+            Long id,
+            String descricao,
+            Boolean servico,
+            Integer quantidade,
+            Float valor_venda,
+            Float valor_compra,
+            String fornecedor) {}
       }
     }
 
