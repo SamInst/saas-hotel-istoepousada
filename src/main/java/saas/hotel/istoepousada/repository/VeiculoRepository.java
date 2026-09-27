@@ -25,7 +25,9 @@ public class VeiculoRepository {
                 marca  as veiculo_marca,
                 ano    as veiculo_ano,
                 placa  as veiculo_placa,
-                cor    as veiculo_cor
+                cor    as veiculo_cor,
+                tipo   as veiculo_tipo,
+                codigo_cor as veiculo_codigo_cor
             FROM veiculo
             WHERE id = ?
             """;
@@ -46,7 +48,9 @@ public class VeiculoRepository {
                     marca  as veiculo_marca,
                     ano    as veiculo_ano,
                     placa  as veiculo_placa,
-                    cor    as veiculo_cor
+                    cor    as veiculo_cor,
+                    tipo   as veiculo_tipo,
+                    codigo_cor as veiculo_codigo_cor
                 FROM veiculo
                 WHERE placa = ?
                 """;
@@ -67,7 +71,9 @@ public class VeiculoRepository {
                 v.marca  as veiculo_marca,
                 v.ano    as veiculo_ano,
                 v.placa  as veiculo_placa,
-                v.cor    as veiculo_cor
+                v.cor    as veiculo_cor,
+                v.tipo   as veiculo_tipo,
+                v.codigo_cor as veiculo_codigo_cor
             FROM pessoa_veiculo pv
             JOIN veiculo v ON v.id = pv.veiculo_id
             WHERE pv.pessoa_id = ?
@@ -81,8 +87,8 @@ public class VeiculoRepository {
     Long id =
         jdbcTemplate.queryForObject(
             """
-                    INSERT INTO veiculo (modelo, marca, ano, placa, cor)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO veiculo (modelo, marca, ano, placa, cor, tipo, codigo_cor)
+                    VALUES (?, ?, ?, ?, ?, ?::veiculo_tipo, ?)
                     RETURNING id
                     """,
             Long.class,
@@ -90,7 +96,9 @@ public class VeiculoRepository {
             veiculo.marca(),
             veiculo.ano(),
             veiculo.placa(),
-            veiculo.cor());
+            veiculo.cor(),
+            Veiculo.tipoName(veiculo.tipo()),
+            veiculo.codigo_cor());
     return findById(id);
   }
 
@@ -103,7 +111,9 @@ public class VeiculoRepository {
               marca = ?,
               ano = ?,
               placa = ?,
-              cor = ?
+              cor = ?,
+              tipo = ?::veiculo_tipo,
+              codigo_cor = ?
             WHERE id = ?
             """,
         veiculo.modelo(),
@@ -111,6 +121,8 @@ public class VeiculoRepository {
         veiculo.ano(),
         veiculo.placa(),
         veiculo.cor(),
+        Veiculo.tipoName(veiculo.tipo()),
+        veiculo.codigo_cor(),
         veiculo.id());
 
     return findById(veiculo.id());

@@ -27,6 +27,16 @@ import saas.hotel.istoepousada.handler.exceptions.NotFoundException;
 @Repository
 public class PessoaRepository {
   private static final Logger log = LoggerFactory.getLogger(PessoaRepository.class);
+
+  static String normalizarNome(String nome) {
+    if (nome == null) return null;
+    return java.text.Normalizer.normalize(nome, java.text.Normalizer.Form.NFD)
+        .replaceAll("\\p{M}", "")
+        .trim()
+        .replaceAll("\\s+", " ")
+        .toUpperCase(java.util.Locale.ROOT);
+  }
+
   private final JdbcTemplate jdbcTemplate;
 
   public PessoaRepository(JdbcTemplate jdbcTemplate) {
@@ -183,7 +193,9 @@ public class PessoaRepository {
           v.marca                 AS veiculo_marca,
           v.ano                   AS veiculo_ano,
           v.placa                 AS veiculo_placa,
-          v.cor                   AS veiculo_cor
+          v.cor                   AS veiculo_cor,
+          v.tipo                  AS veiculo_tipo,
+          v.codigo_cor            AS veiculo_codigo_cor
           """;
 
   public static String FROM_BASE =
@@ -435,7 +447,7 @@ public class PessoaRepository {
                         ) VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?::pessoa_status, ?, ?, ?) returning id
                         """,
             Long.class,
-            pessoa.nome(),
+            normalizarNome(pessoa.nome()),
             pessoa.data_nascimento() != null ? Date.valueOf(pessoa.data_nascimento()) : null,
             pessoa.cpf(),
             pessoa.rg(),
@@ -501,7 +513,7 @@ public class PessoaRepository {
           jdbcTemplate.queryForObject(
               sql,
               Long.class,
-              pessoa.nome(),
+              normalizarNome(pessoa.nome()),
               pessoa.data_nascimento() != null ? Date.valueOf(pessoa.data_nascimento()) : null,
               idade,
               pessoa.cpf(),
@@ -677,7 +689,9 @@ public class PessoaRepository {
             v.marca           AS veiculo_marca,
             v.ano             AS veiculo_ano,
             v.placa           AS veiculo_placa,
-            v.cor             AS veiculo_cor
+            v.cor             AS veiculo_cor,
+            v.tipo            AS veiculo_tipo,
+            v.codigo_cor      AS veiculo_codigo_cor
         FROM pessoa p
             LEFT JOIN pessoa_veiculo pv ON pv.pessoa_id = p.id AND pv.vinculo_ativo = true
             LEFT JOIN veiculo v ON v.id = pv.veiculo_id

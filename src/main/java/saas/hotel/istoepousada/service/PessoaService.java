@@ -129,7 +129,7 @@ public class PessoaService {
     } else {
       List<Veiculo> veiculosNovos =
           veiculos.stream()
-              .map(v -> new Veiculo(v.id(), v.modelo(), v.marca(), v.ano(), v.placa(), v.cor()))
+              .map(v -> new Veiculo(v.id(), v.modelo(), v.marca(), v.ano(), v.placa(), v.cor(), v.tipo(), v.codigo_cor()))
               .toList();
       Pessoa.Request request =
           new Pessoa.Request(
@@ -227,7 +227,9 @@ public class PessoaService {
                               veiculo.marca(),
                               veiculo.ano(),
                               veiculo.placa(),
-                              veiculo.cor()));
+                              veiculo.cor(),
+                              veiculo.tipo(),
+                              veiculo.codigo_cor()));
                   veiculoService.setVinculoAtivo(
                       new Veiculo.Vincular(
                           new Veiculo.Id(new_veiculo.id()), new Pessoa.Id(pessoa.id()), true));
@@ -350,7 +352,9 @@ public class PessoaService {
                       veiculo.marca(),
                       veiculo.ano(),
                       veiculo.placa(),
-                      veiculo.cor()));
+                      veiculo.cor(),
+                      veiculo.tipo(),
+                      veiculo.codigo_cor()));
         } else {
           veiculoSalvo =
               veiculoService.update(
@@ -360,7 +364,9 @@ public class PessoaService {
                       veiculo.marca(),
                       veiculo.ano(),
                       veiculo.placa(),
-                      veiculo.cor()));
+                      veiculo.cor(),
+                      veiculo.tipo(),
+                      veiculo.codigo_cor()));
         }
         veiculoService.setVinculoAtivo(
             new Veiculo.Vincular(
@@ -386,7 +392,9 @@ public class PessoaService {
               newVeiculo.marca(),
               newVeiculo.ano(),
               newVeiculo.placa(),
-              newVeiculo.cor());
+              newVeiculo.cor(),
+              newVeiculo.tipo(),
+              newVeiculo.codigo_cor());
 
       veiculoService.update(
           new Veiculo.Update(
@@ -395,7 +403,9 @@ public class PessoaService {
               veiculoAtualizado.marca(),
               veiculoAtualizado.ano(),
               veiculoAtualizado.placa(),
-              veiculoAtualizado.cor()));
+              veiculoAtualizado.cor(),
+              veiculoAtualizado.tipo(),
+              veiculoAtualizado.codigo_cor()));
       veiculoService.setVinculoAtivo(
           new Veiculo.Vincular(new Veiculo.Id(oldVeiculo.id()), new Pessoa.Id(salva.id()), true));
     }
