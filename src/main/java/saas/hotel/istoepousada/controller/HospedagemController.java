@@ -70,6 +70,18 @@ public class HospedagemController {
     return hospedagemService.buscarHospedagensGrupo(grupoId);
   }
 
+  /** Histórico de hospedagens de uma pessoa (sem orçamentos), mais recente primeiro. */
+  @GetMapping("/pessoa/{pessoaId}")
+  public List<Hospedagem> buscarPorPessoa(@PathVariable Long pessoaId) {
+    return hospedagemService.buscarPorPessoa(pessoaId);
+  }
+
+  /** Histórico de hospedagens dos hóspedes vinculados a uma empresa. */
+  @GetMapping("/empresa/{empresaId}")
+  public List<Hospedagem> buscarPorEmpresa(@PathVariable Long empresaId) {
+    return hospedagemService.buscarPorEmpresa(empresaId);
+  }
+
   /** Reservas de um quarto, paginadas. periodo: "anteriores" | "proximas" | (vazio = mês/ano). */
   @GetMapping("/quarto/{quartoId}")
   public PageResult<Hospedagem> buscarPorQuarto(

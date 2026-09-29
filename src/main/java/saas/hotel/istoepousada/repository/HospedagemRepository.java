@@ -145,6 +145,37 @@ public class HospedagemRepository {
     return jdbcTemplate.query(sql.toString(), Hospedagem.MAPPER, params.toArray());
   }
 
+  // ── Histórico de uma pessoa / empresa ────────────────────────────────────────
+  // Orçamentos ficam de fora: não chegaram a virar hospedagem.
+
+  private static final String FORA_DO_HISTORICO =
+      " AND hospedagem.status::text NOT IN ('ORCAMENTO', 'ORCAMENTO_CANCELADO')"
+          + " ORDER BY hospedagem.data_hora_checkin DESC";
+
+  public List<Hospedagem> buscarPorPessoa(Long pessoaId) {
+    return jdbcTemplate.query(
+        SELECT_HOSPEDAGEM
+            + " WHERE hospedagem.id IN (SELECT hospedagem_id FROM public.hospedagem_pessoa WHERE pessoa_id = ?)"
+            + FORA_DO_HISTORICO,
+        Hospedagem.MAPPER,
+        pessoaId);
+  }
+
+  /** Hospedagens em que algum hóspede vinculado à empresa esteve. */
+  public List<Hospedagem> buscarPorEmpresa(Long empresaId) {
+    return jdbcTemplate.query(
+        SELECT_HOSPEDAGEM
+            + """
+               WHERE hospedagem.id IN (
+                 SELECT hp.hospedagem_id FROM public.hospedagem_pessoa hp
+                 JOIN public.empresa_pessoa ep ON ep.fk_pessoa = hp.pessoa_id
+                 WHERE ep.fk_empresa = ?)
+              """
+            + FORA_DO_HISTORICO,
+        Hospedagem.MAPPER,
+        empresaId);
+  }
+
   public Hospedagem buscarPorId(Long id) {
     try {
       return jdbcTemplate.queryForObject(

@@ -1473,6 +1473,20 @@ public class HospedagemService {
     return withDetailsBatch(base);
   }
 
+  /** Histórico de hospedagens de uma pessoa, da mais recente para a mais antiga. */
+  @Transactional(readOnly = true)
+  public List<Hospedagem> buscarPorPessoa(Long pessoaId) {
+    List<Hospedagem> base = hospedagemRepository.buscarPorPessoa(pessoaId);
+    return base.isEmpty() ? List.of() : withDetailsBatch(base);
+  }
+
+  /** Histórico de hospedagens dos hóspedes vinculados a uma empresa. */
+  @Transactional(readOnly = true)
+  public List<Hospedagem> buscarPorEmpresa(Long empresaId) {
+    List<Hospedagem> base = hospedagemRepository.buscarPorEmpresa(empresaId);
+    return base.isEmpty() ? List.of() : withDetailsBatch(base);
+  }
+
   /** Reservas de um quarto, paginadas. periodo: "anteriores" | "proximas" | null (mês/ano). */
   @Transactional(readOnly = true)
   public PageResult<Hospedagem> buscarPorQuarto(
